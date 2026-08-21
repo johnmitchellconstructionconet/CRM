@@ -7,6 +7,7 @@
 
 <meta charset="UTF-8">
 <title>Mitchell Construction &amp; Design — Portal</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=Montserrat:wght@600;700&family=Fraunces:ital@1&display=swap" rel="stylesheet">
@@ -2161,14 +2162,6 @@ select{cursor:pointer;}
 
       <div class="nav-section">
         <div class="nav-section-label">System</div>
-        <div class="nav-item" data-page="users">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.6 1z"/></svg>
-          Users &amp; Permissions
-        </div>
-        <div class="nav-item" data-page="locations">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>
-          Locations
-        </div>
         <div class="nav-item" data-page="automations">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/></svg>
           Automations
@@ -2312,23 +2305,6 @@ select{cursor:pointer;}
     </div>
 
     <!-- ===== SYSTEM SHELLS ===== -->
-    <div class="page" id="page-users">
-      <div class="page-header"><div><div class="eyebrow">System</div><h1>Users &amp; Permissions</h1><div class="sub">Role labels drive the UI; real security lives at the database level once Supabase is connected</div></div></div>
-      <table>
-        <thead><tr><th>Name</th><th>Role</th><th>Location</th><th>Status</th></tr></thead>
-        <tbody>
-          <tr><td class="name-cell">John Mitchell</td><td>Owner</td><td>All Locations</td><td><span class="pill pill-jade">Active</span></td></tr>
-          <tr><td class="name-cell">Kennedy Adamson</td><td>Designer / Selections</td><td>Springfield</td><td><span class="pill pill-jade">Active</span></td></tr>
-          <tr><td class="name-cell">Bre Mitchell</td><td>Office Admin</td><td>Springfield</td><td><span class="pill pill-jade">Active</span></td></tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="page" id="page-locations">
-      <div class="page-header"><div><div class="eyebrow">System</div><h1>Locations</h1><div class="sub">One market today, built for many</div></div>
-        <button class="btn btn-dark" onclick="openAddLocation()">+ Add Location</button>
-      </div>
-      <div id="locationsTableBody"></div>
-    </div>
     <div class="page" id="page-automations">
       <div class="page-header"><div><div class="eyebrow">System</div><h1>Automations</h1><div class="sub">Trigger → Condition → Action — event-driven only for now, delayed/wait automations need a real scheduler</div></div>
         <button class="btn btn-dark" onclick="openAddAutomation()">+ New Automation</button>
@@ -2350,6 +2326,23 @@ select{cursor:pointer;}
     <!-- ===== COMPANY SETTINGS: standard document templates ===== -->
     <div class="page" id="page-company-settings">
       <div class="page-header"><div><div class="eyebrow">System</div><h1>Company Settings</h1><div class="sub">Standard document templates — upload once here, and they automatically attach into the Files panel on every opportunity once that stage of the process is actually done.</div></div></div>
+      <div class="section-label-row"><div class="eyebrow">Google Calendar &amp; Email</div></div>
+      <div class="hint" style="margin-bottom:10px;">Connect your Google account to push meetings straight to Google Calendar and send emails directly from this program, instead of opening your mail app. Expires after about an hour (no server here to keep it silently refreshed) — just reconnect when needed.</div>
+      <div class="panel" style="margin-bottom:28px;"><div class="panel-body" style="padding:16px 20px;" id="googleConnectPanel"></div></div>
+      <div class="section-label-row"><div class="eyebrow">Users &amp; Permissions</div></div>
+      <div class="hint" style="margin-bottom:10px;">Role labels drive the UI; real security lives at the database level once Supabase RLS policies are tightened.</div>
+      <table style="margin-bottom:28px;">
+        <thead><tr><th>Name</th><th>Role</th><th>Location</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td class="name-cell">John Mitchell</td><td>Owner</td><td>All Locations</td><td><span class="pill pill-jade">Active</span></td></tr>
+          <tr><td class="name-cell">Kennedy Adamson</td><td>Designer / Selections</td><td>Springfield</td><td><span class="pill pill-jade">Active</span></td></tr>
+          <tr><td class="name-cell">Bre Mitchell</td><td>Office Admin</td><td>Springfield</td><td><span class="pill pill-jade">Active</span></td></tr>
+        </tbody>
+      </table>
+      <div class="section-label-row"><div class="eyebrow">Locations</div></div>
+      <div class="hint" style="margin-bottom:10px;">One market today, built for many.</div>
+      <div style="margin-bottom:10px;"><button class="btn btn-dark" onclick="openAddLocation()">+ Add Location</button></div>
+      <div id="locationsTableBody" style="margin-bottom:28px;"></div>
       <div class="section-label-row"><div class="eyebrow">Branding</div></div>
       <div class="panel" style="margin-bottom:20px;"><div class="panel-body" style="padding:16px 20px;">
         <div class="field-grid">
@@ -3629,17 +3622,22 @@ Best,
 Mitchell Construction & Design</textarea>
     <div class="row" style="margin-top:18px; justify-content:flex-end; gap:8px;">
       <button class="btn btn-outline" onclick="closeQuickOverlay()">Cancel</button>
-      <button class="btn btn-dark" onclick="sendComposeEmail()">Open in Mail App →</button>
+      <button class="btn btn-dark" onclick="sendComposeEmail()">${gIsConnected() ? 'Send Email →' : 'Open in Mail App →'}</button>
     </div>
   `);
 }
-function sendComposeEmail(){
+async function sendComposeEmail(){
   const to = document.getElementById('qeTo').value.trim();
   const subject = document.getElementById('qeSubject').value.trim();
   const body = document.getElementById('qeBody').value;
   if(ESTIMATE) ESTIMATE.email = to;
-  const mailto = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  window.location.href = mailto;
+  if(gIsConnected()){
+    const ok = await gSendEmail(to, subject, body);
+    if(!ok){ alert('Send failed — try reconnecting Google in Company Settings, or use "Open in Mail App" instead.'); return; }
+  } else {
+    const mailto = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailto;
+  }
   logActivity('Email', `Sent: "${subject}"`, 'You');
   closeQuickOverlay();
   if(CURRENT_OPP_ID) promptNextFollowUp(CURRENT_OPP_ID);
@@ -4493,10 +4491,115 @@ function escapeHtmlLite(s){
 // mailto: opens the person's actual email client pre-filled and ready to send, and Google
 // Calendar's public quick-add URL (plus a universal .ics download) schedules a real event
 // without needing any API key at all.
-function openMailto(email, subject, body){
+async function openMailto(email, subject, body){
   if(!email){ alert('No email on file for this contact.'); return; }
+  if(gIsConnected()){
+    const ok = await gSendEmail(email, subject||'', body||'');
+    if(ok) return;
+    // fall through to mailto: if the API send failed for any reason
+  }
   window.location.href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject||'')}&body=${encodeURIComponent(body||'')}`;
 }
+// ==================== GOOGLE CALENDAR + GMAIL (real API, OAuth in-browser) ====================
+// No backend server exists here, so this uses Google Identity Services' token client — the
+// browser-only OAuth pattern. That means: no secret key is ever embedded (safe to ship in this
+// file), BUT the access token Google hands back expires in ~1 hour with no silent refresh,
+// since silent refresh requires a backend token exchange. In practice: reconnect roughly once
+// per work session, not once ever. That's a real limitation of doing this without a server,
+// not a bug.
+//
+// REQUIRED SETUP (John, in Google Cloud Console, before this does anything):
+//   1. Create/use a project, enable the Google Calendar API and Gmail API.
+//   2. Configure the OAuth consent screen.
+//   3. Create an OAuth Client ID (type: Web application), add this app's real URL under
+//      "Authorized JavaScript origins".
+//   4. Paste that Client ID in below, replacing the placeholder.
+const GOOGLE_CLIENT_ID = 'PASTE_YOUR_GOOGLE_OAUTH_CLIENT_ID_HERE.apps.googleusercontent.com';
+const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/gmail.send';
+let G_TOKEN = null;    // { access_token, expires_at }
+let G_TOKEN_CLIENT = null;
+
+function gIsConfigured(){
+  return GOOGLE_CLIENT_ID && !GOOGLE_CLIENT_ID.startsWith('PASTE_YOUR');
+}
+function gIsConnected(){
+  return !!(G_TOKEN && G_TOKEN.access_token && Date.now() < G_TOKEN.expires_at);
+}
+function gInitTokenClient(){
+  if(!gIsConfigured() || typeof google === 'undefined' || !google.accounts) return;
+  G_TOKEN_CLIENT = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: GOOGLE_SCOPES,
+    callback: (resp) => {
+      if(resp.error){ console.error('Google auth error', resp); alert('Google connection failed: ' + resp.error); return; }
+      G_TOKEN = { access_token: resp.access_token, expires_at: Date.now() + (resp.expires_in * 1000) };
+      renderGoogleConnectPanel();
+    }
+  });
+}
+function gConnect(){
+  if(!gIsConfigured()){ alert('Google isn\'t set up yet — a Google Cloud OAuth Client ID needs to be added to this file first.'); return; }
+  if(!G_TOKEN_CLIENT) gInitTokenClient();
+  if(G_TOKEN_CLIENT) G_TOKEN_CLIENT.requestAccessToken();
+}
+function gDisconnect(){
+  if(G_TOKEN && typeof google !== 'undefined' && google.accounts){
+    google.accounts.oauth2.revoke(G_TOKEN.access_token, () => {});
+  }
+  G_TOKEN = null;
+  renderGoogleConnectPanel();
+}
+function renderGoogleConnectPanel(){
+  const host = document.getElementById('googleConnectPanel');
+  if(!host) return;
+  if(!gIsConfigured()){
+    host.innerHTML = `<div class="hint">Not set up yet — needs a Google OAuth Client ID added to the code first (see comment in source). Ask Claude to wire this up once you have one.</div>`;
+  } else if(gIsConnected()){
+    host.innerHTML = `<span class="pill pill-jade">Connected</span> <button class="btn btn-outline btn-sm" style="margin-left:8px;" onclick="gDisconnect()">Disconnect</button>`;
+  } else {
+    host.innerHTML = `<button class="btn btn-dark" onclick="gConnect()">Connect Google</button> <span class="hint" style="margin-left:8px;">Grants calendar + email-sending access to this browser session only — expires in about an hour.</span>`;
+  }
+}
+// ---- Calendar: create a real event via the Calendar API when connected ----
+async function gCreateCalendarEvent(title, dateStr, timeStr, details, durationMinutes){
+  if(!gIsConnected()) return false;
+  const startDt = new Date((dateStr||new Date().toISOString().slice(0,10)) + 'T' + (timeStr||'09:00') + ':00');
+  const endDt = new Date(startDt.getTime() + (durationMinutes||30) * 60000);
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  try{
+    const res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + G_TOKEN.access_token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        summary: title,
+        description: details || '',
+        start: { dateTime: startDt.toISOString(), timeZone: tz },
+        end: { dateTime: endDt.toISOString(), timeZone: tz }
+      })
+    });
+    if(!res.ok){ console.error('Calendar push failed', await res.text()); return false; }
+    return true;
+  }catch(e){ console.error('Calendar push error', e); return false; }
+}
+// ---- Gmail: send a real email via the Gmail API when connected ----
+function gBuildRawEmail(to, subject, body){
+  const msg = `To: ${to}\r\nSubject: ${subject}\r\nContent-Type: text/plain; charset="UTF-8"\r\n\r\n${body}`;
+  // Gmail needs base64url (not standard base64): +/ swapped for -_, no padding.
+  return btoa(unescape(encodeURIComponent(msg))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+async function gSendEmail(to, subject, body){
+  if(!gIsConnected()) return false;
+  try{
+    const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + G_TOKEN.access_token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ raw: gBuildRawEmail(to, subject, body) })
+    });
+    if(!res.ok){ console.error('Gmail send failed', await res.text()); return false; }
+    return true;
+  }catch(e){ console.error('Gmail send error', e); return false; }
+}
+// ==================== END GOOGLE CALENDAR + GMAIL ====================
 function icsDateStamp(dateStr, timeStr){
   // Formats a local date (+ optional HH:MM) into the UTC-less "floating time" format .ics
   // and Google Calendar both accept — simplest, avoids timezone-conversion edge cases.
@@ -4545,7 +4648,14 @@ function openScheduleMenu(anchorEl, title, dateStr, timeStr, details){
     el.onclick = () => { fn(); menu.remove(); };
     return el;
   };
-  menu.appendChild(item('📅 Add to Google Calendar', () => openGoogleCalendarQuickAdd(title, dateStr, timeStr, details)));
+  menu.appendChild(item(gIsConnected() ? '📅 Add to Google Calendar (one-click)' : '📅 Add to Google Calendar', async () => {
+    if(gIsConnected()){
+      const ok = await gCreateCalendarEvent(title, dateStr, timeStr, details);
+      if(!ok) alert('Could not create the calendar event — try reconnecting Google in Company Settings.');
+    } else {
+      openGoogleCalendarQuickAdd(title, dateStr, timeStr, details);
+    }
+  }));
   menu.appendChild(item('⬇ Download .ics (Outlook/Apple)', () => downloadICS(title, dateStr, timeStr, details)));
   document.body.appendChild(menu);
   setTimeout(() => {
@@ -7825,15 +7935,26 @@ function renderFollowUpsPage(){
 function renderProspectsClientsTable(){
   const body = document.getElementById('prospectsClientsBody');
   if(!body) return;
-  const prospectRows = OPPORTUNITIES.map(o => ({
+  // Once a deal converts to a Preconstruction project, the original opportunity record stays
+  // (nothing's lost) but it's the same person — so it must not also get its own row here, and
+  // whatever contact info was already on file (phone/email) needs to carry over onto the merged
+  // row rather than showing blank, since that's the one place this person's real number/email
+  // actually lives.
+  const convertedOppIds = new Set(Object.values(PROJECTS).map(p => p.convertedFrom).filter(Boolean));
+  const prospectRows = OPPORTUNITIES.filter(o => !convertedOppIds.has(o.id)).map(o => ({
     name: o.name, type: o.projectType, phone: o.phone, email: o.email, stage: o.stage,
     onClick: `openOpportunity('${o.id}')`,
     del: `<span style="cursor:pointer; color:var(--rust); font-size:15px;" onclick="event.stopPropagation(); deleteProspect('${o.id}')" title="Delete prospect">&times;</span>`
   }));
-  const clientRows = Object.values(PROJECTS).map(p => ({
-    name: p.client, type: p.projectType, phone: '—', email: '—', stage: 'In Preconstruction',
-    onClick: `openProject('${p.id}')`, del: ''
-  }));
+  const clientRows = Object.values(PROJECTS).map(p => {
+    const sourceOpp = p.convertedFrom ? OPPORTUNITIES.find(o => o.id === p.convertedFrom) : null;
+    return {
+      name: p.client, type: p.projectType,
+      phone: (sourceOpp && sourceOpp.phone) || '—',
+      email: (sourceOpp && sourceOpp.email) || '—',
+      stage: 'In Preconstruction', onClick: `openProject('${p.id}')`, del: ''
+    };
+  });
   const all = [...prospectRows, ...clientRows].sort((a,b) => (a.name||'').localeCompare(b.name||''));
   const thStyle = 'text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-faint); font-weight:700;';
   const rowsHtml = all.map(r => `<tr style="cursor:pointer;" onclick="${r.onClick}">
@@ -18558,6 +18679,8 @@ function runPostLoginInit(){
     renderAutomationsTable();
   });
 }
+renderGoogleConnectPanel();
+setTimeout(gInitTokenClient, 500); // slight delay so the GIS script (loaded async) is ready
 sbCheckExistingSession();
 }
 </script>
