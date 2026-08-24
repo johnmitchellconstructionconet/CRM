@@ -2485,8 +2485,15 @@ async function initAuthGate(){
     showLoginGate();
   }
   supabaseClient.auth.onAuthStateChange((event, session) => {
-    if(session) showAppRoot();
-    else showLoginGate();
+    if(session){
+      showAppRoot();
+      // Covers signing in after the page already booted (e.g. it first loaded to the
+      // login gate with no session) — pull real data now and start live sync.
+      loadAppState().then(() => { renderEverything(); subscribeToRealtimeSync(); });
+    } else {
+      showLoginGate();
+      if(REALTIME_CHANNEL){ supabaseClient.removeChannel(REALTIME_CHANNEL); REALTIME_CHANNEL = null; }
+    }
   });
 }
 async function handleLogin(){
@@ -16995,6 +17002,29 @@ async function loadAppState(){
   setSyncIndicator('Using built-in demo data');
   return 'demo';
 }
+// ---- Real-time multi-user sync — without this, each person only ever pulls data once,
+// at page load. Anything a teammate changes afterward would be invisible until a manual
+// reload. This subscribes to the shared app_state table so any row another signed-in
+// team member writes gets applied here automatically, live, no refresh needed. Supabase
+// echoes a person's own writes back too; re-applying and re-rendering from identical data
+// is harmless, just a little redundant, so no special-casing "was this my own change?" ----
+let REALTIME_CHANNEL = null;
+async function subscribeToRealtimeSync(){
+  if(!SUPABASE_CONFIGURED || !supabaseClient || REALTIME_CHANNEL) return;
+  const { data: sessionData } = await supabaseClient.auth.getSession();
+  if(!sessionData || !sessionData.session) return;
+  REALTIME_CHANNEL = supabaseClient.channel('app_state_sync')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'app_state' }, (payload) => {
+      const row = payload.new || payload.old;
+      if(!row || !row.key) return;
+      applyAppSnapshot({ [row.key]: row.value });
+      renderEverything();
+      setSyncIndicator('Updated by teammate ' + new Date().toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}));
+    })
+    .subscribe((status) => {
+      if(status === 'SUBSCRIBED') setSyncIndicator('Synced — live updates on');
+    });
+}
 function resetToDemoData(){
   if(!confirm('This clears everything saved — locally and in Supabase if connected — and reloads the original demo data. This cannot be undone. Continue?')) return;
   try{ localStorage.removeItem(APP_STATE_KEY); } catch(e){}
@@ -18744,36 +18774,41 @@ function escapeHtml(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&
 document.documentElement.style.setProperty('--font-display',"'"+DB.settings.font+"',sans-serif");
 
 const CLIENT_VIEW_PROJECT_ID = new URLSearchParams(location.search).get('client_project');
+function renderEverything(){
+  if(CLIENT_VIEW_PROJECT_ID && PROJECTS[CLIENT_VIEW_PROJECT_ID]){
+    renderClientProgressView(CLIENT_VIEW_PROJECT_ID);
+    return;
+  }
+  render();
+  renderSalesKanban();
+  renderSalesTable();
+  renderSalesSequence();
+  renderProjectCardGrids();
+  renderProspectsClientsTable();
+  renderRelationshipPartners();
+  renderDashboardFinancials();
+  renderDashboardAtAGlance();
+  renderFollowUpsPage();
+  renderTemplatesGrid();
+  renderTeamRoster();
+  renderLocationsTable();
+  renderThemeColorPanel();
+  renderDefaultAssigneesPanel();
+  renderScheduleTemplatePanel();
+  if(document.getElementById('page-project-detail')?.classList.contains('active') && CURRENT_PROJECT_ID) renderProjectDetail();
+  const openOppOverlay = document.getElementById('oppOverlay');
+  if(openOppOverlay && openOppOverlay.style.display === 'flex' && CURRENT_OPP_ID) openOpportunity(CURRENT_OPP_ID);
+}
 (async function bootApp(){
 await loadAppState();
-if(CLIENT_VIEW_PROJECT_ID && PROJECTS[CLIENT_VIEW_PROJECT_ID]){
-  renderClientProgressView(CLIENT_VIEW_PROJECT_ID);
-} else {
-render();
-
-
-renderSalesKanban();
-renderSalesTable();
-renderSalesSequence();
-renderProjectCardGrids();
-renderProspectsClientsTable();
-renderRelationshipPartners();
-renderDashboardFinancials();
-renderDashboardAtAGlance();
+renderEverything();
 document.querySelectorAll('#followupTabs .tab').forEach(t => t.addEventListener('click', () => {
   document.querySelectorAll('#followupTabs .tab').forEach(x => x.classList.remove('active'));
   t.classList.add('active');
   FOLLOWUP_FILTER = t.dataset.fu;
   renderFollowUpsPage();
 }));
-renderFollowUpsPage();
-renderTemplatesGrid();
-renderTeamRoster();
-renderLocationsTable();
-renderThemeColorPanel();
-renderDefaultAssigneesPanel();
-renderScheduleTemplatePanel();
-}
+subscribeToRealtimeSync();
 })();
 </script>
 <script type="text/plain" id="takeoffSrcdocRaw"><!doctype html>
