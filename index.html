@@ -2374,6 +2374,14 @@ select{cursor:pointer;}
         </div>
       </div></div>
       <div id="themeColorPanel" class="panel" style="margin-bottom:28px;"></div>
+      <div class="section-label-row"><div class="eyebrow">Data &amp; Storage</div></div>
+      <div class="panel" style="margin-bottom:28px;"><div class="panel-body" style="padding:16px 20px;">
+        <div class="hint" style="margin-bottom:12px;">Everything you enter autosaves to this browser every few seconds — reloading no longer resets it. This is saved locally on this computer only; it doesn't sync to Bre's or Kennedy's browser, and clearing browser data would erase it. Real shared, synced data across the team is the next step once this is moved into Supabase.</div>
+        <div class="row" style="align-items:center; gap:14px;">
+          <span id="autosaveIndicator" style="font-size:11.5px; color:var(--ink-faint);">Not saved yet</span>
+          <button class="btn btn-outline" style="margin-left:auto;" onclick="resetToDemoData()">Clear Saved Data &amp; Reset to Demo</button>
+        </div>
+      </div></div>
       <div class="section-label-row"><div class="eyebrow">Default Task Assignees</div></div>
       <div id="defaultAssigneesPanel" class="panel" style="margin-bottom:28px;"></div>
       <div id="templatesGrid" class="stat-grid" style="grid-template-columns:repeat(2,1fr); gap:16px;"></div>
@@ -16660,6 +16668,77 @@ function renderThemeColorPanel(){
     <div class="row" style="margin-top:12px;"><button class="btn btn-outline" onclick="resetThemeColors()">Reset to Default</button></div>
   </div>`;
 }
+// ============================================================
+// PERSISTENCE — without this, every reload re-runs the script from scratch and resets
+// everything back to the built-in demo data, wiping out anything real that was entered.
+// This autosaves the actual working data to the browser's localStorage and restores it
+// on load, so a reload picks up right where things were left off.
+//
+// Real limitation to know about: localStorage is per-browser, per-device. It does NOT
+// sync between John's computer, Bre's computer, and Kennedy's computer — each of you
+// editing this file locally has your own separate saved copy. Real shared, synced data
+// across the team means moving this into the Supabase project that's already connected
+// for login — a bigger, separate step from this fix.
+// ============================================================
+const APP_STATE_KEY = 'mcd_portal_state_v1';
+function captureThemeVars(){
+  const computed = getComputedStyle(document.documentElement);
+  const out = {};
+  THEME_EDITABLE_VARS.forEach(v => { out[v.key] = computed.getPropertyValue(v.key).trim(); });
+  return out;
+}
+function applyThemeVars(vars){
+  if(!vars) return;
+  Object.keys(vars).forEach(k => document.documentElement.style.setProperty(k, vars[k]));
+}
+function saveAppState(){
+  try{
+    const snapshot = {
+      OPPORTUNITIES, OPP_ESTIMATES, PROJECTS, RELATIONSHIP_PARTNERS, PROSPECT_CONTACTS,
+      PARTNER_CATEGORIES, COMPANY_LOCATIONS, TEAM_MEMBERS, CUSTOM_AUTOMATIONS,
+      DEFAULT_TASK_ASSIGNEES, COMPANY_TEMPLATES, COMPANY_LOGO, CONTACTS,
+      themeVars: captureThemeVars(),
+      savedAt: new Date().toISOString(),
+    };
+    localStorage.setItem(APP_STATE_KEY, JSON.stringify(snapshot));
+    const el = document.getElementById('autosaveIndicator');
+    if(el){ el.textContent = 'Saved ' + new Date().toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}); }
+  } catch(e){
+    console.warn('Autosave failed (likely storage quota or a non-serializable value):', e);
+  }
+}
+function loadAppState(){
+  let raw;
+  try{ raw = localStorage.getItem(APP_STATE_KEY); } catch(e){ return false; }
+  if(!raw) return false;
+  let snap;
+  try{ snap = JSON.parse(raw); } catch(e){ console.warn('Saved data was corrupted, starting fresh.', e); return false; }
+  if(snap.OPPORTUNITIES) OPPORTUNITIES = snap.OPPORTUNITIES;
+  if(snap.OPP_ESTIMATES) OPP_ESTIMATES = snap.OPP_ESTIMATES;
+  if(snap.PROJECTS){ Object.keys(PROJECTS).forEach(k => delete PROJECTS[k]); Object.assign(PROJECTS, snap.PROJECTS); }
+  if(snap.RELATIONSHIP_PARTNERS) RELATIONSHIP_PARTNERS = snap.RELATIONSHIP_PARTNERS;
+  if(snap.PROSPECT_CONTACTS) PROSPECT_CONTACTS = snap.PROSPECT_CONTACTS;
+  if(snap.PARTNER_CATEGORIES) PARTNER_CATEGORIES = snap.PARTNER_CATEGORIES;
+  if(snap.COMPANY_LOCATIONS) COMPANY_LOCATIONS = snap.COMPANY_LOCATIONS;
+  if(snap.TEAM_MEMBERS) TEAM_MEMBERS = snap.TEAM_MEMBERS;
+  if(snap.CUSTOM_AUTOMATIONS) CUSTOM_AUTOMATIONS = snap.CUSTOM_AUTOMATIONS;
+  if(snap.DEFAULT_TASK_ASSIGNEES) DEFAULT_TASK_ASSIGNEES = snap.DEFAULT_TASK_ASSIGNEES;
+  if(snap.COMPANY_TEMPLATES) COMPANY_TEMPLATES = snap.COMPANY_TEMPLATES;
+  if(snap.COMPANY_LOGO) setCompanyLogo(snap.COMPANY_LOGO);
+  if(snap.CONTACTS) Object.assign(CONTACTS, snap.CONTACTS);
+  if(snap.themeVars) applyThemeVars(snap.themeVars);
+  return true;
+}
+function resetToDemoData(){
+  if(!confirm('This clears everything saved in this browser and reloads the original demo data. This cannot be undone. Continue?')) return;
+  try{ localStorage.removeItem(APP_STATE_KEY); } catch(e){}
+  location.reload();
+}
+// Autosave on an interval and on the way out — covers every mutation everywhere in the
+// app without needing a save call hand-added to every single edit function.
+setInterval(saveAppState, 4000);
+window.addEventListener('beforeunload', saveAppState);
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden') saveAppState(); });
 /* ---------------- data layer ---------------- */
 const DB_KEY='mcd_inventory_demo_v1';
 const LOCATIONS=[
@@ -18394,6 +18473,7 @@ function escapeHtml(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&
 document.documentElement.style.setProperty('--font-display',"'"+DB.settings.font+"',sans-serif");
 
 const CLIENT_VIEW_PROJECT_ID = new URLSearchParams(location.search).get('client_project');
+loadAppState();
 if(CLIENT_VIEW_PROJECT_ID && PROJECTS[CLIENT_VIEW_PROJECT_ID]){
   renderClientProgressView(CLIENT_VIEW_PROJECT_ID);
 } else {
