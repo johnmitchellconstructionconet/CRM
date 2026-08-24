@@ -451,6 +451,13 @@ tbody tr:hover{background:#FCFBF8;}
 .mn-attachment{display:inline-flex; align-items:center; gap:5px; font-size:12px; color:var(--taupe-dark); text-decoration:none; font-weight:600;}
 .mn-attachment:hover{text-decoration:underline;}
 .mn-by{font-size:10.5px; color:var(--ink-faint); font-family:'Montserrat',sans-serif; letter-spacing:.02em; margin-left:auto;}
+.insp-cat-group{margin-bottom:16px;}
+.insp-cat-group:last-child{margin-bottom:0;}
+.insp-cat-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--taupe-dark); margin-bottom:8px; display:flex; align-items:center; gap:8px;}
+.insp-cat-count{background:var(--border-soft); color:var(--ink-faint); border-radius:10px; padding:1px 7px; font-size:10px; font-weight:600;}
+.insp-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(84px, 1fr)); gap:8px;}
+.insp-thumb{width:100%; aspect-ratio:1; border-radius:8px; background-size:cover; background-position:center; cursor:pointer; border:1px solid var(--border); transition:transform .12s ease, box-shadow .12s ease;}
+.insp-thumb:hover{transform:scale(1.04); box-shadow:0 4px 12px rgba(27,29,34,.15);}
 .formal-est-markup-bar{display:flex; align-items:center; gap:14px; padding:14px 20px; background:var(--gold-soft); border-radius:10px; margin-bottom:16px;}
 .formal-est-markup-bar input{width:90px; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:16px;}
 .ve-check{width:16px; height:16px; cursor:pointer; accent-color:var(--taupe-dark);}
@@ -2727,6 +2734,118 @@ function buildMeetingNoteCardHTML(n, deleteCall){
     </div>
   </div>`;
 }
+// ==================== INSPIRATION PHOTOS ====================
+// A dedicated, organized place for the Pinterest-style reference photos clients send —
+// grouped by room/category (not just a flat dump), each with a caption and who added it,
+// same care as Meeting Notes gets. Lives per-opportunity so it carries from Sales straight
+// into the Preconstruction project, same as everything else on this panel.
+const INSPIRATION_CATEGORIES = ['Kitchen','Primary Bath','Bathroom','Bedroom','Living / Great Room','Exterior','Landscaping','Lighting','Flooring & Tile','Cabinetry','Fixtures & Hardware','Paint & Color','Other'];
+function buildInspirationPhotosPanelHTML(oppId, e){
+  if(!e.inspirationPhotos) e.inspirationPhotos = [];
+  const photos = e.inspirationPhotos;
+  const groups = {};
+  photos.forEach(p => { const cat = p.category || 'Other'; if(!groups[cat]) groups[cat] = []; groups[cat].push(p); });
+  const orderedCats = INSPIRATION_CATEGORIES.filter(c => groups[c] && groups[c].length);
+  Object.keys(groups).forEach(c => { if(!orderedCats.includes(c)) orderedCats.push(c); });
+  return `
+    <div class="section-label-row"><div class="eyebrow">Inspiration Photos</div><span class="pill pill-slate" style="cursor:pointer;" onclick="openAddInspirationPhoto('${oppId}')">+ Add Photo</span></div>
+    <div class="panel" style="margin-bottom:20px;"><div class="panel-body" style="padding:14px 18px;">
+      ${!photos.length ? '<div class="empty-row">No inspiration photos yet — add ones the client has shared, organized by room.</div>' : orderedCats.map(cat => `
+        <div class="insp-cat-group">
+          <div class="insp-cat-label">${escapeHtmlLite(cat)} <span class="insp-cat-count">${groups[cat].length}</span></div>
+          <div class="insp-grid">
+            ${groups[cat].map(p => `<div class="insp-thumb" style="background-image:url('${p.dataUrl}')" onclick="openInspirationLightbox('${oppId}','${p.id}')"></div>`).join('')}
+          </div>
+        </div>`).join('')}
+    </div></div>`;
+}
+function openAddInspirationPhoto(oppId){
+  document.getElementById('addInspirationOverlay')?.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'addInspirationOverlay';
+  overlay.style.cssText = 'position:fixed; inset:0; z-index:400; display:flex; align-items:center; justify-content:center; background:rgba(20,18,14,.55); padding:20px;';
+  overlay.innerHTML = `
+    <div class="modal-card" style="width:420px; background:#fff; border-radius:14px; padding:20px; box-shadow:0 20px 50px rgba(0,0,0,.25);">
+      <div class="panel-title" style="margin-bottom:14px;">Add Inspiration Photo</div>
+      <div class="sidebar-label" style="padding:0 0 4px;">Photo</div>
+      <input type="file" id="inspFileInput" accept="image/*">
+      <div id="inspPreviewWrap" style="display:none; margin-top:10px;"><img id="inspPreviewImg" style="width:100%; border-radius:8px; max-height:180px; object-fit:cover;"></div>
+      <div class="sidebar-label" style="padding:10px 0 4px;">Room / Category</div>
+      <select id="inspCategoryInput">
+        ${INSPIRATION_CATEGORIES.map(c => `<option value="${escapeHtmlLite(c)}">${escapeHtmlLite(c)}</option>`).join('')}
+      </select>
+      <div class="sidebar-label" style="padding:10px 0 4px;">Caption / Notes (optional)</div>
+      <input type="text" id="inspCaptionInput" class="collab-input" placeholder="e.g. Client loves this tile pattern for the shower">
+      <div class="row" style="margin-top:16px; justify-content:flex-end; gap:8px;">
+        <button class="btn" id="cancelAddInsp">Cancel</button>
+        <button class="btn btn-primary" id="submitAddInsp">Add Photo</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.onclick = (ev) => { if(ev.target === overlay) overlay.remove(); };
+  overlay.querySelector('#cancelAddInsp').onclick = () => overlay.remove();
+  let pendingDataUrl = null;
+  overlay.querySelector('#inspFileInput').onchange = async (ev) => {
+    const file = ev.target.files[0];
+    if(!file) return;
+    pendingDataUrl = await readFileAsDataUrl(file);
+    overlay.querySelector('#inspPreviewWrap').style.display = 'block';
+    overlay.querySelector('#inspPreviewImg').src = pendingDataUrl;
+  };
+  overlay.querySelector('#submitAddInsp').onclick = () => {
+    if(!pendingDataUrl){ alert('Choose a photo first.'); return; }
+    const est = OPP_ESTIMATES[oppId];
+    if(!est.inspirationPhotos) est.inspirationPhotos = [];
+    est.inspirationPhotos.push({
+      id: 'insp' + Date.now(),
+      dataUrl: pendingDataUrl,
+      category: overlay.querySelector('#inspCategoryInput').value,
+      caption: overlay.querySelector('#inspCaptionInput').value.trim(),
+      uploadedAt: new Date().toISOString().slice(0,10),
+      uploadedBy: CURRENT_LOGGED_IN_USER,
+    });
+    overlay.remove();
+    renderProjectDetail();
+  };
+}
+function openInspirationLightbox(oppId, photoId){
+  const est = OPP_ESTIMATES[oppId];
+  const photo = est && (est.inspirationPhotos || []).find(p => p.id === photoId);
+  if(!photo) return;
+  document.getElementById('inspLightboxOverlay')?.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'inspLightboxOverlay';
+  overlay.style.cssText = 'position:fixed; inset:0; z-index:410; display:flex; align-items:center; justify-content:center; background:rgba(20,18,14,.8); padding:24px;';
+  overlay.innerHTML = `
+    <div style="max-width:720px; width:100%; background:#fff; border-radius:12px; overflow:hidden;">
+      <img src="${photo.dataUrl}" style="width:100%; max-height:65vh; object-fit:contain; background:#111; display:block;">
+      <div style="padding:16px 20px;">
+        <div class="row" style="justify-content:space-between; align-items:flex-start;">
+          <div>
+            <span class="pill pill-gold">${escapeHtmlLite(photo.category || 'Other')}</span>
+            <div class="sub-txt" style="margin-top:6px;">Added ${fmtNoteDate(photo.uploadedAt)} by ${escapeHtmlLite(photo.uploadedBy || CURRENT_LOGGED_IN_USER)}</div>
+          </div>
+          <span style="cursor:pointer; color:var(--ink-faint); font-size:22px; line-height:1;" onclick="closeInspirationLightbox()">&times;</span>
+        </div>
+        ${photo.caption ? `<div style="margin-top:10px; font-size:13.5px; color:var(--ink);">${escapeHtmlLite(photo.caption)}</div>` : ''}
+        <div class="row" style="margin-top:14px; justify-content:flex-end;">
+          <button class="btn btn-outline" onclick="deleteInspirationPhoto('${oppId}','${photoId}')">🗑 Delete Photo</button>
+        </div>
+      </div>
+    </div>`;
+  overlay.onclick = (ev) => { if(ev.target === overlay) closeInspirationLightbox(); };
+  document.body.appendChild(overlay);
+}
+function closeInspirationLightbox(){
+  document.getElementById('inspLightboxOverlay')?.remove();
+}
+function deleteInspirationPhoto(oppId, photoId){
+  if(!confirm('Delete this photo?')) return;
+  const est = OPP_ESTIMATES[oppId];
+  if(est) est.inspirationPhotos = (est.inspirationPhotos || []).filter(p => p.id !== photoId);
+  closeInspirationLightbox();
+  renderProjectDetail();
+}
 function stageIndex(stage){ return STAGE_ORDER.indexOf(stage); }
 function estimateShouldShow(stage){ return stageIndex(stage) >= stageIndex(ESTIMATE_VISIBLE_FROM_STAGE); }
 function daysInStage(opp){
@@ -4148,6 +4267,7 @@ function buildCarriedFromSalesHTML(opp, e, projectId, clientName){
     <div class="panel" style="margin-bottom:24px;"><div class="panel-body" style="padding:14px 18px;">
       ${e.meetingNotes.length ? e.meetingNotes.slice().reverse().map(n => buildMeetingNoteCardHTML(n, `deleteProjectMeetingNote('${opp.id}','${n.id}')`)).join('') : '<div class="empty-row">No meeting notes carried over from Sales.</div>'}
     </div></div>`;
+  const inspirationPhotosPanel = buildInspirationPhotosPanelHTML(opp.id, e);
   const clientProfilePanel = buildClientProfilePanelHTML(opp.id, clientName, `renderProjectDetail()`);
 
   return `
@@ -4164,6 +4284,7 @@ function buildCarriedFromSalesHTML(opp, e, projectId, clientName){
         ${filesPanel}
         ${tasksPanel}
         ${meetingNotesPanel}
+        ${inspirationPhotosPanel}
       </div>
     </div>`;
 }
