@@ -250,17 +250,16 @@ tbody tr:hover{background:#FCFBF8;}
 
 /* ---- Monday-style grouped board (Financial pages) ---- */
 .mboard-group{margin-bottom:20px; border-radius:10px; overflow:hidden; border:1px solid var(--border);}
-.mboard-group-head{padding:10px 16px; display:flex; justify-content:space-between; align-items:center; color:#fff; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13.5px;}
+.mboard-group-head{padding:12px 18px; display:flex; justify-content:space-between; align-items:center; background:var(--paper); border-left:4px solid var(--group-accent, var(--taupe)); border-bottom:1px solid var(--border-soft); font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13.5px; color:var(--ink);}
 .bulk-cb{width:15px; height:15px; cursor:pointer; accent-color:var(--rust);}
 .bulk-action-bar{display:none; align-items:center; gap:12px; position:sticky; top:0; z-index:20; background:var(--ink); color:#fff; padding:10px 16px; border-radius:8px; margin-bottom:10px; font-size:13px;}
 .bulk-action-bar .btn-sm{padding:5px 10px; font-size:12px;}
-.mboard-group-head .count{background:rgba(255,255,255,0.22); border-radius:20px; padding:2px 10px; font-size:11.5px;}
-.mboard-group.g-pending .mboard-group-head{background:var(--gold); color:#4a3a12;}
-.mboard-group.g-pending .mboard-group-head .count{background:rgba(0,0,0,0.12);}
-.mboard-group.g-complete .mboard-group-head{background:var(--jade);}
-.mboard-group.g-urgent .mboard-group-head{background:var(--rust);}
-.mboard-group.g-transfer .mboard-group-head{background:var(--taupe-dark);}
-.mboard-group.g-payment .mboard-group-head{background:var(--ink);}
+.mboard-group-head .count{background:var(--group-accent-soft, var(--border-soft)); color:var(--group-accent, var(--ink-soft)); border-radius:20px; padding:2px 11px; font-size:11px; font-weight:700;}
+.mboard-group.g-pending .mboard-group-head{--group-accent:var(--gold); --group-accent-soft:var(--gold-soft);}
+.mboard-group.g-complete .mboard-group-head{--group-accent:var(--jade); --group-accent-soft:var(--jade-soft);}
+.mboard-group.g-urgent .mboard-group-head{--group-accent:var(--rust); --group-accent-soft:var(--rust-soft);}
+.mboard-group.g-transfer .mboard-group-head{--group-accent:var(--taupe-dark); --group-accent-soft:var(--border-soft);}
+.mboard-group.g-payment .mboard-group-head{--group-accent:var(--ink); --group-accent-soft:var(--border-soft);}
 .mboard-table{width:100%; background:#fff;}
 .mboard-table td, .mboard-table th{padding:9px 16px; font-size:13px; border-bottom:1px solid var(--border-soft);}
 .mboard-table tr:last-child td{border-bottom:none;}
@@ -4887,8 +4886,8 @@ function buildMondayTableHTML(groups, columns, columnWidths, tableId, bulkKind){
       return `<th style="width:${widths[i]}; text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:0.03em; color:var(--ink-faint); font-weight:700;">${content}</th>`;
     }).join('');
     return `<div class="mboard-group">
-      <div class="mboard-group-head" style="background:${g.color}; cursor:pointer;" onclick="toggleMboardGroup('${groupId}')">
-        <span><span class="mboard-collapse-caret" style="display:inline-block; margin-right:6px; transition:transform 0.15s ease; transform:rotate(${isCollapsed?'-90deg':'0deg'});">▾</span>${escapeHtmlLite(g.label)}</span>
+      <div class="mboard-group-head" style="--group-accent:${g.color}; --group-accent-soft:${g.color}22; cursor:pointer;" onclick="toggleMboardGroup('${groupId}')">
+        <span><span class="mboard-collapse-caret" style="display:inline-block; margin-right:6px; transition:transform 0.15s ease; transform:rotate(${isCollapsed?'-90deg':'0deg'}); color:var(--ink-faint);">▾</span>${escapeHtmlLite(g.label)}</span>
         <span class="count">${g.rows.length}</span>
       </div>
       <table class="mboard-table" id="${groupId}" style="table-layout:fixed; width:100%; ${isCollapsed?'display:none;':''}">
@@ -5364,7 +5363,7 @@ function renderLostLeads(){
       <td class="muted">${o.lostDate || '—'}</td>
       <td>${o.lostReason ? escapeHtmlLite(o.lostReason) : '<span style="color:var(--ink-faint); font-style:italic;">No reason on record</span>'}</td>
     </tr>`);
-  const groups = [{ label: `🔴 Lost Leads (${rows.length} on file)`, color: '#B04035', rows }];
+  const groups = [{ label: `Lost Leads (${rows.length} on file)`, color: '#9C6357', rows }];
   container.innerHTML = buildMondayTableHTML(groups, ['Lead','Project Type','Deal Value','Date Lost','Reason'], ['18%','14%','14%','14%','40%'], 'lost');
 }
 function initials(name){
@@ -5374,26 +5373,18 @@ function ltClass(temp){
   return {Hot:'lt-hot', Warm:'lt-warm', Cold:'lt-cold'}[temp] || 'lt-cold';
 }
 const SALES_STAGE_COLORS = {
-  'Need to Contact': '#9A9384', 'Attempted to Contact': '#9A9384', 'Contact Made': '#8B7A5E',
-  'Discovery Call Scheduled': '#8B7A5E', 'Discovery / Initial Meeting': '#B08D57',
-  'Site Visit or Office Consultation Scheduled': '#B08D57',
-  'Preliminary Budget Analysis / Preliminary Estimate': '#C9A868',
-  'Preliminary Estimate Presented to Client': '#C9A868',
-  'Preconstruction Agreement Sent': '#6E5A43',
-};
-const SALES_STAGE_ICONS = {
-  'Need to Contact': '🆕', 'Attempted to Contact': '📞', 'Contact Made': '🤝',
-  'Discovery Call Scheduled': '📅', 'Discovery / Initial Meeting': '🔍',
-  'Site Visit or Office Consultation Scheduled': '🏠',
-  'Preliminary Budget Analysis / Preliminary Estimate': '💰',
-  'Preliminary Estimate Presented to Client': '📄',
-  'Preconstruction Agreement Sent': '✍️',
+  'Need to Contact': '#63707A', 'Attempted to Contact': '#63707A', 'Contact Made': '#6A6455',
+  'Discovery Call Scheduled': '#6A6455', 'Discovery / Initial Meeting': '#4A453A',
+  'Site Visit or Office Consultation Scheduled': '#A69064',
+  'Preliminary Budget Analysis / Preliminary Estimate': '#A69064',
+  'Preliminary Estimate Presented to Client': '#8C7852',
+  'Preconstruction Agreement Sent': '#5C7A63',
 };
 function renderSalesTable(){
   const body = document.getElementById('pipeline-table');
   if(!body) return;
   const groups = STAGE_ORDER.map(stage => ({
-    label: `${SALES_STAGE_ICONS[stage] || ''} ${stage}`, color: SALES_STAGE_COLORS[stage] || '#9A9384', hideIfEmpty: true,
+    label: stage, color: SALES_STAGE_COLORS[stage] || '#9A9384', hideIfEmpty: true,
     rowIds: OPPORTUNITIES.filter(o => o.stage === stage).map(o => o.id),
     rows: OPPORTUNITIES.filter(o => o.stage === stage).map(o => {
       const oOverdue = o.nextFollowUpDate && new Date(o.nextFollowUpDate+'T00:00:00') < TODAY;
@@ -6615,8 +6606,7 @@ function buildPreconProjectCard(p){
     </div>
   </div>`;
 }
-const PRECON_PHASE_COLORS = {3:'#8B7A5E', 4:'#B08D57', 5:'#C9A868', 6:'#6E5A43', 7:'#4C7A56', 8:'#3D6249'};
-const PRECON_PHASE_ICONS = {3:'🔍', 4:'📐', 5:'🎨', 6:'🖼️', 7:'💵', 8:'📝'};
+const PRECON_PHASE_COLORS = {3:'#63707A', 4:'#6A6455', 5:'#4A453A', 6:'#A69064', 7:'#8C7852', 8:'#5C7A63'};
 function setPreconView(view, btn){
   document.querySelectorAll('#page-precon-dash .view-toggle button').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
@@ -6628,12 +6618,12 @@ function renderPreconProjectTable(){
   if(!el) return;
   const projects = Object.values(PROJECTS);
   const groups = WORKFLOW_PHASE_DEFS.map(pd => ({
-    label: `${PRECON_PHASE_ICONS[pd.n] || ''} Phase ${pd.n} · ${pd.name}`, color: PRECON_PHASE_COLORS[pd.n], hideIfEmpty: true,
+    label: `Phase ${pd.n} · ${pd.name}`, color: PRECON_PHASE_COLORS[pd.n], hideIfEmpty: true,
     rowIds: projects.filter(p => p.currentPhase === pd.n).map(p => p.id),
     rows: projects.filter(p => p.currentPhase === pd.n).map(buildPreconTableRow)
   }));
   const readyProjects = projects.filter(p => p.currentPhase === null);
-  groups.push({ label: '✅ Ready for Production', color: '#2F5C3C', hideIfEmpty: true, rowIds: readyProjects.map(p => p.id), rows: readyProjects.map(buildPreconTableRow) });
+  groups.push({ label: 'Ready for Production', color: '#5C7A63', hideIfEmpty: true, rowIds: readyProjects.map(p => p.id), rows: readyProjects.map(buildPreconTableRow) });
   el.innerHTML = `<div class="bulk-action-bar" id="bulkBar_project"></div>` + buildMondayTableHTML(groups, ['','Project','Owner','Project Type','Deal Value','Status','Change Phase'], ['4%','22%','13%','16%','13%','15%','17%'], 'precon', 'project');
   renderBulkActionBar('project');
 }
@@ -6641,24 +6631,24 @@ function buildPreconTableRow(p){
   const task = getActiveTaskForProject(p);
   const needsAction = task && (!task.milestone.assignee || (task.days !== null && task.days > 10));
   const waiting = isProjectWaiting(p);
-  let flag, reason;
+  let flag, reason, pillClass;
   if(needsAction){
-    flag = '🔴 Needs Action';
+    flag = 'Needs Action'; pillClass = 'pill-rust';
     const reasons = [];
     if(task && !task.milestone.assignee) reasons.push(`"${task.milestone.name}" has nobody assigned`);
     if(task && task.days !== null && task.days > 10) reasons.push(`"${task.milestone.name}" has been active ${task.days} days with no movement`);
     reason = reasons.join(' — ');
   } else if(waiting){
-    flag = '🟡 Waiting';
+    flag = 'Waiting'; pillClass = 'pill-gold';
     reason = `Waiting on: ${p.nextAction.blocking}`;
   } else if(p.currentPhase === null){
-    flag = '✅ Complete';
+    flag = 'Complete'; pillClass = 'pill-jade';
     reason = 'All phases finished — ready for production.';
   } else if(task){
-    flag = '🟢 On Track';
+    flag = 'On Track'; pillClass = 'pill-jade';
     reason = `"${task.milestone.name}" — assigned to ${task.milestone.assignee}, moving normally.`;
   } else {
-    flag = '—';
+    flag = null; pillClass = '';
     reason = 'Nothing currently active.';
   }
   return `<tr style="cursor:pointer;" onclick="openProject('${p.id}')">
@@ -6667,7 +6657,7 @@ function buildPreconTableRow(p){
     <td>${p.owner}</td>
     <td>${p.projectType}</td>
     <td>${fmtMoneyOrDash(p.dealValue)}</td>
-    <td title="${escapeHtmlLite(reason)}" style="cursor:pointer;" onclick="event.stopPropagation(); alert('${escapeHtmlLite(p.name)}\\n\\n${escapeHtmlLite(reason)}')">${flag}</td>
+    <td title="${escapeHtmlLite(reason)}" style="cursor:pointer;" onclick="event.stopPropagation(); alert('${escapeHtmlLite(p.name)}\\n\\n${escapeHtmlLite(reason)}')">${flag ? `<span class="pill ${pillClass}">${flag}</span>` : '—'}</td>
     <td onclick="event.stopPropagation();"><select class="rel-status-select" style="max-width:150px; background:var(--border-soft); color:var(--ink-soft);" onchange="setProjectPhase('${p.id}', this.value)">
       ${WORKFLOW_PHASE_DEFS.map(pd => `<option value="${pd.n}" ${p.currentPhase===pd.n?'selected':''}>Phase ${pd.n} · ${pd.name}</option>`).join('')}
       <option value="" ${p.currentPhase===null?'selected':''}>Ready for Production</option>
@@ -6998,7 +6988,7 @@ function buildActionBannerHTML(p){
     if(task.days !== null && task.days > 10) reasons.push(`it's been active ${task.days} days with no movement`);
     return `<div class="panel" style="margin-bottom:18px; border-color:var(--rust); border-width:2px;"><div class="panel-body" style="padding:16px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;">
       <div>
-        <div style="font-weight:700; color:var(--rust); font-size:13px;">🔴 Action Needed</div>
+        <div style="font-weight:700; color:var(--rust); font-size:13px;">Action Needed</div>
         <div style="font-weight:600; margin-top:3px;">${escapeHtmlLite(task.milestone.name)}</div>
         <div class="sub-txt" style="margin-top:2px;">${reasons.join(' — ')}</div>
       </div>
@@ -7356,12 +7346,12 @@ function renderProspectContacts(){
   if(!host) return;
   const filtered = PROSPECT_LOCATION_FILTER === 'all' ? PROSPECT_CONTACTS : PROSPECT_CONTACTS.filter(c => c.location === PROSPECT_LOCATION_FILTER);
   const groups = COMPANY_LOCATIONS.filter(loc => PROSPECT_LOCATION_FILTER === 'all' || loc.name === PROSPECT_LOCATION_FILTER).map(loc => ({
-    label: `📍 ${loc.name}`, color: '#6b6f76',
+    label: loc.name, color: '#63707A',
     rowIds: filtered.filter(c => c.location === loc.name).map(c => c.id),
     rows: filtered.filter(c => c.location === loc.name).map(buildProspectRow)
   }));
   const unassigned = filtered.filter(c => !COMPANY_LOCATIONS.find(l => l.name === c.location));
-  if(unassigned.length) groups.push({label:'📍 Unassigned Location', color:'#9A9384', rowIds: unassigned.map(c => c.id), rows: unassigned.map(buildProspectRow)});
+  if(unassigned.length) groups.push({label:'Unassigned Location', color:'#8C7852', rowIds: unassigned.map(c => c.id), rows: unassigned.map(buildProspectRow)});
   host.innerHTML = `
     <div class="hint" style="margin-bottom:14px;">Head-hunting new referral partners — people and companies you're actively trying to bring into the fold, not relationships you already have. Convert to a real Partner once the relationship is real.</div>
     <div class="row" style="gap:10px; margin-bottom:16px; align-items:center;">
@@ -7513,9 +7503,9 @@ function convertProspectToPartner(id){
 }
 const REL_STAGE_CLASS = {'New Relations Identified':'pill-ink','Building Relationship':'pill-gold','Keeping in Contact':'pill-jade'};
 const REL_STAGE_GROUPS = [
-  {key:'New Relations Identified', label:'🆕 New Relations Identified', hint:'Just identified — no real relationship built yet.'},
-  {key:'Building Relationship', label:'🤝 Building Relationship', hint:'Actively investing in this one — regular touchpoints, getting to know each other.'},
-  {key:'Keeping in Contact', label:'📞 Keeping in Contact', hint:'Established relationship — steady, lower-effort maintenance.'},
+  {key:'New Relations Identified', label:'New Relations Identified', hint:'Just identified — no real relationship built yet.'},
+  {key:'Building Relationship', label:'Building Relationship', hint:'Actively investing in this one — regular touchpoints, getting to know each other.'},
+  {key:'Keeping in Contact', label:'Keeping in Contact', hint:'Established relationship — steady, lower-effort maintenance.'},
 ];
 const REL_FOLLOWUP_THRESHOLD_DAYS = 60;
 function needsRelFollowUp(p){
@@ -7563,7 +7553,7 @@ function renderRelationshipStats(){
     <div class="stat-card" style="cursor:pointer;" onclick="document.getElementById('relPartnersBody').scrollIntoView({behavior:'smooth'})"><div class="num" style="color:var(--rust);">${RELATIONSHIP_PARTNERS.filter(p => p.stage === 'Dormant').length}</div><div class="lbl">Dormant Partners</div><div class="delta warn">Need re-engagement — click to view</div></div>
   `;
 }
-const REL_STAGE_COLORS = {'New Relations Identified':'#9A9384', 'Building Relationship':'#C9A868', 'Keeping in Contact':'#4C7A56'};
+const REL_STAGE_COLORS = {'New Relations Identified':'#63707A', 'Building Relationship':'#A69064', 'Keeping in Contact':'#5C7A63'};
 function renderRelationshipPartners(){
   const groupsEl = document.getElementById('relPartnersGroups');
   if(!groupsEl) return;
