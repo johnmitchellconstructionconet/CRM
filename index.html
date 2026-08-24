@@ -4741,9 +4741,8 @@ function bulkDeleteSelected(kind){
   if(document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboardAtAGlance();
   saveAppState();
 }
-function buildMondayTableHTML(groups, columns, columnWidths, tableId){
+function buildMondayTableHTML(groups, columns, columnWidths, tableId, bulkKind){
   const widths = columnWidths || columns.map(() => (100/columns.length).toFixed(2)+'%');
-  const headCells = columns.map((c,i) => `<th style="width:${widths[i]}; text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:0.03em; color:var(--ink-faint); font-weight:700;">${c}</th>`).join('');
   return groups.map(g => {
     const groupId = (tableId || 'mb') + '__' + g.label.replace(/[^a-zA-Z0-9]/g, '');
     // Every group stays visible even with nothing in it — but the first time a group is
@@ -4751,6 +4750,18 @@ function buildMondayTableHTML(groups, columns, columnWidths, tableId){
     // Once a person manually expands/collapses it, that choice persists across re-renders.
     if(!(groupId in MBOARD_COLLAPSED) && !g.rows.length) MBOARD_COLLAPSED[groupId] = true;
     const isCollapsed = !!MBOARD_COLLAPSED[groupId];
+    // The select-all checkbox in each group's header is scoped to just that group's own
+    // rows — checking it should never reach into other groups. It also reflects whether
+    // every row currently in this group is already selected.
+    const groupIds = g.rowIds || [];
+    const groupAllSelected = bulkKind && groupIds.length && groupIds.every(id => BULK_SELECTED[bulkKind].has(id));
+    const headCells = columns.map((c,i) => {
+      const isCheckboxCol = bulkKind && i === 0;
+      const content = isCheckboxCol
+        ? `<input type="checkbox" class="bulk-cb" ${groupAllSelected ? 'checked' : ''} onclick='event.stopPropagation(); toggleBulkSelectAll(${JSON.stringify(bulkKind)}, ${JSON.stringify(groupIds)}, this.checked)'>`
+        : c;
+      return `<th style="width:${widths[i]}; text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:0.03em; color:var(--ink-faint); font-weight:700;">${content}</th>`;
+    }).join('');
     return `<div class="mboard-group">
       <div class="mboard-group-head" style="background:${g.color}; cursor:pointer;" onclick="toggleMboardGroup('${groupId}')">
         <span><span class="mboard-collapse-caret" style="display:inline-block; margin-right:6px; transition:transform 0.15s ease; transform:rotate(${isCollapsed?'-90deg':'0deg'});">▾</span>${escapeHtmlLite(g.label)}</span>
@@ -5259,6 +5270,7 @@ function renderSalesTable(){
   if(!body) return;
   const groups = STAGE_ORDER.map(stage => ({
     label: `${SALES_STAGE_ICONS[stage] || ''} ${stage}`, color: SALES_STAGE_COLORS[stage] || '#9A9384', hideIfEmpty: true,
+    rowIds: OPPORTUNITIES.filter(o => o.stage === stage).map(o => o.id),
     rows: OPPORTUNITIES.filter(o => o.stage === stage).map(o => {
       const oOverdue = o.nextFollowUpDate && new Date(o.nextFollowUpDate+'T00:00:00') < TODAY;
       return `<tr style="cursor:pointer; ${oOverdue ? 'background:#FBEFEA;' : ''}" onclick="openOpportunity('${o.id}')">
@@ -5279,7 +5291,7 @@ function renderSalesTable(){
     })
   }));
   const bulkBar = `<div class="bulk-action-bar" id="bulkBar_opp"></div>`;
-  body.innerHTML = bulkBar + buildMondayTableHTML(groups, ['<input type="checkbox" class="bulk-cb" onclick="toggleBulkSelectAll(\'opp\', ' + JSON.stringify(OPPORTUNITIES.map(o=>o.id)) + ', this.checked)">','Lead','Project Type','Deal Value','Owner','Lead Temp','Next Follow-Up','Change Status'], ['4%','20%','13%','12%','12%','10%','13%','13%'], 'sales');
+  body.innerHTML = bulkBar + buildMondayTableHTML(groups, ['','Lead','Project Type','Deal Value','Owner','Lead Temp','Next Follow-Up','Change Status'], ['4%','20%','13%','12%','12%','10%','13%','13%'], 'sales', 'opp');
   renderBulkActionBar('opp');
 }
 
@@ -7201,10 +7213,11 @@ function renderProspectContacts(){
   const filtered = PROSPECT_LOCATION_FILTER === 'all' ? PROSPECT_CONTACTS : PROSPECT_CONTACTS.filter(c => c.location === PROSPECT_LOCATION_FILTER);
   const groups = COMPANY_LOCATIONS.filter(loc => PROSPECT_LOCATION_FILTER === 'all' || loc.name === PROSPECT_LOCATION_FILTER).map(loc => ({
     label: `📍 ${loc.name}`, color: '#6b6f76',
+    rowIds: filtered.filter(c => c.location === loc.name).map(c => c.id),
     rows: filtered.filter(c => c.location === loc.name).map(buildProspectRow)
   }));
   const unassigned = filtered.filter(c => !COMPANY_LOCATIONS.find(l => l.name === c.location));
-  if(unassigned.length) groups.push({label:'📍 Unassigned Location', color:'#9A9384', rows: unassigned.map(buildProspectRow)});
+  if(unassigned.length) groups.push({label:'📍 Unassigned Location', color:'#9A9384', rowIds: unassigned.map(c => c.id), rows: unassigned.map(buildProspectRow)});
   host.innerHTML = `
     <div class="hint" style="margin-bottom:14px;">Head-hunting new referral partners — people and companies you're actively trying to bring into the fold, not relationships you already have. Convert to a real Partner once the relationship is real.</div>
     <div class="row" style="gap:10px; margin-bottom:16px; align-items:center;">
@@ -7215,7 +7228,7 @@ function renderProspectContacts(){
       </select>
     </div>
     <div class="bulk-action-bar" id="bulkBar_newcontact"></div>
-    ${buildMondayTableHTML(groups, ['<input type="checkbox" class="bulk-cb" onclick="toggleBulkSelectAll(\'newcontact\', ' + JSON.stringify(PROSPECT_CONTACTS.map(c=>c.id)) + ', this.checked)">','Name','Category','Company','How Found','Status',''], ['4%','18%','13%','16%','21%','15%','8%'], 'prospects')}
+    ${buildMondayTableHTML(groups, ['','Name','Category','Company','How Found','Status',''], ['4%','18%','13%','16%','21%','15%','8%'], 'prospects', 'newcontact')}
   `;
   renderBulkActionBar('newcontact');
 }
@@ -7413,6 +7426,7 @@ function renderRelationshipPartners(){
   renderRelationshipStats();
   const groups = REL_STAGE_GROUPS.map(g => ({
     label: g.label, color: REL_STAGE_COLORS[g.key],
+    rowIds: RELATIONSHIP_PARTNERS.filter(p => p.stage === g.key).map(p => p.id),
     rows: RELATIONSHIP_PARTNERS.filter(p => p.stage === g.key).map(p => {
       const stats = combinedReferralStats(p);
       const avgDeal = stats.closedDeals ? stats.closedRevenue / stats.closedDeals : 0;
@@ -7436,7 +7450,7 @@ function renderRelationshipPartners(){
     })
   }));
   const bulkBar = `<div class="bulk-action-bar" id="bulkBar_partner"></div>`;
-  groupsEl.innerHTML = bulkBar + buildMondayTableHTML(groups, ['<input type="checkbox" class="bulk-cb" onclick="toggleBulkSelectAll(\'partner\', ' + JSON.stringify(RELATIONSHIP_PARTNERS.map(p=>p.id)) + ', this.checked)">','Partner','Category','Active Referrals','Closed Deals','Closed Revenue','Avg Deal','Last Contact','Status',''], ['4%','14%','12%','9%','9%','11%','9%','10%','13%','4%'], 'relationships');
+  groupsEl.innerHTML = bulkBar + buildMondayTableHTML(groups, ['','Partner','Category','Active Referrals','Closed Deals','Closed Revenue','Avg Deal','Last Contact','Status',''], ['4%','14%','12%','9%','9%','11%','9%','10%','13%','4%'], 'relationships', 'partner');
   renderBulkActionBar('partner');
 }
 function setPartnerStage(partnerId, newStage){
