@@ -2463,8 +2463,8 @@ let CURRENT_LOGGED_IN_USER = 'John Mitchell';
 // SUPABASE AUTHENTICATION — fill in your own project's values below.
 // Project Settings → API in your Supabase dashboard has both.
 // ============================================================
-const SUPABASE_URL = 'YOUR_SUPABASE_PROJECT_URL';       // e.g. https://xxxxxxxx.supabase.co
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';      // the "anon public" key, safe to expose client-side
+const SUPABASE_URL = 'https://mljvygptisfijklpbczv.supabase.co';       // e.g. https://xxxxxxxx.supabase.co
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1sanZ5Z3B0aXNmaWprbHBiY3p2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcxMDY4MjUsImV4cCI6MjEwMjY4MjgyNX0.SizMDogPskYA1nDEHUSaM0CW5aPUVMJfYiCSzMkS1dE';      // the "anon public" key, safe to expose client-side
 let supabaseClient = null;
 const SUPABASE_CONFIGURED = SUPABASE_URL !== 'YOUR_SUPABASE_PROJECT_URL' && SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY';
 if(SUPABASE_CONFIGURED && window.supabase){
