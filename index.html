@@ -2376,7 +2376,7 @@ select{cursor:pointer;}
       <div id="themeColorPanel" class="panel" style="margin-bottom:28px;"></div>
       <div class="section-label-row"><div class="eyebrow">Data &amp; Storage</div></div>
       <div class="panel" style="margin-bottom:28px;"><div class="panel-body" style="padding:16px 20px;">
-        <div class="hint" style="margin-bottom:12px;">Everything you enter autosaves to this browser every few seconds — reloading no longer resets it. This is saved locally on this computer only; it doesn't sync to Bre's or Kennedy's browser, and clearing browser data would erase it. Real shared, synced data across the team is the next step once this is moved into Supabase.</div>
+        <div class="hint" style="margin-bottom:12px;">Everything you enter autosaves every few seconds — synced through Supabase so John, Bre, and Kennedy all see the same data, with a local browser cache as a backup if the connection ever drops.</div>
         <div class="row" style="align-items:center; gap:14px;">
           <span id="autosaveIndicator" style="font-size:11.5px; color:var(--ink-faint);">Not saved yet</span>
           <button class="btn btn-outline" style="margin-left:auto;" onclick="resetToDemoData()">Clear Saved Data &amp; Reset to Demo</button>
@@ -16691,28 +16691,16 @@ function applyThemeVars(vars){
   if(!vars) return;
   Object.keys(vars).forEach(k => document.documentElement.style.setProperty(k, vars[k]));
 }
-function saveAppState(){
-  try{
-    const snapshot = {
-      OPPORTUNITIES, OPP_ESTIMATES, PROJECTS, RELATIONSHIP_PARTNERS, PROSPECT_CONTACTS,
-      PARTNER_CATEGORIES, COMPANY_LOCATIONS, TEAM_MEMBERS, CUSTOM_AUTOMATIONS,
-      DEFAULT_TASK_ASSIGNEES, COMPANY_TEMPLATES, COMPANY_LOGO, CONTACTS,
-      themeVars: captureThemeVars(),
-      savedAt: new Date().toISOString(),
-    };
-    localStorage.setItem(APP_STATE_KEY, JSON.stringify(snapshot));
-    const el = document.getElementById('autosaveIndicator');
-    if(el){ el.textContent = 'Saved ' + new Date().toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}); }
-  } catch(e){
-    console.warn('Autosave failed (likely storage quota or a non-serializable value):', e);
-  }
+function buildAppSnapshot(){
+  return {
+    OPPORTUNITIES, OPP_ESTIMATES, PROJECTS, RELATIONSHIP_PARTNERS, PROSPECT_CONTACTS,
+    PARTNER_CATEGORIES, COMPANY_LOCATIONS, TEAM_MEMBERS, CUSTOM_AUTOMATIONS,
+    DEFAULT_TASK_ASSIGNEES, COMPANY_TEMPLATES, COMPANY_LOGO, CONTACTS,
+    themeVars: captureThemeVars(),
+  };
 }
-function loadAppState(){
-  let raw;
-  try{ raw = localStorage.getItem(APP_STATE_KEY); } catch(e){ return false; }
-  if(!raw) return false;
-  let snap;
-  try{ snap = JSON.parse(raw); } catch(e){ console.warn('Saved data was corrupted, starting fresh.', e); return false; }
+function applyAppSnapshot(snap){
+  if(!snap) return;
   if(snap.OPPORTUNITIES) OPPORTUNITIES = snap.OPPORTUNITIES;
   if(snap.OPP_ESTIMATES) OPP_ESTIMATES = snap.OPP_ESTIMATES;
   if(snap.PROJECTS){ Object.keys(PROJECTS).forEach(k => delete PROJECTS[k]); Object.assign(PROJECTS, snap.PROJECTS); }
@@ -16727,17 +16715,81 @@ function loadAppState(){
   if(snap.COMPANY_LOGO) setCompanyLogo(snap.COMPANY_LOGO);
   if(snap.CONTACTS) Object.assign(CONTACTS, snap.CONTACTS);
   if(snap.themeVars) applyThemeVars(snap.themeVars);
-  return true;
+}
+function setSyncIndicator(text){
+  const el = document.getElementById('autosaveIndicator');
+  if(el) el.textContent = text;
+}
+// ---- Real, shared persistence — every signed-in team member reads and writes the same
+// rows in the `app_state` table (see supabase-app-state-schema.sql). localStorage is kept
+// only as an offline cache: it saves synchronously in case the network call can't complete
+// (e.g. right as the tab closes), never as the source of truth once Supabase is connected. ----
+async function saveAppState(){
+  const snapshot = buildAppSnapshot();
+  try{ localStorage.setItem(APP_STATE_KEY, JSON.stringify(snapshot)); } catch(e){ console.warn('Local cache save failed:', e); }
+  if(!SUPABASE_CONFIGURED || !supabaseClient){
+    setSyncIndicator('Saved locally ' + new Date().toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}) + ' — connect Supabase to sync with the team');
+    return;
+  }
+  try{
+    const { data: sessionData } = await supabaseClient.auth.getSession();
+    if(!sessionData || !sessionData.session){
+      setSyncIndicator('Saved locally only — sign in to sync with the team');
+      return;
+    }
+    const rows = Object.keys(snapshot).map(key => ({ key, value: snapshot[key], updated_at: new Date().toISOString() }));
+    const { error } = await supabaseClient.from('app_state').upsert(rows);
+    if(error){
+      console.warn('Supabase sync failed, data is still safe locally:', error);
+      setSyncIndicator('Saved locally — cloud sync failed (' + error.message + ')');
+      return;
+    }
+    setSyncIndicator('Synced ' + new Date().toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}));
+  } catch(e){
+    console.warn('Supabase sync failed, data is still safe locally:', e);
+    setSyncIndicator('Saved locally — cloud sync failed');
+  }
+}
+// ---- Loads from Supabase first (the real, shared source once configured and signed in),
+// falls back to this browser's local cache, falls back to the built-in demo data on a
+// completely first-ever run. ----
+async function loadAppState(){
+  if(SUPABASE_CONFIGURED && supabaseClient){
+    try{
+      const { data: sessionData } = await supabaseClient.auth.getSession();
+      if(sessionData && sessionData.session){
+        const { data, error } = await supabaseClient.from('app_state').select('key,value');
+        if(!error && data && data.length){
+          applyAppSnapshot(Object.fromEntries(data.map(r => [r.key, r.value])));
+          try{ localStorage.setItem(APP_STATE_KEY, JSON.stringify(buildAppSnapshot())); } catch(e){}
+          setSyncIndicator('Loaded from Supabase');
+          return 'supabase';
+        }
+        if(error) console.warn('Supabase load failed, falling back to local cache:', error);
+      }
+    } catch(e){ console.warn('Supabase load failed, falling back to local cache:', e); }
+  }
+  try{
+    const raw = localStorage.getItem(APP_STATE_KEY);
+    if(raw){ applyAppSnapshot(JSON.parse(raw)); setSyncIndicator('Loaded from this browser\u2019s local cache'); return 'local'; }
+  } catch(e){ console.warn('Local cache read failed:', e); }
+  setSyncIndicator('Using built-in demo data');
+  return 'demo';
 }
 function resetToDemoData(){
-  if(!confirm('This clears everything saved in this browser and reloads the original demo data. This cannot be undone. Continue?')) return;
+  if(!confirm('This clears everything saved — locally and in Supabase if connected — and reloads the original demo data. This cannot be undone. Continue?')) return;
   try{ localStorage.removeItem(APP_STATE_KEY); } catch(e){}
-  location.reload();
+  (async () => {
+    if(SUPABASE_CONFIGURED && supabaseClient){
+      try{ await supabaseClient.from('app_state').delete().neq('key', ''); } catch(e){ console.warn('Could not clear Supabase data:', e); }
+    }
+    location.reload();
+  })();
 }
 // Autosave on an interval and on the way out — covers every mutation everywhere in the
 // app without needing a save call hand-added to every single edit function.
 setInterval(saveAppState, 4000);
-window.addEventListener('beforeunload', saveAppState);
+window.addEventListener('beforeunload', () => { try{ localStorage.setItem(APP_STATE_KEY, JSON.stringify(buildAppSnapshot())); }catch(e){} });
 document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden') saveAppState(); });
 /* ---------------- data layer ---------------- */
 const DB_KEY='mcd_inventory_demo_v1';
@@ -18473,7 +18525,8 @@ function escapeHtml(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&
 document.documentElement.style.setProperty('--font-display',"'"+DB.settings.font+"',sans-serif");
 
 const CLIENT_VIEW_PROJECT_ID = new URLSearchParams(location.search).get('client_project');
-loadAppState();
+(async function bootApp(){
+await loadAppState();
 if(CLIENT_VIEW_PROJECT_ID && PROJECTS[CLIENT_VIEW_PROJECT_ID]){
   renderClientProgressView(CLIENT_VIEW_PROJECT_ID);
 } else {
@@ -18502,6 +18555,7 @@ renderThemeColorPanel();
 renderDefaultAssigneesPanel();
 renderScheduleTemplatePanel();
 }
+})();
 </script>
 </body>
 </html>
