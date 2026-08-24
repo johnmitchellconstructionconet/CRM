@@ -251,6 +251,9 @@ tbody tr:hover{background:#FCFBF8;}
 /* ---- Monday-style grouped board (Financial pages) ---- */
 .mboard-group{margin-bottom:20px; border-radius:10px; overflow:hidden; border:1px solid var(--border);}
 .mboard-group-head{padding:10px 16px; display:flex; justify-content:space-between; align-items:center; color:#fff; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13.5px;}
+.bulk-cb{width:15px; height:15px; cursor:pointer; accent-color:var(--rust);}
+.bulk-action-bar{display:none; align-items:center; gap:12px; position:sticky; top:0; z-index:20; background:var(--ink); color:#fff; padding:10px 16px; border-radius:8px; margin-bottom:10px; font-size:13px;}
+.bulk-action-bar .btn-sm{padding:5px 10px; font-size:12px;}
 .mboard-group-head .count{background:rgba(255,255,255,0.22); border-radius:20px; padding:2px 10px; font-size:11.5px;}
 .mboard-group.g-pending .mboard-group-head{background:var(--gold); color:#4a3a12;}
 .mboard-group.g-pending .mboard-group-head .count{background:rgba(0,0,0,0.12);}
@@ -4682,6 +4685,62 @@ document.addEventListener('click', function(e){
 // group per status, real rows underneath. Reused across Sales, Preconstruction, Contacts,
 // and Relationship Pipeline for a consistent board look. ----
 const MBOARD_COLLAPSED = {}; // persists collapse state across re-renders, keyed by a stable group id
+// ---- Bulk select & mass delete — shared across Sales Pipeline, Relationship Pipeline, and
+// Prospects & Clients. Each kind tracks its own selected-id set so selecting on one list
+// doesn't bleed into another. ----
+const BULK_SELECTED = { opp: new Set(), partner: new Set(), newcontact: new Set() };
+const BULK_LABELS = { opp: 'lead', partner: 'relationship', newcontact: 'contact' };
+function bulkCheckboxHTML(kind, id){
+  const checked = BULK_SELECTED[kind].has(id) ? 'checked' : '';
+  return `<input type="checkbox" class="bulk-cb" ${checked} onclick="event.stopPropagation(); toggleBulkSelect('${kind}','${id}', this.checked)">`;
+}
+function toggleBulkSelect(kind, id, checked){
+  if(checked) BULK_SELECTED[kind].add(id);
+  else BULK_SELECTED[kind].delete(id);
+  renderBulkActionBar(kind);
+}
+function toggleBulkSelectAll(kind, ids, checked){
+  ids.forEach(id => { if(checked) BULK_SELECTED[kind].add(id); else BULK_SELECTED[kind].delete(id); });
+  const rerender = { opp: renderSalesTable, partner: renderRelationshipPartners, newcontact: renderProspectContacts }[kind];
+  if(rerender) rerender();
+}
+function renderBulkActionBar(kind){
+  const host = document.getElementById('bulkBar_' + kind);
+  if(!host) return;
+  const n = BULK_SELECTED[kind].size;
+  const label = BULK_LABELS[kind] + (n === 1 ? '' : 's');
+  host.style.display = n ? 'flex' : 'none';
+  host.innerHTML = n ? `<span style="font-weight:600;">${n} ${label} selected</span>
+    <button class="btn btn-outline btn-sm" onclick="clearBulkSelect('${kind}')">Clear</button>
+    <button class="btn btn-sm" style="background:var(--rust); color:#fff; border-color:var(--rust);" onclick="bulkDeleteSelected('${kind}')">🗑 Delete Selected</button>` : '';
+}
+function clearBulkSelect(kind){
+  BULK_SELECTED[kind].clear();
+  const rerender = { opp: renderSalesTable, partner: renderRelationshipPartners, newcontact: renderProspectContacts }[kind];
+  if(rerender) rerender();
+}
+function bulkDeleteSelected(kind){
+  const ids = Array.from(BULK_SELECTED[kind]);
+  if(!ids.length) return;
+  const label = BULK_LABELS[kind] + (ids.length === 1 ? '' : 's');
+  if(!confirm(`Delete ${ids.length} ${label}? This can't be undone.`)) return;
+  if(kind === 'opp'){
+    OPPORTUNITIES = OPPORTUNITIES.filter(o => !ids.includes(o.id));
+    ids.forEach(id => delete OPP_ESTIMATES[id]);
+    BULK_SELECTED.opp.clear();
+    renderSalesTable(); renderSalesKanban(); renderFollowUpsPage(); renderProspectsClientsTable();
+  } else if(kind === 'partner'){
+    RELATIONSHIP_PARTNERS = RELATIONSHIP_PARTNERS.filter(p => !ids.includes(p.id));
+    BULK_SELECTED.partner.clear();
+    renderRelationshipPartners();
+  } else if(kind === 'newcontact'){
+    PROSPECT_CONTACTS = PROSPECT_CONTACTS.filter(c => !ids.includes(c.id));
+    BULK_SELECTED.newcontact.clear();
+    renderProspectContacts();
+  }
+  if(document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboardAtAGlance();
+  saveAppState();
+}
 function buildMondayTableHTML(groups, columns, columnWidths, tableId){
   const widths = columnWidths || columns.map(() => (100/columns.length).toFixed(2)+'%');
   const headCells = columns.map((c,i) => `<th style="width:${widths[i]}; text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:0.03em; color:var(--ink-faint); font-weight:700;">${c}</th>`).join('');
@@ -5203,6 +5262,7 @@ function renderSalesTable(){
     rows: OPPORTUNITIES.filter(o => o.stage === stage).map(o => {
       const oOverdue = o.nextFollowUpDate && new Date(o.nextFollowUpDate+'T00:00:00') < TODAY;
       return `<tr style="cursor:pointer; ${oOverdue ? 'background:#FBEFEA;' : ''}" onclick="openOpportunity('${o.id}')">
+      <td onclick="event.stopPropagation();" style="width:28px;">${bulkCheckboxHTML('opp', o.id)}</td>
       <td class="name-cell">${o.name}</td>
       <td>${o.projectType}</td>
       <td>${fmtMoneyOrDash(o.dealValue)}</td>
@@ -5218,7 +5278,9 @@ function renderSalesTable(){
     </tr>`;
     })
   }));
-  body.innerHTML = buildMondayTableHTML(groups, ['Lead','Project Type','Deal Value','Owner','Lead Temp','Next Follow-Up','Change Status'], ['22%','14%','13%','13%','11%','14%','13%'], 'sales');
+  const bulkBar = `<div class="bulk-action-bar" id="bulkBar_opp"></div>`;
+  body.innerHTML = bulkBar + buildMondayTableHTML(groups, ['<input type="checkbox" class="bulk-cb" onclick="toggleBulkSelectAll(\'opp\', ' + JSON.stringify(OPPORTUNITIES.map(o=>o.id)) + ', this.checked)">','Lead','Project Type','Deal Value','Owner','Lead Temp','Next Follow-Up','Change Status'], ['4%','20%','13%','12%','12%','10%','13%','13%'], 'sales');
+  renderBulkActionBar('opp');
 }
 
 /* ---- Preconstruction Projects: 8-phase workflow engine ---- */
@@ -7152,11 +7214,14 @@ function renderProspectContacts(){
         ${COMPANY_LOCATIONS.map(l => `<option value="${escapeHtmlLite(l.name)}" ${PROSPECT_LOCATION_FILTER===l.name?'selected':''}>${escapeHtmlLite(l.name)}</option>`).join('')}
       </select>
     </div>
-    ${buildMondayTableHTML(groups, ['Name','Category','Company','How Found','Status',''], ['20%','14%','18%','24%','16%','8%'], 'prospects')}
+    <div class="bulk-action-bar" id="bulkBar_newcontact"></div>
+    ${buildMondayTableHTML(groups, ['<input type="checkbox" class="bulk-cb" onclick="toggleBulkSelectAll(\'newcontact\', ' + JSON.stringify(PROSPECT_CONTACTS.map(c=>c.id)) + ', this.checked)">','Name','Category','Company','How Found','Status',''], ['4%','18%','13%','16%','21%','15%','8%'], 'prospects')}
   `;
+  renderBulkActionBar('newcontact');
 }
 function buildProspectRow(c){
   return `<tr>
+    <td onclick="event.stopPropagation();" style="width:28px;">${bulkCheckboxHTML('newcontact', c.id)}</td>
     <td class="name-cell" style="cursor:pointer;" onclick="openProspectDetail('${c.id}')">${escapeHtmlLite(c.name)}</td>
     <td><span class="pill" style="background:${partnerCategoryColor(c.category)}22; color:${partnerCategoryColor(c.category)}; font-weight:600;">${escapeHtmlLite(c.category)}</span></td>
     <td>${escapeHtmlLite(c.company || '—')}</td>
@@ -7355,6 +7420,7 @@ function renderRelationshipPartners(){
       const newRelNeedsAction = p.stage === 'New Relations Identified' && !(p.meetings && p.meetings.length);
       const followUp = needsRelFollowUp(p) || followUpDateOverdue || newRelNeedsAction;
       return `<tr style="${followUp ? 'background:#FBEFEA; cursor:pointer;' : ''}" ${followUp ? `onclick="openPartnerDetail('${p.id}')"` : ''}>
+        <td onclick="event.stopPropagation();" style="width:28px;">${bulkCheckboxHTML('partner', p.id)}</td>
         <td class="name-cell" style="cursor:pointer;" onclick="openPartnerDetail('${p.id}')">${followUp ? '⚠ ' : ''}${p.name}</td>
         <td><span class="pill" style="background:${partnerCategoryColor(p.category)}22; color:${partnerCategoryColor(p.category)}; font-weight:600;">${escapeHtmlLite(p.category)}</span></td>
         <td><span style="cursor:pointer; text-decoration:underline; text-decoration-style:dotted;" onclick="event.stopPropagation(); openPartnerDetail('${p.id}', true)">${activeReferralsFor(p.name)}</span></td>
@@ -7369,7 +7435,9 @@ function renderRelationshipPartners(){
       </tr>`;
     })
   }));
-  groupsEl.innerHTML = buildMondayTableHTML(groups, ['Partner','Category','Active Referrals','Closed Deals','Closed Revenue','Avg Deal','Last Contact','Status',''], ['16%','13%','10%','10%','12%','10%','11%','14%','4%'], 'relationships');
+  const bulkBar = `<div class="bulk-action-bar" id="bulkBar_partner"></div>`;
+  groupsEl.innerHTML = bulkBar + buildMondayTableHTML(groups, ['<input type="checkbox" class="bulk-cb" onclick="toggleBulkSelectAll(\'partner\', ' + JSON.stringify(RELATIONSHIP_PARTNERS.map(p=>p.id)) + ', this.checked)">','Partner','Category','Active Referrals','Closed Deals','Closed Revenue','Avg Deal','Last Contact','Status',''], ['4%','14%','12%','9%','9%','11%','9%','10%','13%','4%'], 'relationships');
+  renderBulkActionBar('partner');
 }
 function setPartnerStage(partnerId, newStage){
   const p = RELATIONSHIP_PARTNERS.find(x => x.id === partnerId);
