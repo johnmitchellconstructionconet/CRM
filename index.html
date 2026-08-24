@@ -7934,17 +7934,20 @@ function renderProspectsClientsTable(){
   const body = document.getElementById('prospectsClientsBody');
   if(!body) return;
   const prospectRows = OPPORTUNITIES.map(o => ({
-    name: o.name, type: o.projectType, phone: o.phone, email: o.email, stage: o.stage,
+    id: o.id, kind: 'opp', name: o.name, type: o.projectType, phone: o.phone, email: o.email, stage: o.stage,
     onClick: `openOpportunity('${o.id}')`,
     del: `<span style="cursor:pointer; color:var(--rust); font-size:15px;" onclick="event.stopPropagation(); deleteProspect('${o.id}')" title="Delete prospect">&times;</span>`
   }));
   const clientRows = Object.values(PROJECTS).map(p => ({
-    name: p.client, type: p.projectType, phone: '—', email: '—', stage: 'In Preconstruction',
+    id: p.id, kind: 'project', name: p.client, type: p.projectType, phone: '—', email: '—', stage: 'In Preconstruction',
     onClick: `openProject('${p.id}')`, del: ''
   }));
   const all = [...prospectRows, ...clientRows].sort((a,b) => (a.name||'').localeCompare(b.name||''));
   const thStyle = 'text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-faint); font-weight:700;';
+  const allIdsByKind = JSON.stringify(all.map(r => [r.kind, r.id]));
+  const allSelected = all.length && all.every(r => BULK_SELECTED[r.kind].has(r.id));
   const rowsHtml = all.map(r => `<tr style="cursor:pointer;" onclick="${r.onClick}">
+    <td onclick="event.stopPropagation();" style="width:28px;"><input type="checkbox" class="bulk-cb" ${BULK_SELECTED[r.kind].has(r.id)?'checked':''} onclick="pcToggleSelect('${r.kind}','${r.id}', this.checked)"></td>
     <td class="name-cell">${escapeHtmlLite(r.name || '')}</td>
     <td>${escapeHtmlLite(r.type || '')}</td>
     <td>${escapeHtmlLite(r.phone || '—')}</td>
@@ -7952,17 +7955,69 @@ function renderProspectsClientsTable(){
     <td><span class="pill ${STAGE_PILL_CLASS[r.stage] || 'pill-jade'}">${escapeHtmlLite(r.stage)}</span></td>
     <td>${r.del}</td>
   </tr>`).join('');
-  body.innerHTML = `<table style="table-layout:fixed; width:100%;">
+  body.innerHTML = `<div class="bulk-action-bar" id="bulkBar_pc"></div>
+  <table style="table-layout:fixed; width:100%;">
     <thead><tr>
-      <th style="${thStyle} width:22%;">Name</th>
-      <th style="${thStyle} width:15%;">Project Type</th>
-      <th style="${thStyle} width:16%;">Phone</th>
-      <th style="${thStyle} width:22%;">Email</th>
+      <th style="width:4%;"><input type="checkbox" class="bulk-cb" ${allSelected ? 'checked' : ''} onclick='pcToggleSelectAll(${allIdsByKind}, this.checked)'></th>
+      <th style="${thStyle} width:21%;">Name</th>
+      <th style="${thStyle} width:14%;">Project Type</th>
+      <th style="${thStyle} width:15%;">Phone</th>
+      <th style="${thStyle} width:21%;">Email</th>
       <th style="${thStyle} width:19%;">Status</th>
       <th style="width:6%;"></th>
     </tr></thead>
-    <tbody>${rowsHtml || `<tr><td colspan="6" style="padding:14px 16px; color:var(--ink-faint); font-style:italic;">No contacts yet.</td></tr>`}</tbody>
+    <tbody>${rowsHtml || `<tr><td colspan="7" style="padding:14px 16px; color:var(--ink-faint); font-style:italic;">No contacts yet.</td></tr>`}</tbody>
   </table>`;
+  renderPcBulkBar();
+}
+// ---- Prospects & Clients mixes two different record kinds (Sales opportunities and
+// converted Preconstruction projects) in one flat list, so its bulk-select spans both
+// underlying BULK_SELECTED sets at once with a single combined action bar. ----
+function pcToggleSelect(kind, id, checked){
+  if(checked) BULK_SELECTED[kind].add(id); else BULK_SELECTED[kind].delete(id);
+  renderPcBulkBar();
+}
+function pcToggleSelectAll(idsByKind, checked){
+  idsByKind.forEach(([kind, id]) => { if(checked) BULK_SELECTED[kind].add(id); else BULK_SELECTED[kind].delete(id); });
+  renderProspectsClientsTable();
+}
+function renderPcBulkBar(){
+  const host = document.getElementById('bulkBar_pc');
+  if(!host) return;
+  const oppIds = Array.from(BULK_SELECTED.opp).filter(id => OPPORTUNITIES.find(o => o.id === id));
+  const projIds = Array.from(BULK_SELECTED.project).filter(id => PROJECTS[id]);
+  const n = oppIds.length + projIds.length;
+  host.style.display = n ? 'flex' : 'none';
+  host.innerHTML = n ? `<span style="font-weight:600;">${n} contact${n===1?'':'s'} selected</span>
+    <button class="btn btn-outline btn-sm" onclick="pcClearSelect()">Clear</button>
+    <button class="btn btn-sm" style="background:var(--rust); color:#fff; border-color:var(--rust);" onclick="pcBulkDelete()">🗑 Delete Selected</button>` : '';
+}
+function pcClearSelect(){
+  BULK_SELECTED.opp.clear();
+  BULK_SELECTED.project.clear();
+  renderProspectsClientsTable();
+}
+function pcBulkDelete(){
+  const oppIds = Array.from(BULK_SELECTED.opp).filter(id => OPPORTUNITIES.find(o => o.id === id));
+  const projIds = Array.from(BULK_SELECTED.project).filter(id => PROJECTS[id]);
+  const total = oppIds.length + projIds.length;
+  if(!total) return;
+  const parts = [];
+  if(oppIds.length) parts.push(`${oppIds.length} prospect${oppIds.length===1?'':'s'}`);
+  if(projIds.length) parts.push(`${projIds.length} client project${projIds.length===1?'':'s'} (full project — phases, documents, everything)`);
+  if(!confirm(`Delete ${parts.join(' and ')}? This can't be undone.`)) return;
+  if(oppIds.length){
+    OPPORTUNITIES = OPPORTUNITIES.filter(o => !oppIds.includes(o.id));
+    oppIds.forEach(id => delete OPP_ESTIMATES[id]);
+  }
+  projIds.forEach(id => delete PROJECTS[id]);
+  BULK_SELECTED.opp.clear();
+  BULK_SELECTED.project.clear();
+  renderProspectsClientsTable();
+  renderSalesTable(); renderSalesKanban(); renderFollowUpsPage();
+  renderProjectCardGrids();
+  if(document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboardAtAGlance();
+  saveAppState();
 }
 function openAddProspect(){
   openQuickOverlay(`
