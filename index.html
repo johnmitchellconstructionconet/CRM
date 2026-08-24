@@ -2174,18 +2174,6 @@ select{cursor:pointer;}
       </div>
 
       <div class="nav-section">
-        <div class="nav-section-label">Financial</div>
-        <div class="nav-item" data-page="draws">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M2.5 10h19"/></svg>
-          Draw Tracking
-        </div>
-        <div class="nav-item" data-page="quickpay">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>
-          Payments &amp; Transfers
-        </div>
-      </div>
-
-      <div class="nav-section">
         <div class="nav-section-label">System</div>
         <div class="nav-item" data-page="users">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.6 1z"/></svg>
@@ -2335,20 +2323,6 @@ select{cursor:pointer;}
         <div id="relPartnersGroups"></div>
       </div>
       <div id="relProspectsView" style="display:none;"></div>
-    </div>
-
-    <!-- ===== FINANCIAL SHELLS ===== -->
-    <div class="page" id="page-draws">
-      <div class="page-header"><div><div class="eyebrow">Financial</div><h1>Draw Tracking</h1><div class="sub">Operational visibility only — not project accounting, not a QuickBooks replacement</div></div>
-        <button class="btn btn-dark" onclick="openAddDraw()">+ Add Draw</button>
-      </div>
-      <div id="drawsBoard"></div>
-    </div>
-    <div class="page" id="page-quickpay">
-      <div class="page-header"><div><div class="eyebrow">Financial</div><h1>Payments &amp; Transfers</h1><div class="sub">Internal account-to-account transfers and payments outside the standard AP workflow, side by side</div></div>
-        <button class="btn btn-dark" onclick="openAddPayment()">+ Add Request</button>
-      </div>
-      <div id="paymentsBoard"></div>
     </div>
 
     <!-- ===== SYSTEM SHELLS ===== -->
@@ -7463,155 +7437,6 @@ function submitAddPartner(){
   });
   closeQuickOverlay();
   renderRelationshipPartners();
-}
-let DRAWS = [
-  {id:'d1', project:'Bell', drawNum:1, billed:58200, received:58200, expectedDate:'2026-07-15', status:'Received'},
-  {id:'d2', project:'Lawrence', drawNum:1, billed:45000, received:0, expectedDate:'2026-08-20', status:'Pending'},
-];
-const DRAW_STATUS_GROUP = {Received:'g-complete', Pending:'g-pending'};
-function renderDrawsBoard(){
-  const host = document.getElementById('drawsBoard');
-  if(!host) return;
-  const groups = [...new Set(DRAWS.map(d => d.status))];
-  host.innerHTML = groups.map(status => {
-    const rows = DRAWS.filter(d => d.status === status);
-    return `<div class="mboard-group ${DRAW_STATUS_GROUP[status] || ''}">
-      <div class="mboard-group-head"><span>${status}</span><span class="count">${rows.length}</span></div>
-      <table class="mboard-table">
-        <thead><tr><th>Project</th><th>Draw #</th><th>Billed</th><th>Received</th><th>Expected Date</th><th style="width:24px;"></th></tr></thead>
-        <tbody>
-          ${rows.map(d => `<tr>
-            <td class="name-cell">${escapeHtmlLite(d.project)}</td>
-            <td><input type="number" class="est-cell-input" value="${d.drawNum}" onchange="d_setField('${d.id}','drawNum',this.value,true)"></td>
-            <td><input type="number" class="est-cell-input" value="${d.billed}" onchange="d_setField('${d.id}','billed',this.value,true)"></td>
-            <td><input type="number" class="est-cell-input" value="${d.received}" onchange="d_setField('${d.id}','received',this.value,true)"></td>
-            <td><input type="date" class="est-cell-input" value="${d.expectedDate}" onchange="d_setField('${d.id}','expectedDate',this.value)"></td>
-            <td><span style="cursor:pointer; color:var(--rust); font-size:15px;" onclick="deleteDraw('${d.id}')">&times;</span></td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
-      <div class="mboard-add-row" onclick="openAddDraw('${status}')">+ Add draw to ${status}</div>
-    </div>`;
-  }).join('');
-}
-function d_setField(id, field, val, isNum){
-  const d = DRAWS.find(x => x.id === id);
-  if(!d) return;
-  d[field] = isNum ? (parseFloat(val) || 0) : val;
-  if(d.received >= d.billed && d.billed > 0) d.status = 'Received';
-  renderDrawsBoard();
-}
-function deleteDraw(id){
-  if(!confirm('Delete this draw?')) return;
-  DRAWS = DRAWS.filter(d => d.id !== id);
-  renderDrawsBoard();
-}
-function openAddDraw(defaultStatus){
-  openQuickOverlay(`
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-      <h3 style="font-family:'Space Grotesk',sans-serif; font-size:18px;">Add Draw</h3>
-      <span style="cursor:pointer; color:var(--ink-faint); font-size:20px;" onclick="closeQuickOverlay()">&times;</span>
-    </div>
-    <label class="est-lbl">Project</label>
-    <input id="adProject" placeholder="Project name">
-    <label class="est-lbl" style="margin-top:12px;">Draw #</label>
-    <input id="adNum" type="number" value="1">
-    <label class="est-lbl" style="margin-top:12px;">Amount Billed</label>
-    <input id="adBilled" type="number" placeholder="0">
-    <label class="est-lbl" style="margin-top:12px;">Expected Date</label>
-    <input id="adDate" type="date">
-    <div class="row" style="margin-top:18px; justify-content:flex-end; gap:8px;">
-      <button class="btn btn-outline" onclick="closeQuickOverlay()">Cancel</button>
-      <button class="btn btn-dark" onclick="submitAddDraw()">Add Draw</button>
-    </div>
-  `);
-}
-function submitAddDraw(){
-  const project = document.getElementById('adProject').value.trim();
-  if(!project){ alert('Please enter a project name.'); return; }
-  DRAWS.push({
-    id:'d'+Date.now(), project, drawNum: parseInt(document.getElementById('adNum').value)||1,
-    billed: parseFloat(document.getElementById('adBilled').value)||0, received:0,
-    expectedDate: document.getElementById('adDate').value || 'TBD', status:'Pending'
-  });
-  closeQuickOverlay();
-  renderDrawsBoard();
-}
-
-let PAYMENT_REQUESTS = [
-  {id:'pr1', type:'Transfer', project:'Bell', detail:'Operating → Draw #1', amount:58200, who:'Bre Mitchell', priority:'Normal', status:'Completed'},
-  {id:'pr2', type:'Quick Payment', project:'Lawrence', detail:'Ozark Electric Supply', amount:4200, who:'John Mitchell', priority:'Urgent', status:'Pending'},
-];
-function renderPaymentsBoard(){
-  const host = document.getElementById('paymentsBoard');
-  if(!host) return;
-  const types = ['Transfer','Quick Payment'];
-  host.innerHTML = types.map(type => {
-    const rows = PAYMENT_REQUESTS.filter(r => r.type === type);
-    const groupClass = type === 'Transfer' ? 'g-transfer' : 'g-payment';
-    return `<div class="mboard-group ${groupClass}">
-      <div class="mboard-group-head"><span>${type === 'Transfer' ? 'Transfer Requests' : 'Quick Payments'}</span><span class="count">${rows.length}</span></div>
-      <table class="mboard-table">
-        <thead><tr><th>${type === 'Transfer' ? 'From → To' : 'Payee'}</th><th>Project</th><th>Amount</th><th>${type === 'Transfer' ? 'Requested By' : 'Priority'}</th><th>Status</th><th style="width:24px;"></th></tr></thead>
-        <tbody>
-          ${rows.map(r => `<tr>
-            <td><input class="est-cell-input" value="${escapeHtmlLite(r.detail)}" onchange="pr_setField('${r.id}','detail',this.value)"></td>
-            <td><input class="est-cell-input" value="${escapeHtmlLite(r.project)}" onchange="pr_setField('${r.id}','project',this.value)"></td>
-            <td><input type="number" class="est-cell-input" value="${r.amount}" onchange="pr_setField('${r.id}','amount',this.value,true)"></td>
-            <td>${type === 'Transfer'
-              ? `<input class="est-cell-input" value="${escapeHtmlLite(r.who)}" onchange="pr_setField('${r.id}','who',this.value)">`
-              : `<select class="est-cell-input" onchange="pr_setField('${r.id}','priority',this.value)"><option ${r.priority==='Normal'?'selected':''}>Normal</option><option ${r.priority==='Urgent'?'selected':''}>Urgent</option></select>`
-            }</td>
-            <td><select class="est-cell-input" onchange="pr_setField('${r.id}','status',this.value)"><option ${r.status==='Pending'?'selected':''}>Pending</option><option ${r.status==='Completed'?'selected':''}>Completed</option></select></td>
-            <td><span style="cursor:pointer; color:var(--rust); font-size:15px;" onclick="deletePayment('${r.id}')">&times;</span></td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
-      <div class="mboard-add-row" onclick="openAddPayment('${type}')">+ Add ${type === 'Transfer' ? 'transfer request' : 'quick payment'}</div>
-    </div>`;
-  }).join('');
-}
-function pr_setField(id, field, val, isNum){
-  const r = PAYMENT_REQUESTS.find(x => x.id === id);
-  if(!r) return;
-  r[field] = isNum ? (parseFloat(val) || 0) : val;
-  renderPaymentsBoard();
-}
-function deletePayment(id){
-  if(!confirm('Delete this request?')) return;
-  PAYMENT_REQUESTS = PAYMENT_REQUESTS.filter(r => r.id !== id);
-  renderPaymentsBoard();
-}
-function openAddPayment(defaultType){
-  openQuickOverlay(`
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-      <h3 style="font-family:'Space Grotesk',sans-serif; font-size:18px;">Add Payment / Transfer Request</h3>
-      <span style="cursor:pointer; color:var(--ink-faint); font-size:20px;" onclick="closeQuickOverlay()">&times;</span>
-    </div>
-    <label class="est-lbl">Type</label>
-    <select id="apType"><option ${defaultType==='Transfer'?'selected':''}>Transfer</option><option ${defaultType==='Quick Payment'?'selected':''}>Quick Payment</option></select>
-    <label class="est-lbl" style="margin-top:12px;">Project</label>
-    <input id="apProject" placeholder="Project name">
-    <label class="est-lbl" style="margin-top:12px;" id="apDetailLabel">From → To / Payee</label>
-    <input id="apDetail" placeholder="e.g. Operating → Draw #2, or vendor name">
-    <label class="est-lbl" style="margin-top:12px;">Amount</label>
-    <input id="apAmount" type="number" placeholder="0">
-    <div class="row" style="margin-top:18px; justify-content:flex-end; gap:8px;">
-      <button class="btn btn-outline" onclick="closeQuickOverlay()">Cancel</button>
-      <button class="btn btn-dark" onclick="submitAddPayment()">Add</button>
-    </div>
-  `);
-}
-function submitAddPayment(){
-  const project = document.getElementById('apProject').value.trim();
-  const detail = document.getElementById('apDetail').value.trim();
-  if(!project || !detail){ alert('Please fill in project and detail.'); return; }
-  PAYMENT_REQUESTS.push({
-    id:'pr'+Date.now(), type: document.getElementById('apType').value, project, detail,
-    amount: parseFloat(document.getElementById('apAmount').value)||0, who:'You', priority:'Normal', status:'Pending'
-  });
-  closeQuickOverlay();
-  renderPaymentsBoard();
 }
 function deletePartner(id){
   if(!confirm('Delete this relationship partner?')) return;
@@ -18581,8 +18406,6 @@ renderSalesSequence();
 renderProjectCardGrids();
 renderProspectsClientsTable();
 renderRelationshipPartners();
-renderDrawsBoard();
-renderPaymentsBoard();
 renderDashboardFinancials();
 renderDashboardAtAGlance();
 document.querySelectorAll('#followupTabs .tab').forEach(t => t.addEventListener('click', () => {
