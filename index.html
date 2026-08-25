@@ -4220,6 +4220,27 @@ function setProjectField(projectId, field, value){
   if(!p) return;
   p[field] = value;
 }
+// ---- Contact & Property, matching the Sales pipeline's panel structure, for a project
+// with no linked opportunity — phone/email/property address live directly on the project. ----
+function buildProjectContactPanelHTML(p){
+  const dip = daysInPhase(p);
+  return `
+    <div class="section-label-row"><div class="eyebrow">Contact &amp; Property</div></div>
+    <div class="panel" style="margin-bottom:14px;"><div class="panel-body" style="padding:16px 20px;">
+      <div class="field-grid">
+        <div><label>Phone</label><input value="${escapeHtmlLite(p.phone || '')}" onchange="setProjectField('${p.id}','phone',this.value)"></div>
+        <div><label>Email</label><input type="email" value="${escapeHtmlLite(p.email || '')}" onchange="setProjectField('${p.id}','email',this.value)"></div>
+        <div><label>Property Address</label><input value="${escapeHtmlLite(p.propertyAddress || '')}" onchange="setProjectField('${p.id}','propertyAddress',this.value)"></div>
+      </div>
+      <div class="field-grid" style="margin-top:10px;">
+        <div><label>Days in This Phase</label><input value="${dip !== null ? dip : '—'}" disabled style="background:var(--border-soft); color:var(--ink-soft);"></div>
+      </div>
+      <div class="row" style="margin-top:14px; gap:8px;">
+        <button class="btn btn-outline" onclick="openMailto('${escapeHtmlLite(p.email||'')}', 'Re: ${escapeHtmlLite(p.client||p.name||'')}', '')">✉ Email</button>
+        <button class="btn btn-outline" onclick="openScheduleMenu(this, 'Follow up with ${escapeHtmlLite(p.client||p.name||'')}', '${p.nextFollowUpDate || new Date().toISOString().slice(0,10)}', '09:00', '${escapeHtmlLite(p.nextFollowUpNote||'')}', '${escapeHtmlLite(p.email||'')}')">📅 Schedule</button>
+      </div>
+    </div></div>`;
+}
 function buildProjectFollowUpPanelHTML(p){
   const overdue = p.nextFollowUpDate && new Date(p.nextFollowUpDate+'T00:00:00') < TODAY;
   return `
@@ -7163,13 +7184,16 @@ function buildActionBannerHTML(p){
     ${buildKpiLogHTML(p)}
     ${buildClientLogPanelHTML(p)}
     ${srcOpp && srcEst ? buildCarriedFromSalesHTML(srcOpp, srcEst, p.id, p.client) : `
-    <div class="two-col" style="margin-top:8px; grid-template-columns:1.4fr 1fr; align-items:start; gap:20px;">
-      <div>
-        ${buildMeetingsPanelHTML(p, 'project')}
-        ${buildProjectFollowUpPanelHTML(p)}
-      </div>
-      <div>
-        ${buildClientProfilePanelHTML(srcOppId, p.client, `renderProjectDetail()`)}
+    <div style="max-width:980px;">
+      <div class="two-col" style="margin-top:8px; grid-template-columns:1.4fr 1fr; align-items:start; gap:20px;">
+        <div>
+          ${buildProjectContactPanelHTML(p)}
+          ${buildMeetingsPanelHTML(p, 'project')}
+          ${buildProjectFollowUpPanelHTML(p)}
+        </div>
+        <div>
+          ${buildClientProfilePanelHTML(srcOppId, p.client, `renderProjectDetail()`)}
+        </div>
       </div>
     </div>`}
     <div class="section-label-row"><div class="eyebrow">Full Step-by-Step — Every Phase, In Order</div></div>
