@@ -2125,7 +2125,7 @@ function buildClientProfilePanelHTML(contactId, contactName, refreshJs){
 function refreshOppDetail(oppId){
   const opp = getOpp(oppId);
   const el = document.getElementById('oppOverlay');
-  if(el && opp) el.innerHTML = buildOppDetailHTML(opp);
+  if(el && opp){ el.innerHTML = buildOppDetailHTML(opp); attachAddressAutocomplete('addr_' + oppId); }
 }
 let ESTIMATE = null;
 let CURRENT_OPP_ID = null;
@@ -3343,6 +3343,7 @@ function openOpportunity(id){
   overlay.innerHTML = buildOppDetailHTML(opp);
   overlay.style.display = 'flex';
   renderEstimateTable();
+  attachAddressAutocomplete('addr_' + id);
 }
 function closeOpportunity(){
   const overlay = document.getElementById('oppOverlay');
@@ -3372,13 +3373,12 @@ function buildProjectContactPanelHTML(p){
       <div class="field-grid">
         <div><label>Phone</label><input value="${escapeHtmlLite(p.phone || '')}" onchange="setProjectField('${p.id}','phone',this.value)"></div>
         <div><label>Email</label><input type="email" value="${escapeHtmlLite(p.email || '')}" onchange="setProjectField('${p.id}','email',this.value)"></div>
-        <div><label>Property Address</label><input value="${escapeHtmlLite(p.propertyAddress || '')}" onchange="setProjectField('${p.id}','propertyAddress',this.value)"></div>
+        <div><label>Property Address</label><input id="addr_${p.id}" value="${escapeHtmlLite(p.propertyAddress || '')}" onchange="setProjectField('${p.id}','propertyAddress',this.value)" autocomplete="off"></div>
       </div>
       <div class="field-grid" style="margin-top:10px;">
         <div><label>Days in This Phase</label><input value="${dip !== null ? dip : '—'}" disabled style="background:var(--border-soft); color:var(--ink-soft);"></div>
       </div>
       <div class="row" style="margin-top:14px; gap:8px;">
-        <button class="btn btn-outline" onclick="openMailto('${escapeHtmlLite(p.email||'')}', 'Re: ${escapeHtmlLite(p.client||p.name||'')}', '')">✉ Email</button>
         <button class="btn btn-outline" onclick="openScheduleMenu(this, 'Follow up with ${escapeHtmlLite(p.client||p.name||'')}', '${p.nextFollowUpDate || new Date().toISOString().slice(0,10)}', '09:00', '${escapeHtmlLite(p.nextFollowUpNote||'')}', '${escapeHtmlLite(p.email||'')}')">📅 Schedule</button>
       </div>
     </div></div>`;
@@ -3435,13 +3435,12 @@ function buildCarriedFromSalesHTML(opp, e, projectId, clientName){
       <div class="field-grid">
         <div><label>Phone</label><input value="${escapeHtmlLite(opp.phone || '')}" onchange="setOppField('${opp.id}','phone',this.value)"></div>
         <div><label>Email</label><input type="email" value="${escapeHtmlLite(opp.email || '')}" onchange="setOppField('${opp.id}','email',this.value)"></div>
-        <div><label>Property Address</label><input value="${escapeHtmlLite(opp.address || '')}" onchange="setOppField('${opp.id}','address',this.value)"></div>
+        <div><label>Property Address</label><input id="addr_${opp.id}" value="${escapeHtmlLite(opp.address || '')}" onchange="setOppField('${opp.id}','address',this.value)" autocomplete="off"></div>
         <div><label>Next Activity Date</label><input type="date" value="${opp.nextActivityDate || ''}" onchange="setOppField('${opp.id}','nextActivityDate',this.value)"></div>
         <div><label>Next Activity Task</label><input value="${escapeHtmlLite(opp.nextActivityTask || '')}" onchange="setOppField('${opp.id}','nextActivityTask',this.value)"></div>
         <div><label>Days in Stage</label><div style="font-size:13.5px; font-weight:600; padding:8px 10px; ${days !== null && days > 30 ? 'color:var(--rust);' : ''}">${days !== null ? days : '—'}</div></div>
       </div>
       <div class="row" style="gap:8px; margin-top:12px; padding-top:12px; border-top:1px solid var(--border-soft);">
-        <button class="btn btn-outline" onclick="openMailto('${escapeHtmlLite(opp.email||'')}', 'Regarding your project — Mitchell Construction & Design', 'Hi ${escapeHtmlLite((opp.name||'').split(" ")[0])},\n\n')">✉ Email</button>
         <button class="btn btn-outline" onclick="openScheduleMenu(this, 'Follow up with ${escapeHtmlLite(opp.name||'')}', '${opp.nextFollowUpDate || new Date().toISOString().slice(0,10)}', '09:00', '${escapeHtmlLite(opp.nextFollowUpNote||'')}')">📅 Schedule</button>
       </div>
     </div></div>`;
@@ -3935,13 +3934,12 @@ function buildOppDetailHTML(opp){
       <div class="field-grid">
         <div><label>Phone</label><input value="${escapeHtmlLite(opp.phone || '')}" onchange="setOppField('${opp.id}','phone',this.value)"></div>
         <div><label>Email</label><input type="email" value="${escapeHtmlLite(opp.email || '')}" onchange="setOppField('${opp.id}','email',this.value)"></div>
-        <div><label>Property Address</label><input value="${escapeHtmlLite(opp.address || '')}" onchange="setOppField('${opp.id}','address',this.value)"></div>
+        <div><label>Property Address</label><input id="addr_${opp.id}" value="${escapeHtmlLite(opp.address || '')}" onchange="setOppField('${opp.id}','address',this.value)" autocomplete="off"></div>
         <div><label>Next Activity Date</label><input type="date" value="${opp.nextActivityDate || ''}" onchange="setOppField('${opp.id}','nextActivityDate',this.value)"></div>
         <div><label>Next Activity Task</label><input value="${escapeHtmlLite(opp.nextActivityTask || '')}" onchange="setOppField('${opp.id}','nextActivityTask',this.value)"></div>
         <div><label>Days in Stage</label><div style="font-size:13.5px; font-weight:600; padding:8px 10px; ${days !== null && days > 30 ? 'color:var(--rust);' : ''}">${days !== null ? days : '—'}</div></div>
       </div>
       <div class="row" style="gap:8px; margin-top:12px; padding-top:12px; border-top:1px solid var(--border-soft);">
-        <button class="btn btn-outline" onclick="openMailto('${escapeHtmlLite(opp.email||'')}', 'Regarding your project — Mitchell Construction & Design', 'Hi ${escapeHtmlLite((opp.name||'').split(" ")[0])},\n\n')">✉ Email</button>
         <button class="btn btn-outline" onclick="openScheduleMenu(this, 'Follow up with ${escapeHtmlLite(opp.name||'')}', '${opp.nextFollowUpDate || new Date().toISOString().slice(0,10)}', '09:00', '${escapeHtmlLite(opp.nextFollowUpNote||'')}')">📅 Schedule</button>
       </div>
     </div></div>`;
@@ -4630,6 +4628,7 @@ function setOppRating(id, n){
     oppOverlay.innerHTML = buildOppDetailHTML(opp);
     const newScrollHost = oppOverlay.firstElementChild;
     if(newScrollHost) newScrollHost.scrollTop = scrollTop;
+    attachAddressAutocomplete('addr_' + id);
   }
 }
 const MEETING_TYPES = ['Initial Meeting','Discovery Call','Office Consultation','Site Visit','Design Meeting','Precon Meeting','Kickoff Meeting','Other'];
@@ -6678,6 +6677,7 @@ function buildActionBannerHTML(p){
   `;
   window.scrollTo(0, 0);
   if(__scrollHost) __scrollHost.scrollTop = __scrollTop;
+  attachAddressAutocomplete('addr_' + p.id);
   if(CC_TAB === 'overview' && window.ScopeOfWork){
     loadReviewSendLogDashboard(p.convertedFrom || p.id, p.name);
   }
