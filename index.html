@@ -7647,6 +7647,13 @@ function pcBulkDelete(){
 // tool is — if this ever needs to scale to heavy traffic, a paid provider (Google Places,
 // Mapbox) would be the more robust long-term choice, but this works well for real
 // day-to-day use with zero setup and no key to manage or expose. ----
+// ---- Real address autocomplete as you type — uses Photon (by komoot), a free,
+// no-API-key-required geocoder built specifically for autocomplete/typeahead use (unlike
+// Nominatim, which explicitly discourages that pattern and has inconsistent CORS support
+// for direct browser calls — that was the actual cause when this first didn't work).
+// The dropdown is positioned in fixed viewport coordinates and attached to <body>, so it
+// can never get invisibly clipped by a modal's own overflow — the earlier version was
+// vulnerable to exactly that. ----
 function attachAddressAutocomplete(inputId){
   const input = document.getElementById(inputId);
   if(!input || input.dataset.autocompleteAttached) return;
@@ -7654,42 +7661,58 @@ function attachAddressAutocomplete(inputId){
   let debounceTimer = null;
   let dropdown = null;
   const closeDropdown = () => { if(dropdown){ dropdown.remove(); dropdown = null; } };
+  const positionDropdown = () => {
+    if(!dropdown) return;
+    const rect = input.getBoundingClientRect();
+    dropdown.style.top = (rect.bottom + 4) + 'px';
+    dropdown.style.left = rect.left + 'px';
+    dropdown.style.width = rect.width + 'px';
+  };
+  const buildLabel = (props) => {
+    const line1 = [props.housenumber, props.street || props.name].filter(Boolean).join(' ');
+    const parts = [line1, props.city || props.town || props.village, props.state, props.postcode].filter(Boolean);
+    return parts.join(', ');
+  };
   input.addEventListener('input', () => {
     const query = input.value.trim();
     clearTimeout(debounceTimer);
     if(query.length < 4){ closeDropdown(); return; }
     debounceTimer = setTimeout(async () => {
+      let results = [];
       try{
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=0&limit=5&countrycodes=us&q=${encodeURIComponent(query)}`, {
-          headers: { 'Accept-Language': 'en' }
-        });
-        if(!res.ok) return;
-        const results = await res.json();
+        const res = await fetch(`https://photon.komoot.io/api/?limit=5&lang=en&q=${encodeURIComponent(query)}`);
+        if(!res.ok) throw new Error('bad response');
+        const data = await res.json();
+        results = (data.features || []).map(f => buildLabel(f.properties || {})).filter(Boolean);
+      } catch(e){
+        console.warn('Address lookup failed (offline, or the lookup service is unreachable right now):', e);
         closeDropdown();
-        if(!results.length) return;
-        dropdown = document.createElement('div');
-        dropdown.style.cssText = 'position:absolute; z-index:500; background:#fff; border:1px solid var(--border-strong); border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,.16); max-height:220px; overflow-y:auto; width:100%;';
-        const rect = input.getBoundingClientRect();
-        dropdown.style.top = (input.offsetTop + input.offsetHeight + 4) + 'px';
-        dropdown.style.left = '0px';
-        results.forEach(r => {
-          const item = document.createElement('div');
-          item.textContent = r.display_name;
-          item.style.cssText = 'padding:9px 12px; font-size:13px; cursor:pointer; border-bottom:1px solid var(--border-soft);';
-          item.onmouseenter = () => item.style.background = 'var(--canvas)';
-          item.onmouseleave = () => item.style.background = 'transparent';
-          item.onclick = () => {
-            input.value = r.display_name;
-            input.dispatchEvent(new Event('change'));
-            closeDropdown();
-          };
-          dropdown.appendChild(item);
-        });
-        if(input.parentElement.style.position !== 'relative') input.parentElement.style.position = 'relative';
-        input.parentElement.appendChild(dropdown);
-      } catch(e){ /* offline or rate-limited — fail silently, typing still works normally */ }
+        return;
+      }
+      closeDropdown();
+      if(!results.length) return;
+      dropdown = document.createElement('div');
+      dropdown.style.cssText = 'position:fixed; z-index:2000; background:#fff; border:1px solid var(--border-strong); border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,.2); max-height:220px; overflow-y:auto;';
+      results.forEach(label => {
+        const item = document.createElement('div');
+        item.textContent = label;
+        item.style.cssText = 'padding:9px 12px; font-size:13px; cursor:pointer; border-bottom:1px solid var(--border-soft);';
+        item.onmouseenter = () => item.style.background = 'var(--canvas)';
+        item.onmouseleave = () => item.style.background = 'transparent';
+        item.onmousedown = (e) => e.preventDefault(); // keep focus on input so 'blur' doesn't close this before the click registers
+        item.onclick = () => {
+          input.value = label;
+          input.dispatchEvent(new Event('change'));
+          closeDropdown();
+        };
+        dropdown.appendChild(item);
+      });
+      document.body.appendChild(dropdown);
+      positionDropdown();
     }, 400);
   });
+  window.addEventListener('scroll', positionDropdown, true);
+  window.addEventListener('resize', positionDropdown);
   input.addEventListener('blur', () => setTimeout(closeDropdown, 200));
 }
 function openAddProspect(){
