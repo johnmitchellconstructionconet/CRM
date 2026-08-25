@@ -3439,6 +3439,7 @@ function buildCarriedFromSalesHTML(opp, e, projectId, clientName){
         <div><label>Next Activity Date</label><input type="date" value="${opp.nextActivityDate || ''}" onchange="setOppField('${opp.id}','nextActivityDate',this.value)"></div>
         <div><label>Next Activity Task</label><input value="${escapeHtmlLite(opp.nextActivityTask || '')}" onchange="setOppField('${opp.id}','nextActivityTask',this.value)"></div>
         <div><label>Days in Stage</label><div style="font-size:13.5px; font-weight:600; padding:8px 10px; ${days !== null && days > 30 ? 'color:var(--rust);' : ''}">${days !== null ? days : '—'}</div></div>
+        <div><label>Created</label><div style="font-size:13.5px; font-weight:600; padding:8px 10px;">${opp.createdDate || '—'}</div></div>
       </div>
       <div class="row" style="gap:8px; margin-top:12px; padding-top:12px; border-top:1px solid var(--border-soft);">
         <button class="btn btn-outline" onclick="openScheduleMenu(this, 'Follow up with ${escapeHtmlLite(opp.name||'')}', '${opp.nextFollowUpDate || new Date().toISOString().slice(0,10)}', '09:00', '${escapeHtmlLite(opp.nextFollowUpNote||'')}')">📅 Schedule</button>
@@ -3938,6 +3939,7 @@ function buildOppDetailHTML(opp){
         <div><label>Next Activity Date</label><input type="date" value="${opp.nextActivityDate || ''}" onchange="setOppField('${opp.id}','nextActivityDate',this.value)"></div>
         <div><label>Next Activity Task</label><input value="${escapeHtmlLite(opp.nextActivityTask || '')}" onchange="setOppField('${opp.id}','nextActivityTask',this.value)"></div>
         <div><label>Days in Stage</label><div style="font-size:13.5px; font-weight:600; padding:8px 10px; ${days !== null && days > 30 ? 'color:var(--rust);' : ''}">${days !== null ? days : '—'}</div></div>
+        <div><label>Created</label><div style="font-size:13.5px; font-weight:600; padding:8px 10px;">${opp.createdDate || '—'}</div></div>
       </div>
       <div class="row" style="gap:8px; margin-top:12px; padding-top:12px; border-top:1px solid var(--border-soft);">
         <button class="btn btn-outline" onclick="openScheduleMenu(this, 'Follow up with ${escapeHtmlLite(opp.name||'')}', '${opp.nextFollowUpDate || new Date().toISOString().slice(0,10)}', '09:00', '${escapeHtmlLite(opp.nextFollowUpNote||'')}')">📅 Schedule</button>
@@ -7680,7 +7682,9 @@ function attachAddressAutocomplete(inputId){
     debounceTimer = setTimeout(async () => {
       let results = [];
       try{
-        const res = await fetch(`https://photon.komoot.io/api/?limit=5&lang=en&q=${encodeURIComponent(query)}`);
+        // Biased toward Springfield, MO — the company's home base — so a rural county
+        // road here outranks a similarly-named one somewhere else in the country.
+        const res = await fetch(`https://photon.komoot.io/api/?limit=5&lang=en&lat=37.2090&lon=-93.2923&zoom=10&q=${encodeURIComponent(query)}`);
         if(!res.ok) throw new Error('bad response');
         const data = await res.json();
         results = (data.features || []).map(f => buildLabel(f.properties || {})).filter(Boolean);
