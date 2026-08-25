@@ -2239,7 +2239,7 @@ select{cursor:pointer;}
       <div class="hint" style="margin-bottom:10px;">Every active project, its current phase, whether it's on pace or overdue, and what actually happens next — filled in once here, and it shows the same everywhere.</div>
       <div id="dashPreconStatusTable" style="margin-bottom:28px;"></div>
 
-      <div class="stat-grid" id="dashAtAGlanceGrid" style="grid-template-columns:repeat(6,1fr);"></div>
+      <div class="stat-grid" id="dashAtAGlanceGrid" style="grid-template-columns:repeat(4,1fr);"></div>
 
       <div class="section-label-row" style="margin-top:26px;"><div class="eyebrow">Financial Overview</div></div>
       <div id="dashFinancialGrid" class="stat-grid" style="grid-template-columns:repeat(4,1fr);"></div>
@@ -4241,6 +4241,27 @@ function buildProjectContactPanelHTML(p){
       </div>
     </div></div>`;
 }
+// ---- Tasks for a standalone project reuse the exact same task system Sales opportunities
+// use — addProjectTask/toggleProjectTaskDone already just key off an id into OPP_ESTIMATES,
+// so the project's own id works directly with zero changes to that code. ----
+function buildProjectTasksPanelHTML(p){
+  const est = getOrCreateOppEstimate({ id: p.id, name: p.client, owner: p.owner, stage: 'Preconstruction' });
+  return `
+    <div class="section-label-row"><div class="eyebrow">Tasks</div><span class="pill pill-slate" style="cursor:pointer;" onclick="addProjectTask('${p.id}')">+ Add Task</span></div>
+    <div class="panel" style="margin-bottom:20px;"><div class="panel-body" style="padding:6px 20px;">
+      ${est.tasks.length ? est.tasks.map(t => `<div class="task-row-mini"><span class="task-check ${t.done?'done':''}" onclick="toggleProjectTaskDone('${p.id}','${t.id}')">${t.done ? '✓' : ''}</span><div style="flex:1;"><div style="font-size:13px; ${t.done ? 'color:var(--ink-faint); text-decoration:line-through;' : 'font-weight:500;'}">${escapeHtmlLite(t.title)}</div><div class="sub-txt">${escapeHtmlLite(t.assignee||'Unassigned')}${t.due ? ' \u00b7 Due ' + t.due : ''}</div></div></div>`).join('') : '<div class="empty-row">No tasks yet.</div>'}
+    </div></div>`;
+}
+// ---- Next Steps — a plain, separate note distinct from the Next Follow-Up date and from
+// Tasks. This is the same field shown on the Dashboard's Preconstruction status table and
+// the main Preconstruction board — edit it here and it stays in sync everywhere. ----
+function buildProjectNextStepsPanelHTML(p){
+  return `
+    <div class="section-label-row"><div class="eyebrow">Next Steps</div></div>
+    <div class="panel" style="margin-bottom:20px;"><div class="panel-body" style="padding:16px 20px;">
+      <textarea style="width:100%; min-height:70px; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-family:'Inter',sans-serif; font-size:13.5px;" placeholder="What actually happens next on this job..." onchange="setProjectField('${p.id}','nextStepNote', this.value); saveAppState();">${escapeHtmlLite(p.nextStepNote || '')}</textarea>
+    </div></div>`;
+}
 function buildProjectFollowUpPanelHTML(p){
   const overdue = p.nextFollowUpDate && new Date(p.nextFollowUpDate+'T00:00:00') < TODAY;
   return `
@@ -5077,7 +5098,7 @@ function openScheduleMenu(anchorEl, title, dateStr, timeStr, details, attendeeEm
 // ---- Generalized so the same meetings module works for both Sales opportunities and
 // Relationship partners — kind is 'opp' or 'partner'. A scheduled meeting on a New Relations
 // Identified partner is what clears that partner's "needs action" flag on the dashboard. ----
-function meetingEntity(id, kind){ return kind === 'partner' ? RELATIONSHIP_PARTNERS.find(p => p.id === id) : kind === 'project' ? PROJECTS[id] : getOpp(id); }
+function meetingEntity(id, kind){ return kind === 'partner' ? RELATIONSHIP_PARTNERS.find(p => p.id === id) : kind === 'project' ? PROJECTS[id] : kind === 'newcontact' ? PROSPECT_CONTACTS.find(c => c.id === id) : getOpp(id); }
 // ---- Resolves the client's email for calendar invites, regardless of which kind of
 // record the meeting/follow-up lives on. Projects don't carry their own email field —
 // they inherit it from the linked Sales opportunity when one exists. ----
@@ -5092,11 +5113,11 @@ function buildMeetingsPanelHTML(entity, kind){
   kind = kind || 'opp';
   const attendeeEmail = attendeeEmailFor(entity, kind);
   const meetings = (entity.meetings || []).slice().sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time));
-  const label = kind === 'partner' ? 'Call, Coffee, or Meeting' : 'Client Meeting';
+  const label = (kind === 'partner' || kind === 'newcontact') ? 'Call, Coffee, or Meeting' : 'Client Meeting';
   return `
-    <div class="section-label-row"><div class="eyebrow">${kind === 'partner' ? 'Meetings' : 'Client Meetings'}</div><span class="pill pill-slate" style="cursor:pointer;" onclick="openAddMeetingModal('${entity.id}', '${kind}')">+ Schedule ${label}</span></div>
+    <div class="section-label-row"><div class="eyebrow">${(kind === 'partner' || kind === 'newcontact') ? 'Meetings' : 'Client Meetings'}</div><span class="pill pill-slate" style="cursor:pointer;" onclick="openAddMeetingModal('${entity.id}', '${kind}')">+ Schedule ${label}</span></div>
     <div class="panel" style="margin-bottom:14px;"><div class="panel-body" style="padding:${meetings.length ? '8px 14px' : '20px'};">
-      ${!meetings.length ? `<div class="empty-row">No meetings scheduled yet.${kind === 'partner' ? ' Scheduling one clears this partner\u2019s "needs action" flag on the dashboard.' : ''}</div>` : meetings.map(m => {
+      ${!meetings.length ? `<div class="empty-row">No meetings scheduled yet.${kind === 'partner' ? ' Scheduling one clears this partner\u2019s "needs action" flag on the dashboard.' : kind === 'newcontact' ? ' Scheduling one clears this contact\u2019s "needs outreach" flag on the dashboard.' : ''}</div>` : meetings.map(m => {
         const isPast = new Date(m.date+'T00:00:00') < TODAY;
         const isTomorrow = m.date === tomorrowDateStr();
         return `<div class="list-row" style="${isPast ? 'opacity:.5;' : ''}">
@@ -5133,10 +5154,10 @@ function openAddMeetingModal(id, kind){
   overlay.style.cssText = 'position:fixed; inset:0; z-index:400; display:flex; align-items:center; justify-content:center; background:rgba(20,18,14,.55); padding:20px;';
   overlay.innerHTML = `
     <div class="modal-card" style="width:420px; background:#fff; border-radius:14px; padding:20px; box-shadow:0 20px 50px rgba(0,0,0,.25);">
-      <div class="panel-title" style="margin-bottom:2px;">Schedule ${kind === 'partner' ? 'a Call, Coffee, or Meeting' : 'Client Meeting'}</div>
+      <div class="panel-title" style="margin-bottom:2px;">Schedule ${(kind === 'partner' || kind === 'newcontact') ? 'a Call, Coffee, or Meeting' : 'Client Meeting'}</div>
       <div style="font-size:11.5px; color:var(--muted-text); margin-bottom:14px;">Add as many upcoming meetings as you already know about — each one can be pushed to your calendar.</div>
       <div class="sidebar-label" style="padding:0 0 4px;">Title</div>
-      <input type="text" id="meetingTitleInput" class="collab-input" value="${kind === 'partner' ? 'Coffee / Intro Call' : 'Client Meeting'}">
+      <input type="text" id="meetingTitleInput" class="collab-input" value="${(kind === 'partner' || kind === 'newcontact') ? 'Coffee / Intro Call' : 'Client Meeting'}">
       <div class="field-grid" style="margin-top:8px;">
         <div><label>Date</label><input type="date" id="meetingDateInput" class="collab-input"></div>
         <div><label>Time</label><input type="time" id="meetingTimeInput" class="collab-input" value="09:00"></div>
@@ -5158,7 +5179,7 @@ function openAddMeetingModal(id, kind){
     if(!entity.meetings) entity.meetings = [];
     entity.meetings.push({
       id: 'mtg' + Date.now(),
-      title: overlay.querySelector('#meetingTitleInput').value.trim() || (kind === 'partner' ? 'Coffee / Intro Call' : 'Client Meeting'),
+      title: overlay.querySelector('#meetingTitleInput').value.trim() || (kind === 'partner' || kind === 'newcontact' ? 'Coffee / Intro Call' : 'Client Meeting'),
       date,
       time: overlay.querySelector('#meetingTimeInput').value || '09:00',
       notes: overlay.querySelector('#meetingNotesInput').value.trim(),
@@ -5171,6 +5192,10 @@ function openAddMeetingModal(id, kind){
       if(document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboardAtAGlance();
     } else if(kind === 'project'){
       renderProjectDetail();
+    } else if(kind === 'newcontact'){
+      openProspectDetail(id);
+      renderProspectContacts();
+      if(document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboardAtAGlance();
     } else if(document.getElementById('oppOverlay')?.style.display !== 'none'){
       openOpportunity(id);
     }
@@ -5187,6 +5212,10 @@ function deleteMeeting(id, meetingId, kind){
     if(document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboardAtAGlance();
   } else if(kind === 'project'){
     renderProjectDetail();
+  } else if(kind === 'newcontact'){
+    openProspectDetail(id);
+    renderProspectContacts();
+    if(document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboardAtAGlance();
   } else {
     openOpportunity(id);
   }
@@ -6675,6 +6704,9 @@ function renderDashboardAtAGlance(){
   // A newly identified relationship needs action until a call/coffee/meeting is on the books —
   // scheduling one (and pushing it to the calendar from there) is what clears this.
   const newRelsNeedingAction = RELATIONSHIP_PARTNERS.filter(p => p.stage === 'New Relations Identified' && !(p.meetings && p.meetings.length)).length;
+  // A prospected contact needs outreach until a call/coffee/meeting is on the books, same
+  // pattern as newly identified relationships — once onboarded or ruled out, it's settled.
+  const newContactsNeedingOutreach = PROSPECT_CONTACTS.filter(c => !['Onboarded','Not a Fit'].includes(c.status) && !(c.meetings && c.meetings.length)).length;
 
   const cards = [
     { num: activeLeads, lbl: 'Active Sales Leads', dest: "goPage('pipeline')", cls:'' },
@@ -6684,6 +6716,7 @@ function renderDashboardAtAGlance(){
     { num: needsAction, lbl: 'Precon Needs Action', dest: "goPage('precon-dash')", cls: needsAction ? 'warn' : '' },
     { num: readyForProduction, lbl: 'Ready for Production', dest: "goPage('precon-dash')", cls:'good' },
     { num: newRelsNeedingAction, lbl: 'New Relationships Needing Action', dest: "goPage('relationships')", cls: newRelsNeedingAction ? 'warn' : 'good' },
+    { num: newContactsNeedingOutreach, lbl: 'New Contacts Needing Outreach', dest: "goPage('relationships')", cls: newContactsNeedingOutreach ? 'warn' : 'good' },
   ];
   grid.innerHTML = cards.map(c => `<div class="stat-card" style="cursor:pointer;" onclick="${c.dest}"><div class="num" ${c.cls==='warn'?'style="color:var(--rust);"':''}>${c.num}</div><div class="lbl">${c.lbl}</div><div class="delta ${c.cls}">Click to view</div></div>`).join('');
 }
@@ -7193,6 +7226,8 @@ function buildActionBannerHTML(p){
         </div>
         <div>
           ${buildClientProfilePanelHTML(srcOppId, p.client, `renderProjectDetail()`)}
+          ${buildProjectTasksPanelHTML(p)}
+          ${buildProjectNextStepsPanelHTML(p)}
         </div>
       </div>
     </div>`}
@@ -7474,9 +7509,10 @@ function renderProspectContacts(){
   renderBulkActionBar('newcontact');
 }
 function buildProspectRow(c){
-  return `<tr>
+  const needsOutreach = !['Onboarded','Not a Fit'].includes(c.status) && !(c.meetings && c.meetings.length);
+  return `<tr style="${needsOutreach ? 'background:#FBEFEA;' : ''}">
     <td onclick="event.stopPropagation();" style="width:28px;">${bulkCheckboxHTML('newcontact', c.id)}</td>
-    <td class="name-cell" style="cursor:pointer;" onclick="openProspectDetail('${c.id}')">${escapeHtmlLite(c.name)}</td>
+    <td class="name-cell" style="cursor:pointer;" onclick="openProspectDetail('${c.id}')">${needsOutreach ? '⚠ ' : ''}${escapeHtmlLite(c.name)}</td>
     <td><span class="pill" style="background:${partnerCategoryColor(c.category)}22; color:${partnerCategoryColor(c.category)}; font-weight:600;">${escapeHtmlLite(c.category)}</span></td>
     <td>${escapeHtmlLite(c.company || '—')}</td>
     <td class="muted">${escapeHtmlLite(c.howFound || '—')}</td>
@@ -7560,7 +7596,7 @@ function openProspectDetail(id){
   overlay.id = 'prospectDetailOverlay';
   overlay.style.cssText = 'position:fixed; inset:0; z-index:400; display:flex; align-items:center; justify-content:center; background:rgba(20,18,14,.55); padding:20px;';
   overlay.innerHTML = `
-    <div class="modal-card" style="width:480px; background:#fff; border-radius:14px; padding:20px; box-shadow:0 20px 50px rgba(0,0,0,.25); max-height:85vh; overflow-y:auto;">
+    <div class="modal-card" style="width:540px; background:#fff; border-radius:14px; padding:20px; box-shadow:0 20px 50px rgba(0,0,0,.25); max-height:85vh; overflow-y:auto;">
       <div style="display:flex; justify-content:space-between; align-items:flex-start;">
         <div>
           <div class="eyebrow">New Contact</div>
@@ -7572,12 +7608,17 @@ function openProspectDetail(id){
         <span class="pill" style="background:${partnerCategoryColor(c.category)}22; color:${partnerCategoryColor(c.category)}; font-weight:600;">${escapeHtmlLite(c.category)}</span>
         <span class="pill ${PROSPECT_STATUS_CLASS[c.status]}">${escapeHtmlLite(c.status)}</span>
       </div>
+      ${!(c.meetings && c.meetings.length) ? `<div class="panel" style="margin-bottom:14px; border-color:var(--rust); border-width:2px;"><div class="panel-body" style="padding:12px 16px;">
+        <div style="font-weight:700; color:var(--rust); font-size:12.5px;">⚠ Needs Outreach</div>
+        <div class="sub-txt" style="margin-top:2px;">Schedule a call, coffee, or meeting below — once it's on the calendar, this clears from the dashboard. Decide after you talk whether they become a real Partner.</div>
+      </div></div>` : ''}
       <div class="sidebar-label" style="padding:0 0 4px;">Location</div>
       <div style="font-size:13px; margin-bottom:10px;">${escapeHtmlLite(c.location)}</div>
       <div class="sidebar-label" style="padding:0 0 4px;">Company</div>
       <div style="font-size:13px; margin-bottom:10px;">${escapeHtmlLite(c.company || '—')}</div>
       <div class="sidebar-label" style="padding:0 0 4px;">How Found</div>
       <div style="font-size:13px; margin-bottom:14px;">${escapeHtmlLite(c.howFound || '—')}</div>
+      ${buildMeetingsPanelHTML(c, 'newcontact')}
       <div class="sidebar-label" style="padding:0 0 4px;">LinkedIn URL</div>
       <input type="text" class="collab-input" style="margin-bottom:14px;" value="${escapeHtmlLite(c.linkedinUrl || '')}" onchange="setProspectField('${c.id}','linkedinUrl',this.value)" placeholder="Paste their LinkedIn profile link">
       <div class="sidebar-label" style="padding:0 0 4px;">Notes</div>
