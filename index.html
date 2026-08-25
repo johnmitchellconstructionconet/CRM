@@ -251,6 +251,16 @@ tbody tr:hover{background:#FCFBF8;}
 /* ---- Monday-style grouped board (Financial pages) ---- */
 .mboard-group{margin-bottom:20px; border-radius:10px; overflow:hidden; border:1px solid var(--border);}
 .mboard-group-head{padding:12px 18px; display:flex; justify-content:space-between; align-items:center; background:var(--paper); border-left:4px solid var(--group-accent, var(--taupe)); border-bottom:1px solid var(--border-soft); font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13.5px; color:var(--ink);}
+.precon-phase-strip{display:grid; grid-template-columns:repeat(7, 1fr); gap:10px; margin-bottom:14px;}
+.precon-phase-card{background:var(--paper); border:1px solid var(--border); border-top:3px solid var(--phase-color); border-radius:10px; padding:12px 10px; cursor:pointer; transition:transform .12s ease, box-shadow .12s ease; text-align:left;}
+.precon-phase-card:hover{transform:translateY(-2px); box-shadow:0 4px 14px rgba(27,29,34,.08);}
+.precon-phase-card.active{background:var(--phase-color); box-shadow:0 4px 14px rgba(27,29,34,.12);}
+.precon-phase-card.active .ppc-count, .precon-phase-card.active .ppc-label{color:#fff;}
+.precon-phase-card.active .ppc-sublabel{color:rgba(255,255,255,0.75);}
+.precon-phase-card .ppc-count{font-family:'Space Grotesk',sans-serif; font-size:24px; font-weight:700; color:var(--ink); line-height:1.1;}
+.precon-phase-card .ppc-label{font-size:11px; font-weight:700; color:var(--ink-soft); margin-top:4px; text-transform:uppercase; letter-spacing:.02em;}
+.precon-phase-card .ppc-sublabel{font-size:10.5px; color:var(--ink-faint); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.precon-dash-row:hover{background:var(--canvas);}
 .bulk-cb{width:15px; height:15px; cursor:pointer; accent-color:var(--rust);}
 .bulk-action-bar{display:none; align-items:center; gap:12px; position:sticky; top:0; z-index:20; background:var(--ink); color:#fff; padding:10px 16px; border-radius:8px; margin-bottom:10px; font-size:13px;}
 .bulk-action-bar .btn-sm{padding:5px 10px; font-size:12px;}
@@ -2340,14 +2350,12 @@ select{cursor:pointer;}
 
     <!-- ===== SYSTEM SHELLS ===== -->
     <div class="page" id="page-users">
-      <div class="page-header"><div><div class="eyebrow">System</div><h1>Users &amp; Permissions</h1><div class="sub">Role labels drive the UI; real security lives at the database level once Supabase is connected</div></div></div>
+      <div class="page-header"><div><div class="eyebrow">System</div><h1>Users &amp; Permissions</h1><div class="sub">Role and location here drive the UI (dropdowns, filters); real login access is managed in Supabase directly, for security</div></div>
+        <button class="btn btn-dark" onclick="openAddEditUserModal()">+ Add User</button>
+      </div>
       <table>
-        <thead><tr><th>Name</th><th>Role</th><th>Location</th><th>Status</th></tr></thead>
-        <tbody>
-          <tr><td class="name-cell">John Mitchell</td><td>Owner</td><td>All Locations</td><td><span class="pill pill-jade">Active</span></td></tr>
-          <tr><td class="name-cell">Kennedy Adamson</td><td>Designer / Selections</td><td>Springfield</td><td><span class="pill pill-jade">Active</span></td></tr>
-          <tr><td class="name-cell">Bre Mitchell</td><td>Office Admin</td><td>Springfield</td><td><span class="pill pill-jade">Active</span></td></tr>
-        </tbody>
+        <thead><tr><th>Name</th><th>Role</th><th>Location</th><th>Status</th><th></th></tr></thead>
+        <tbody id="usersPermissionsBody"></tbody>
       </table>
     </div>
     <div class="page" id="page-locations">
@@ -2402,9 +2410,11 @@ select{cursor:pointer;}
       <div class="section-label-row"><div class="eyebrow">Default Task Assignees</div></div>
       <div id="defaultAssigneesPanel" class="panel" style="margin-bottom:28px;"></div>
       <div id="templatesGrid" class="stat-grid" style="grid-template-columns:repeat(2,1fr); gap:16px;"></div>
-      <div class="section-label-row" style="margin-top:28px;"><div class="eyebrow">Team Roster</div><span class="pill pill-slate" style="cursor:pointer;" onclick="addTeamMember()">+ Add Team Member</span></div>
-      <div class="hint" style="margin-bottom:12px;">Everyone here shows up in every "Assigned To" dropdown across Sales and Preconstruction.</div>
-      <div class="panel" id="teamRosterPanel"><div class="panel-body" style="padding:6px 20px;"></div></div>
+      <div class="section-label-row" style="margin-top:28px;"><div class="eyebrow">Team Roster</div></div>
+      <div class="panel" style="margin-bottom:12px;"><div class="panel-body" style="padding:16px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div class="hint" style="margin:0;">Add, edit, or remove team members — including their role and location — from Users &amp; Permissions. Everyone Active there shows up in every "Assigned To" dropdown across Sales and Preconstruction.</div>
+        <button class="btn btn-outline" onclick="goPage('users')">Go to Users &amp; Permissions →</button>
+      </div></div>
       <div class="section-label-row" style="margin-top:28px;"><div class="eyebrow">Standard Schedule Template</div></div>
       <div class="hint" style="margin-bottom:12px;">Typical duration for each phase, in business days. This is what "Generate Standard Schedule" uses to fill in every milestone's due date automatically on a project, instead of typing each one in by hand.</div>
       <div class="panel" id="scheduleTemplatePanel"><div class="panel-body" style="padding:6px 20px;"></div></div>
@@ -2453,6 +2463,17 @@ return this.parent.children[i-1]},XMLNode.prototype.next=function(){var i;if(i=t
 // In-memory only, like everything else here — resets on reload until a real backend exists.
 // Shared team roster — managed once in Company Settings, used for every "Assigned To"
 // dropdown across Sales and Preconstruction, so who's on the team is a single source of truth.
+// ---- The real source of truth for who's on the team — name, role, location, status.
+// TEAM_MEMBERS (a plain list of Active names) is derived from this and kept in sync,
+// since dozens of "Assigned To" dropdowns throughout the app already read from it. ----
+let TEAM_ROSTER = [
+  {id:'u1', name:'John Mitchell', role:'Owner', location:'All Locations', status:'Active'},
+  {id:'u2', name:'Kennedy Adamson', role:'Designer / Selections', location:'Springfield', status:'Active'},
+  {id:'u3', name:'Bre Mitchell', role:'Office Admin', location:'Springfield', status:'Active'},
+];
+function syncTeamMembersFromRoster(){
+  TEAM_MEMBERS = TEAM_ROSTER.filter(u => u.status === 'Active').map(u => u.name);
+}
 let TEAM_MEMBERS = ['John Mitchell', 'Bre Mitchell', 'Kennedy Adamson'];
 // ---- The person currently using this session — matches the sidebar's "who's logged in"
 // display. Used to auto-stamp every logged activity with a real name instead of a generic
@@ -2582,22 +2603,77 @@ function setScheduleTemplateDays(phaseNum, val){
   const n = parseInt(val) || 1;
   STANDARD_SCHEDULE_TEMPLATE[phaseNum] = n;
 }
-function renderTeamRoster(){
-  const panel = document.getElementById('teamRosterPanel');
-  if(!panel) return;
-  const body = panel.querySelector('.panel-body');
-  body.innerHTML = TEAM_MEMBERS.length ? TEAM_MEMBERS.map((name, i) => `<div class="file-row"><span class="fr-name">${escapeHtmlLite(name)}</span><span style="cursor:pointer; color:var(--rust); font-size:14px;" onclick="removeTeamMember(${i})" title="Remove">&times;</span></div>`).join('') : '<div class="empty-row">No team members yet.</div>';
+function renderUsersPermissionsTable(){
+  const body = document.getElementById('usersPermissionsBody');
+  if(!body) return;
+  body.innerHTML = TEAM_ROSTER.length ? TEAM_ROSTER.map(u => `<tr>
+    <td class="name-cell" style="cursor:pointer;" onclick="openAddEditUserModal('${u.id}')">${escapeHtmlLite(u.name)}</td>
+    <td>${escapeHtmlLite(u.role)}</td>
+    <td>${escapeHtmlLite(u.location)}</td>
+    <td><span class="pill ${u.status==='Active' ? 'pill-jade' : 'pill-ink'}">${escapeHtmlLite(u.status)}</span></td>
+    <td class="row" style="gap:10px; justify-content:flex-end;">
+      <span style="cursor:pointer; text-decoration:underline; font-size:12.5px; color:var(--ink-soft);" onclick="openAddEditUserModal('${u.id}')">Edit</span>
+      <span style="cursor:pointer; color:var(--rust); font-size:15px;" onclick="deleteUser('${u.id}')" title="Delete">&times;</span>
+    </td>
+  </tr>`).join('') : `<tr><td colspan="5" class="empty-row">No users yet.</td></tr>`;
 }
-function addTeamMember(){
-  const name = prompt('Team member name:');
-  if(!name || !name.trim()) return;
-  TEAM_MEMBERS.push(name.trim());
-  renderTeamRoster();
+function openAddEditUserModal(id){
+  const existing = id ? TEAM_ROSTER.find(u => u.id === id) : null;
+  document.getElementById('addUserOverlay')?.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'addUserOverlay';
+  overlay.style.cssText = 'position:fixed; inset:0; z-index:400; display:flex; align-items:center; justify-content:center; background:rgba(20,18,14,.55); padding:20px;';
+  overlay.innerHTML = `
+    <div class="modal-card" style="width:420px; background:#fff; border-radius:14px; padding:20px; box-shadow:0 20px 50px rgba(0,0,0,.25);">
+      <div class="panel-title" style="margin-bottom:14px;">${existing ? 'Edit User' : 'Add User'}</div>
+      <div class="sidebar-label" style="padding:0 0 4px;">Name</div>
+      <input type="text" id="userNameInput" class="collab-input" value="${existing ? escapeHtmlLite(existing.name) : ''}" placeholder="e.g. Bre Mitchell">
+      <div class="sidebar-label" style="padding:8px 0 4px;">Role</div>
+      <input type="text" id="userRoleInput" class="collab-input" value="${existing ? escapeHtmlLite(existing.role) : ''}" placeholder="e.g. Office Admin">
+      <div class="field-grid" style="margin-top:10px;">
+        <div><label class="est-lbl">Location</label><select id="userLocationInput">
+          <option value="All Locations" ${existing && existing.location==='All Locations' ? 'selected' : ''}>All Locations</option>
+          ${COMPANY_LOCATIONS.map(l => `<option value="${escapeHtmlLite(l.name)}" ${existing && existing.location===l.name ? 'selected' : ''}>${escapeHtmlLite(l.name)}</option>`).join('')}
+        </select></div>
+        <div><label class="est-lbl">Status</label><select id="userStatusInput">
+          <option value="Active" ${!existing || existing.status==='Active' ? 'selected' : ''}>Active</option>
+          <option value="Inactive" ${existing && existing.status==='Inactive' ? 'selected' : ''}>Inactive</option>
+        </select></div>
+      </div>
+      <div class="hint" style="margin-top:10px;">This controls role/location shown across the app and who appears in "Assigned To" dropdowns — it doesn't create or change anyone's actual login. Real accounts are managed in Supabase directly.</div>
+      <div class="row" style="margin-top:16px; justify-content:flex-end; gap:8px;">
+        <button class="btn" id="cancelAddUser">Cancel</button>
+        <button class="btn btn-primary" id="submitAddUser">${existing ? 'Save Changes' : 'Add User'}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.onclick = (e) => { if(e.target === overlay) overlay.remove(); };
+  overlay.querySelector('#cancelAddUser').onclick = () => overlay.remove();
+  overlay.querySelector('#submitAddUser').onclick = () => {
+    const name = overlay.querySelector('#userNameInput').value.trim();
+    if(!name){ alert('Enter a name.'); return; }
+    const role = overlay.querySelector('#userRoleInput').value.trim() || 'Team Member';
+    const location = overlay.querySelector('#userLocationInput').value;
+    const status = overlay.querySelector('#userStatusInput').value;
+    if(existing){
+      existing.name = name; existing.role = role; existing.location = location; existing.status = status;
+    } else {
+      TEAM_ROSTER.push({ id: 'u' + Date.now(), name, role, location, status });
+    }
+    syncTeamMembersFromRoster();
+    overlay.remove();
+    renderUsersPermissionsTable();
+    saveAppState();
+  };
 }
-function removeTeamMember(idx){
-  if(!confirm('Remove this team member from the roster? This does not unassign anything already assigned to them.')) return;
-  TEAM_MEMBERS.splice(idx, 1);
-  renderTeamRoster();
+function deleteUser(id){
+  const u = TEAM_ROSTER.find(x => x.id === id);
+  if(!u) return;
+  if(!confirm(`Remove ${u.name} from the roster? This doesn't unassign anything already assigned to them.`)) return;
+  TEAM_ROSTER = TEAM_ROSTER.filter(x => x.id !== id);
+  syncTeamMembersFromRoster();
+  renderUsersPermissionsTable();
+  saveAppState();
 }
 function renderTemplatesGrid(){
   const grid = document.getElementById('templatesGrid');
@@ -4356,6 +4432,7 @@ function buildCarriedFromSalesHTML(opp, e, projectId, clientName){
     </div></div>`;
   const inspirationPhotosPanel = buildInspirationPhotosPanelHTML(opp.id, e);
   const clientProfilePanel = buildClientProfilePanelHTML(opp.id, clientName, `renderProjectDetail()`);
+  const nextStepsPanel = (projectId && PROJECTS[projectId]) ? buildProjectNextStepsPanelHTML(PROJECTS[projectId]) : '';
 
   return `
     <div class="section-label-row"><div class="eyebrow">Carried From Sales</div><span class="pill pill-slate" title="Everything captured during Sales — contact info, files, tasks, meeting notes — stays with the project, nothing starts over.">Nothing lost ⓘ</span></div>
@@ -4368,6 +4445,7 @@ function buildCarriedFromSalesHTML(opp, e, projectId, clientName){
         ${followUpPanel}
       </div>
       <div>
+        ${nextStepsPanel}
         ${filesPanel}
         ${tasksPanel}
         ${meetingNotesPanel}
@@ -6684,41 +6762,77 @@ function projectStatusInfo(p){
   if(task) return { label:'On Track', pillClass:'pill-jade', urgency:1 };
   return { label:'—', pillClass:'pill-ink', urgency:1 };
 }
+// null = show every active phase; a number 3-8 filters to just that phase, clicked from
+// the distribution strip above the table for an at-a-glance read on where the pipeline
+// is heaviest before drilling into any one job.
+let DASH_PRECON_PHASE_FILTER = null;
+function setDashPreconPhaseFilter(phase){
+  DASH_PRECON_PHASE_FILTER = (DASH_PRECON_PHASE_FILTER === phase) ? null : phase;
+  renderDashboardPreconStatus();
+}
 function renderDashboardPreconStatus(){
   const host = document.getElementById('dashPreconStatusTable');
   if(!host) return;
   const active = Object.values(PROJECTS).filter(p => p.currentPhase !== null);
-  if(!active.length){
+  const readyCount = Object.values(PROJECTS).filter(p => p.currentPhase === null).length;
+
+  // Distribution strip — one card per phase, colored to match that phase everywhere else
+  // in the app, showing how many jobs are sitting there right now. Click to filter below.
+  const distCards = WORKFLOW_PHASE_DEFS.map(pd => {
+    const count = active.filter(p => p.currentPhase === pd.n).length;
+    const isFiltered = DASH_PRECON_PHASE_FILTER === pd.n;
+    return `<div class="precon-phase-card ${isFiltered ? 'active' : ''}" style="--phase-color:${PRECON_PHASE_COLORS[pd.n]};" onclick="setDashPreconPhaseFilter(${pd.n})">
+      <div class="ppc-count">${count}</div>
+      <div class="ppc-label">Phase ${pd.n}</div>
+      <div class="ppc-sublabel">${escapeHtmlLite(pd.name)}</div>
+    </div>`;
+  }).join('');
+  const readyCard = `<div class="precon-phase-card ${DASH_PRECON_PHASE_FILTER === 'ready' ? 'active' : ''}" style="--phase-color:#5C7A63;" onclick="setDashPreconPhaseFilter('ready')">
+    <div class="ppc-count">${readyCount}</div>
+    <div class="ppc-label">Ready</div>
+    <div class="ppc-sublabel">For Production</div>
+  </div>`;
+
+  if(!active.length && !readyCount){
     host.innerHTML = `<div class="panel"><div class="panel-body" style="padding:20px;"><div class="empty-row">No active Preconstruction projects right now.</div></div></div>`;
     return;
   }
-  const rows = active.map(p => {
+
+  let rows = active.map(p => {
     const task = getActiveTaskForProject(p);
     const dip = daysInPhase(p);
     const status = projectStatusInfo(p);
     const phaseDef = WORKFLOW_PHASE_DEFS.find(pd => pd.n === p.currentPhase);
     return { p, task, dip, status, phaseDef };
-  }).sort((a,b) => b.status.urgency - a.status.urgency || (b.dip||0) - (a.dip||0));
-  host.innerHTML = `<div class="panel"><div class="panel-body" style="padding:0;">
-    <table style="width:100%; table-layout:fixed;">
-      <thead><tr>
-        <th style="text-align:left; padding:10px 14px; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-faint); width:20%;">Project</th>
-        <th style="text-align:left; padding:10px 14px; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-faint); width:18%;">Phase</th>
-        <th style="text-align:left; padding:10px 14px; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-faint); width:12%;">Days in Phase</th>
-        <th style="text-align:left; padding:10px 14px; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-faint); width:12%;">Status</th>
-        <th style="text-align:left; padding:10px 14px; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-faint); width:38%;">Next Step</th>
-      </tr></thead>
-      <tbody>
-        ${rows.map(r => `<tr style="border-top:1px solid var(--border-soft);">
-          <td style="padding:10px 14px; cursor:pointer; font-weight:600;" onclick="openProject('${r.p.id}')">${escapeHtmlLite(r.p.name)}</td>
-          <td style="padding:10px 14px;">${r.phaseDef ? 'Phase ' + r.phaseDef.n + ' · ' + escapeHtmlLite(r.phaseDef.name) : '—'}</td>
-          <td style="padding:10px 14px; ${r.dip !== null && r.dip > 10 ? 'color:var(--rust); font-weight:700;' : ''}">${r.dip !== null ? r.dip : '—'}</td>
-          <td style="padding:10px 14px;"><span class="pill ${r.status.pillClass}">${r.status.label}</span></td>
-          <td style="padding:6px 14px;"><input type="text" value="${escapeHtmlLite(r.p.nextStepNote || '')}" placeholder="${r.task ? escapeHtmlLite('e.g. ' + r.task.milestone.name) : 'What happens next on this job'}" style="width:100%; border:1px solid transparent; background:transparent; padding:6px 8px; border-radius:6px;" onfocus="this.style.borderColor='var(--border)'; this.style.background='var(--paper)';" onblur="this.style.borderColor='transparent'; this.style.background='transparent';" onchange="setProjectField('${r.p.id}','nextStepNote', this.value); saveAppState();"></td>
-        </tr>`).join('')}
-      </tbody>
-    </table>
-  </div></div>`;
+  });
+  if(DASH_PRECON_PHASE_FILTER !== null && DASH_PRECON_PHASE_FILTER !== 'ready') rows = rows.filter(r => r.p.currentPhase === DASH_PRECON_PHASE_FILTER);
+  if(DASH_PRECON_PHASE_FILTER === 'ready') rows = [];
+  rows.sort((a,b) => b.status.urgency - a.status.urgency || (b.dip||0) - (a.dip||0));
+
+  host.innerHTML = `
+    <div class="precon-phase-strip">${distCards}${readyCard}</div>
+    ${DASH_PRECON_PHASE_FILTER !== null ? `<div class="hint" style="margin:10px 0;">Showing ${DASH_PRECON_PHASE_FILTER === 'ready' ? 'projects ready for production' : 'Phase ' + DASH_PRECON_PHASE_FILTER + ' only'} — <span style="cursor:pointer; text-decoration:underline;" onclick="setDashPreconPhaseFilter(${typeof DASH_PRECON_PHASE_FILTER === 'number' ? DASH_PRECON_PHASE_FILTER : `'${DASH_PRECON_PHASE_FILTER}'`})">show everything</span></div>` : ''}
+    ${DASH_PRECON_PHASE_FILTER === 'ready' ? `<div class="panel"><div class="panel-body" style="padding:20px;"><div class="empty-row">${readyCount} project${readyCount===1?'':'s'} ready for production — see the full list on the Preconstruction board.</div></div></div>` : `
+    <div class="panel"><div class="panel-body" style="padding:0;">
+      <table style="width:100%; table-layout:fixed;">
+        <thead><tr>
+          <th style="text-align:left; padding:10px 14px; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-faint); width:19%;">Project</th>
+          <th style="text-align:left; padding:10px 14px; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-faint); width:19%;">Phase</th>
+          <th style="text-align:left; padding:10px 14px; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-faint); width:11%;">Days in Phase</th>
+          <th style="text-align:left; padding:10px 14px; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-faint); width:12%;">Status</th>
+          <th style="text-align:left; padding:10px 14px; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-faint); width:39%;">Next Step</th>
+        </tr></thead>
+        <tbody>
+          ${rows.length ? rows.map(r => `<tr class="precon-dash-row" style="border-top:1px solid var(--border-soft); border-left:3px solid ${PRECON_PHASE_COLORS[r.p.currentPhase]};">
+            <td style="padding:10px 14px 10px 12px; cursor:pointer; font-weight:600;" onclick="openProject('${r.p.id}')">${escapeHtmlLite(r.p.name)}</td>
+            <td style="padding:10px 14px;"><span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:${PRECON_PHASE_COLORS[r.p.currentPhase]}; margin-right:7px;"></span>${r.phaseDef ? 'Phase ' + r.phaseDef.n + ' · ' + escapeHtmlLite(r.phaseDef.name) : '—'}</td>
+            <td style="padding:10px 14px; ${r.dip !== null && r.dip > 10 ? 'color:var(--rust); font-weight:700;' : ''}">${r.dip !== null ? r.dip : '—'}</td>
+            <td style="padding:10px 14px;"><span class="pill ${r.status.pillClass}">${r.status.label}</span></td>
+            <td style="padding:6px 14px;"><input type="text" value="${escapeHtmlLite(r.p.nextStepNote || '')}" placeholder="${r.task ? escapeHtmlLite('e.g. ' + r.task.milestone.name) : 'What happens next on this job'}" style="width:100%; border:1px solid transparent; background:transparent; padding:6px 8px; border-radius:6px;" onfocus="this.style.borderColor='var(--border)'; this.style.background='var(--paper)';" onblur="this.style.borderColor='transparent'; this.style.background='transparent';" onchange="setProjectField('${r.p.id}','nextStepNote', this.value); saveAppState();"></td>
+          </tr>`).join('') : `<tr><td colspan="5" style="padding:20px 14px;" class="empty-row">Nothing in this phase right now.</td></tr>`}
+        </tbody>
+      </table>
+    </div></div>`}`;
 }
 function renderDashboardAtAGlance(){
   renderDashboardPreconStatus();
@@ -17154,7 +17268,7 @@ function applyThemeVars(vars){
 function buildAppSnapshot(){
   return {
     OPPORTUNITIES, OPP_ESTIMATES, PROJECTS, RELATIONSHIP_PARTNERS, PROSPECT_CONTACTS,
-    PARTNER_CATEGORIES, COMPANY_LOCATIONS, TEAM_MEMBERS, CUSTOM_AUTOMATIONS,
+    PARTNER_CATEGORIES, COMPANY_LOCATIONS, TEAM_MEMBERS, TEAM_ROSTER, CUSTOM_AUTOMATIONS,
     DEFAULT_TASK_ASSIGNEES, COMPANY_TEMPLATES, COMPANY_LOGO, COMPANY_LOGO_SIZE, CONTACTS,
     themeVars: captureThemeVars(),
   };
@@ -17168,7 +17282,9 @@ function applyAppSnapshot(snap){
   if(snap.PROSPECT_CONTACTS) PROSPECT_CONTACTS = snap.PROSPECT_CONTACTS;
   if(snap.PARTNER_CATEGORIES) PARTNER_CATEGORIES = snap.PARTNER_CATEGORIES;
   if(snap.COMPANY_LOCATIONS) COMPANY_LOCATIONS = snap.COMPANY_LOCATIONS;
+  if(snap.TEAM_ROSTER) TEAM_ROSTER = snap.TEAM_ROSTER;
   if(snap.TEAM_MEMBERS) TEAM_MEMBERS = snap.TEAM_MEMBERS;
+  syncTeamMembersFromRoster(); // TEAM_ROSTER (if present) is the real source of truth going forward
   if(snap.CUSTOM_AUTOMATIONS) CUSTOM_AUTOMATIONS = snap.CUSTOM_AUTOMATIONS;
   if(snap.DEFAULT_TASK_ASSIGNEES) DEFAULT_TASK_ASSIGNEES = snap.DEFAULT_TASK_ASSIGNEES;
   if(snap.COMPANY_TEMPLATES) COMPANY_TEMPLATES = snap.COMPANY_TEMPLATES;
@@ -19025,7 +19141,7 @@ function renderEverything(){
   renderDashboardAtAGlance();
   renderFollowUpsPage();
   renderTemplatesGrid();
-  renderTeamRoster();
+  renderUsersPermissionsTable();
   renderLocationsTable();
   renderThemeColorPanel();
   renderDefaultAssigneesPanel();
