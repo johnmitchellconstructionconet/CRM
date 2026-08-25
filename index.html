@@ -2235,6 +2235,10 @@ select{cursor:pointer;}
         <button class="btn btn-outline" onclick="printSalesReport()">🖨 Print Sales Report</button>
       </div>
 
+      <div class="section-label-row"><div class="eyebrow">Preconstruction — Where Every Job Stands</div></div>
+      <div class="hint" style="margin-bottom:10px;">Every active project, its current phase, whether it's on pace or overdue, and what actually happens next — filled in once here, and it shows the same everywhere.</div>
+      <div id="dashPreconStatusTable" style="margin-bottom:28px;"></div>
+
       <div class="stat-grid" id="dashAtAGlanceGrid" style="grid-template-columns:repeat(6,1fr);"></div>
 
       <div class="section-label-row" style="margin-top:26px;"><div class="eyebrow">Financial Overview</div></div>
@@ -4233,7 +4237,10 @@ function buildProjectFollowUpPanelHTML(p){
         <div><label class="est-lbl">Date</label><input type="date" value="${p.nextFollowUpDate || ''}" onchange="setProjectField('${p.id}','nextFollowUpDate',this.value); renderProjectDetail()"></div>
       </div>
       <div style="margin-top:12px;"><label class="est-lbl">Assigned To</label><select onchange="setProjectField('${p.id}','nextFollowUpAssignee',this.value); renderProjectDetail()">${teamMemberOptions(p.nextFollowUpAssignee || p.owner)}</select></div>
-      ${p.nextFollowUpDate ? `<div class="row" style="margin-top:14px; justify-content:flex-end;"><span class="pill pill-jade" style="cursor:pointer;" onclick="setProjectField('${p.id}','nextFollowUpDate',''); setProjectField('${p.id}','nextFollowUpNote',''); renderProjectDetail()">✓ Mark Complete</span></div>` : ''}
+      <div class="row" style="margin-top:14px; justify-content:flex-end; gap:8px;">
+        ${p.nextFollowUpDate ? `<button class="btn btn-outline" onclick="openScheduleMenu(this, '${escapeHtmlLite(p.nextFollowUpNote||'Follow up')}', '${p.nextFollowUpDate}', '09:00', '', '${escapeHtmlLite(attendeeEmailFor(p,'project'))}')">📅 Schedule</button>` : ''}
+        ${p.nextFollowUpDate ? `<span class="pill pill-jade" style="cursor:pointer;" onclick="setProjectField('${p.id}','nextFollowUpDate',''); setProjectField('${p.id}','nextFollowUpNote',''); renderProjectDetail()">✓ Mark Complete</span>` : ''}
+      </div>
     </div></div>`;
 }
 function buildCarriedFromSalesHTML(opp, e, projectId, clientName){
@@ -4292,7 +4299,7 @@ function buildCarriedFromSalesHTML(opp, e, projectId, clientName){
         <div><label class="est-lbl">Assigned To</label><select onchange="setOppField('${opp.id}','nextFollowUpAssignee',this.value); renderProjectDetail()">${teamMemberOptions(opp.nextFollowUpAssignee || opp.owner)}</select></div>
         <div><label class="est-lbl">Date</label><input type="date" value="${opp.nextFollowUpDate || ''}" onchange="setOppField('${opp.id}','nextFollowUpDate',this.value); renderProjectDetail()"></div>
       </div>
-      ${opp.nextFollowUpDate ? `<div class="row" style="margin-top:14px; justify-content:flex-end;"><span class="pill pill-jade" style="cursor:pointer;" onclick="completeFollowUp('${opp.id}')">✓ Mark Complete &amp; Schedule Next</span></div>` : ''}
+      ${opp.nextFollowUpDate ? `<div class="row" style="margin-top:14px; justify-content:flex-end; gap:8px;"><button class="btn btn-outline" onclick="openScheduleMenu(this, '${escapeHtmlLite(opp.nextFollowUpNote||"Follow up")}', '${opp.nextFollowUpDate}', '09:00', '', '${escapeHtmlLite(opp.email||"")}')">📅 Schedule</button><span class="pill pill-jade" style="cursor:pointer;" onclick="completeFollowUp('${opp.id}')">✓ Mark Complete &amp; Schedule Next</span></div>` : ''}
     </div></div>`;
   const filesPanel = buildFilesPanelHTML(opp, e);
   const tasksPanel = `
@@ -4686,7 +4693,7 @@ function buildOppDetailHTML(opp){
         <div><label class="est-lbl">Assigned To</label><select onchange="setOppField('${opp.id}','nextFollowUpAssignee',this.value)">${teamMemberOptions(opp.nextFollowUpAssignee || opp.owner)}</select></div>
         <div><label class="est-lbl">Date</label><input type="date" value="${opp.nextFollowUpDate || ''}" onchange="setOppField('${opp.id}','nextFollowUpDate',this.value)"></div>
       </div>
-      ${opp.nextFollowUpDate ? `<div class="row" style="margin-top:14px; justify-content:flex-end;"><span class="pill pill-jade" style="cursor:pointer;" onclick="completeFollowUp('${opp.id}')">✓ Mark Complete &amp; Schedule Next</span></div>` : ''}
+      ${opp.nextFollowUpDate ? `<div class="row" style="margin-top:14px; justify-content:flex-end; gap:8px;"><button class="btn btn-outline" onclick="openScheduleMenu(this, '${escapeHtmlLite(opp.nextFollowUpNote||"Follow up")}', '${opp.nextFollowUpDate}', '09:00', '', '${escapeHtmlLite(opp.email||"")}')">📅 Schedule</button><span class="pill pill-jade" style="cursor:pointer;" onclick="completeFollowUp('${opp.id}')">✓ Mark Complete &amp; Schedule Next</span></div>` : ''}
     </div></div>`;
 
   const filesPanel = buildFilesPanelHTML(opp, e);
@@ -4982,20 +4989,22 @@ function icsDateStamp(dateStr, timeStr){
   const t = (timeStr || '09:00').replace(':','') + '00';
   return d.replace(/-/g,'') + 'T' + t;
 }
-function openGoogleCalendarQuickAdd(title, dateStr, timeStr, details, durationMinutes){
+function openGoogleCalendarQuickAdd(title, dateStr, timeStr, details, durationMinutes, attendeeEmail){
   const start = icsDateStamp(dateStr, timeStr);
   const startDt = new Date((dateStr||new Date().toISOString().slice(0,10)) + 'T' + (timeStr||'09:00') + ':00');
   startDt.setMinutes(startDt.getMinutes() + (durationMinutes || 30));
   const end = startDt.toISOString().slice(0,10).replace(/-/g,'') + 'T' + startDt.toTimeString().slice(0,5).replace(':','') + '00';
-  const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${start}/${end}&details=${encodeURIComponent(details||'')}`;
+  let url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${start}/${end}&details=${encodeURIComponent(details||'')}`;
+  if(attendeeEmail) url += `&add=${encodeURIComponent(attendeeEmail)}`;
   window.open(url, '_blank');
 }
-function downloadICS(title, dateStr, timeStr, details){
+function downloadICS(title, dateStr, timeStr, details, attendeeEmail){
   const start = icsDateStamp(dateStr, timeStr);
   const startDt = new Date((dateStr||new Date().toISOString().slice(0,10)) + 'T' + (timeStr||'09:00') + ':00');
   startDt.setMinutes(startDt.getMinutes() + 30);
   const end = startDt.toISOString().slice(0,10).replace(/-/g,'') + 'T' + startDt.toTimeString().slice(0,5).replace(':','') + '00';
-  const ics = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nSUMMARY:${title.replace(/\r?\n/g,' ')}\r\nDTSTART:${start}\r\nDTEND:${end}\r\nDESCRIPTION:${(details||'').replace(/\r?\n/g,'\\n')}\r\nEND:VEVENT\r\nEND:VCALENDAR`;
+  const attendeeLine = attendeeEmail ? ('\r\nATTENDEE;RSVP=TRUE:mailto:' + attendeeEmail) : '';
+  const ics = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nSUMMARY:${title.replace(/\r?\n/g,' ')}\r\nDTSTART:${start}\r\nDTEND:${end}\r\nDESCRIPTION:${(details||'').replace(/\r?\n/g,'\\n')}${attendeeLine}\r\nEND:VEVENT\r\nEND:VCALENDAR`;
   const blob = new Blob([ics], {type:'text/calendar'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -5007,13 +5016,14 @@ function downloadICS(title, dateStr, timeStr, details){
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 // Small popover offering both calendar options, so one button covers Google Calendar users
-// and Outlook/Apple Calendar users alike without asking which they use up front.
-function openScheduleMenu(anchorEl, title, dateStr, timeStr, details){
+// and Outlook/Apple Calendar users alike without asking which they use up front. Whenever a
+// client's email is known, it's automatically added as an invitee — no retyping it by hand.
+function openScheduleMenu(anchorEl, title, dateStr, timeStr, details, attendeeEmail){
   document.getElementById('scheduleMenuPopover')?.remove();
   const rect = anchorEl.getBoundingClientRect();
   const menu = document.createElement('div');
   menu.id = 'scheduleMenuPopover';
-  menu.style.cssText = `position:fixed; top:${rect.bottom+6}px; left:${rect.left}px; background:#fff; border:1px solid var(--border-strong); border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,.18); z-index:600; min-width:210px; overflow:hidden;`;
+  menu.style.cssText = `position:fixed; top:${rect.bottom+6}px; left:${rect.left}px; background:#fff; border:1px solid var(--border-strong); border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,.18); z-index:600; min-width:230px; overflow:hidden;`;
   const item = (label, fn) => {
     const el = document.createElement('div');
     el.textContent = label;
@@ -5023,8 +5033,14 @@ function openScheduleMenu(anchorEl, title, dateStr, timeStr, details){
     el.onclick = () => { fn(); menu.remove(); };
     return el;
   };
-  menu.appendChild(item('📅 Add to Google Calendar', () => openGoogleCalendarQuickAdd(title, dateStr, timeStr, details)));
-  menu.appendChild(item('⬇ Download .ics (Outlook/Apple)', () => downloadICS(title, dateStr, timeStr, details)));
+  if(attendeeEmail){
+    const note = document.createElement('div');
+    note.textContent = `Invite: ${attendeeEmail}`;
+    note.style.cssText = 'padding:8px 14px; font-size:11px; color:var(--ink-faint); border-bottom:1px solid var(--border-soft); font-family:Inter,sans-serif;';
+    menu.appendChild(note);
+  }
+  menu.appendChild(item('📅 Add to Google Calendar', () => openGoogleCalendarQuickAdd(title, dateStr, timeStr, details, null, attendeeEmail)));
+  menu.appendChild(item('⬇ Download .ics (Outlook/Apple)', () => downloadICS(title, dateStr, timeStr, details, attendeeEmail)));
   document.body.appendChild(menu);
   setTimeout(() => {
     document.addEventListener('click', function closeIt(e){
@@ -5041,8 +5057,19 @@ function openScheduleMenu(anchorEl, title, dateStr, timeStr, details){
 // Relationship partners — kind is 'opp' or 'partner'. A scheduled meeting on a New Relations
 // Identified partner is what clears that partner's "needs action" flag on the dashboard. ----
 function meetingEntity(id, kind){ return kind === 'partner' ? RELATIONSHIP_PARTNERS.find(p => p.id === id) : kind === 'project' ? PROJECTS[id] : getOpp(id); }
+// ---- Resolves the client's email for calendar invites, regardless of which kind of
+// record the meeting/follow-up lives on. Projects don't carry their own email field —
+// they inherit it from the linked Sales opportunity when one exists. ----
+function attendeeEmailFor(entity, kind){
+  if(kind === 'project'){
+    const opp = getOpp(entity.convertedFrom || entity.id);
+    return (opp && opp.email) || '';
+  }
+  return entity.email || '';
+}
 function buildMeetingsPanelHTML(entity, kind){
   kind = kind || 'opp';
+  const attendeeEmail = attendeeEmailFor(entity, kind);
   const meetings = (entity.meetings || []).slice().sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time));
   const label = kind === 'partner' ? 'Call, Coffee, or Meeting' : 'Client Meeting';
   return `
@@ -5054,10 +5081,10 @@ function buildMeetingsPanelHTML(entity, kind){
         return `<div class="list-row" style="${isPast ? 'opacity:.5;' : ''}">
           <div>
             <div class="main-txt">${escapeHtmlLite(m.title)} ${isTomorrow ? '<span class="pill pill-gold" style="margin-left:6px;">Tomorrow</span>' : ''}</div>
-            <div class="sub-txt">${m.date} at ${fmtTime12(m.time)}${m.notes ? ' · ' + escapeHtmlLite(m.notes) : ''}</div>
+            <div class="sub-txt">${m.date} at ${fmtTime12(m.time)}${m.notes ? ' · ' + escapeHtmlLite(m.notes) : ''}${attendeeEmail ? ' · Invite: ' + escapeHtmlLite(attendeeEmail) : ''}</div>
           </div>
           <div class="row" style="gap:6px;">
-            <button class="btn btn-outline" style="padding:5px 9px; font-size:12px;" onclick="openScheduleMenu(this, '${escapeHtmlLite(m.title)}', '${m.date}', '${m.time}', '${escapeHtmlLite(m.notes||'')}')">📅</button>
+            <button class="btn btn-outline" style="padding:5px 9px; font-size:12px;" onclick="openScheduleMenu(this, '${escapeHtmlLite(m.title)}', '${m.date}', '${m.time}', '${escapeHtmlLite(m.notes||'')}', '${escapeHtmlLite(attendeeEmail)}')">📅</button>
             ${kind === 'opp' ? `<button class="btn btn-outline" style="padding:5px 9px; font-size:12px;" onclick="sendMeetingReminder('${entity.id}','${m.id}')">✉ Remind</button>` : ''}
             <span style="cursor:pointer; color:var(--rust); font-size:15px; padding:0 4px;" onclick="deleteMeeting('${entity.id}','${m.id}', '${kind}')">&times;</span>
           </div>
@@ -6562,7 +6589,57 @@ function buildPieChartSVG(data, size){
 function buildLegendHTML(data){
   return data.map(d => `<div style="display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ink-soft); margin-bottom:4px;"><span style="width:9px; height:9px; border-radius:2px; background:${d.color}; flex-shrink:0;"></span>${d.label}: ${Math.round(d.pct*100)}%</div>`).join('');
 }
+// ---- The actual clarity John asked for: every active Preconstruction job, where it
+// stands, whether it's overdue, and what happens next — editable right here, not just a
+// count that sends you elsewhere to find out. Sorted so what needs attention floats up top. ----
+function projectStatusInfo(p){
+  const task = getActiveTaskForProject(p);
+  const needsAction = task && (!task.milestone.assignee || (task.days !== null && task.days > 10));
+  const waiting = isProjectWaiting(p);
+  if(p.currentPhase === null) return { label:'Complete', pillClass:'pill-jade', urgency:0 };
+  if(needsAction) return { label:'Needs Action', pillClass:'pill-rust', urgency:3 };
+  if(waiting) return { label:'Waiting', pillClass:'pill-gold', urgency:2 };
+  if(task) return { label:'On Track', pillClass:'pill-jade', urgency:1 };
+  return { label:'—', pillClass:'pill-ink', urgency:1 };
+}
+function renderDashboardPreconStatus(){
+  const host = document.getElementById('dashPreconStatusTable');
+  if(!host) return;
+  const active = Object.values(PROJECTS).filter(p => p.currentPhase !== null);
+  if(!active.length){
+    host.innerHTML = `<div class="panel"><div class="panel-body" style="padding:20px;"><div class="empty-row">No active Preconstruction projects right now.</div></div></div>`;
+    return;
+  }
+  const rows = active.map(p => {
+    const task = getActiveTaskForProject(p);
+    const dip = daysInPhase(p);
+    const status = projectStatusInfo(p);
+    const phaseDef = WORKFLOW_PHASE_DEFS.find(pd => pd.n === p.currentPhase);
+    return { p, task, dip, status, phaseDef };
+  }).sort((a,b) => b.status.urgency - a.status.urgency || (b.dip||0) - (a.dip||0));
+  host.innerHTML = `<div class="panel"><div class="panel-body" style="padding:0;">
+    <table style="width:100%; table-layout:fixed;">
+      <thead><tr>
+        <th style="text-align:left; padding:10px 14px; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-faint); width:20%;">Project</th>
+        <th style="text-align:left; padding:10px 14px; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-faint); width:18%;">Phase</th>
+        <th style="text-align:left; padding:10px 14px; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-faint); width:12%;">Days in Phase</th>
+        <th style="text-align:left; padding:10px 14px; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-faint); width:12%;">Status</th>
+        <th style="text-align:left; padding:10px 14px; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-faint); width:38%;">Next Step</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map(r => `<tr style="border-top:1px solid var(--border-soft);">
+          <td style="padding:10px 14px; cursor:pointer; font-weight:600;" onclick="openProject('${r.p.id}')">${escapeHtmlLite(r.p.name)}</td>
+          <td style="padding:10px 14px;">${r.phaseDef ? 'Phase ' + r.phaseDef.n + ' · ' + escapeHtmlLite(r.phaseDef.name) : '—'}</td>
+          <td style="padding:10px 14px; ${r.dip !== null && r.dip > 10 ? 'color:var(--rust); font-weight:700;' : ''}">${r.dip !== null ? r.dip : '—'}</td>
+          <td style="padding:10px 14px;"><span class="pill ${r.status.pillClass}">${r.status.label}</span></td>
+          <td style="padding:6px 14px;"><input type="text" value="${escapeHtmlLite(r.p.nextStepNote || '')}" placeholder="${r.task ? escapeHtmlLite('e.g. ' + r.task.milestone.name) : 'What happens next on this job'}" style="width:100%; border:1px solid transparent; background:transparent; padding:6px 8px; border-radius:6px;" onfocus="this.style.borderColor='var(--border)'; this.style.background='var(--paper)';" onblur="this.style.borderColor='transparent'; this.style.background='transparent';" onchange="setProjectField('${r.p.id}','nextStepNote', this.value); saveAppState();"></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div></div>`;
+}
 function renderDashboardAtAGlance(){
+  renderDashboardPreconStatus();
   const grid = document.getElementById('dashAtAGlanceGrid');
   if(!grid) return;
   const activeLeads = OPPORTUNITIES.filter(o => STAGE_ORDER.includes(o.stage)).length;
@@ -6683,7 +6760,7 @@ function renderPreconProjectTable(){
   }));
   const readyProjects = projects.filter(p => p.currentPhase === null);
   groups.push({ label: 'Ready for Production', color: '#5C7A63', hideIfEmpty: true, rowIds: readyProjects.map(p => p.id), rows: readyProjects.map(buildPreconTableRow) });
-  el.innerHTML = `<div class="bulk-action-bar" id="bulkBar_project"></div>` + buildMondayTableHTML(groups, ['','Project','Owner','Project Type','Deal Value','Status','Change Phase'], ['4%','22%','13%','16%','13%','15%','17%'], 'precon', 'project');
+  el.innerHTML = `<div class="bulk-action-bar" id="bulkBar_project"></div>` + buildMondayTableHTML(groups, ['','Project','Owner','Project Type','Deal Value','Status','Next Step','Change Phase'], ['4%','17%','10%','13%','11%','12%','20%','13%'], 'precon', 'project');
   renderBulkActionBar('project');
 }
 function buildPreconTableRow(p){
@@ -6717,6 +6794,7 @@ function buildPreconTableRow(p){
     <td>${p.projectType}</td>
     <td>${fmtMoneyOrDash(p.dealValue)}</td>
     <td title="${escapeHtmlLite(reason)}" style="cursor:pointer;" onclick="event.stopPropagation(); alert('${escapeHtmlLite(p.name)}\\n\\n${escapeHtmlLite(reason)}')">${flag ? `<span class="pill ${pillClass}">${flag}</span>` : '—'}</td>
+    <td onclick="event.stopPropagation();"><input type="text" value="${escapeHtmlLite(p.nextStepNote || '')}" placeholder="${task ? escapeHtmlLite('e.g. ' + task.milestone.name) : 'What happens next'}" style="width:100%; border:1px solid var(--border-soft); background:var(--paper); padding:5px 8px; border-radius:6px; font-size:12.5px;" onchange="setProjectField('${p.id}','nextStepNote', this.value); saveAppState();"></td>
     <td onclick="event.stopPropagation();"><select class="rel-status-select" style="max-width:150px; background:var(--border-soft); color:var(--ink-soft);" onchange="setProjectPhase('${p.id}', this.value)">
       ${WORKFLOW_PHASE_DEFS.map(pd => `<option value="${pd.n}" ${p.currentPhase===pd.n?'selected':''}>Phase ${pd.n} · ${pd.name}</option>`).join('')}
       <option value="" ${p.currentPhase===null?'selected':''}>Ready for Production</option>
@@ -7085,9 +7163,15 @@ function buildActionBannerHTML(p){
     ${buildKpiLogHTML(p)}
     ${buildClientLogPanelHTML(p)}
     ${srcOpp && srcEst ? buildCarriedFromSalesHTML(srcOpp, srcEst, p.id, p.client) : `
-    ${buildMeetingsPanelHTML(p, 'project')}
-    ${buildProjectFollowUpPanelHTML(p)}
-    ${buildClientProfilePanelHTML(srcOppId, p.client, `renderProjectDetail()`)}`}
+    <div class="two-col" style="margin-top:8px; grid-template-columns:1.4fr 1fr; align-items:start; gap:20px;">
+      <div>
+        ${buildMeetingsPanelHTML(p, 'project')}
+        ${buildProjectFollowUpPanelHTML(p)}
+      </div>
+      <div>
+        ${buildClientProfilePanelHTML(srcOppId, p.client, `renderProjectDetail()`)}
+      </div>
+    </div>`}
     <div class="section-label-row"><div class="eyebrow">Full Step-by-Step — Every Phase, In Order</div></div>
     <div class="hint" style="margin-bottom:14px;">Scroll to see what's done, what's active now, and exactly what's coming next — not just the current phase.</div>
     ${buildFullStepListHTML(p)}`;
@@ -7226,6 +7310,7 @@ function goPage(id){
   window.scrollTo(0,0);
   if(id === 'automations') renderMeetingReminderQueue();
   if(id === 'dashboard') renderDashboardAtAGlance();
+  if(id === 'precon-dash') renderPreconProjectTable();
 }
 navItems.forEach(item => item.addEventListener('click', () => goPage(item.dataset.page)));
 
@@ -7759,7 +7844,7 @@ function buildPartnerFollowUpPanelHTML(p){
         <div><label class="est-lbl">Date</label><input type="date" value="${p.nextFollowUpDate || ''}" onchange="p_setField('${p.id}','nextFollowUpDate',this.value); openPartnerDetail('${p.id}')"></div>
       </div>
       <div class="row" style="margin-top:14px; justify-content:flex-end; gap:8px;">
-        ${p.nextFollowUpDate ? `<button class="btn btn-outline" onclick="openScheduleMenu(this, 'Follow up with ${escapeHtmlLite(p.name)}', '${p.nextFollowUpDate}', '09:00', '${escapeHtmlLite(p.nextFollowUpNote||'')}')">📅 Schedule</button>` : ''}
+        ${p.nextFollowUpDate ? `<button class="btn btn-outline" onclick="openScheduleMenu(this, 'Follow up with ${escapeHtmlLite(p.name)}', '${p.nextFollowUpDate}', '09:00', '${escapeHtmlLite(p.nextFollowUpNote||'')}', '${escapeHtmlLite(p.email||'')}')">📅 Schedule</button>` : ''}
         ${p.nextFollowUpDate ? `<span class="pill pill-jade" style="cursor:pointer;" onclick="completePartnerFollowUp('${p.id}')">✓ Mark Complete &amp; Schedule Next</span>` : ''}
       </div>
     </div></div>`;
