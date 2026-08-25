@@ -4208,6 +4208,34 @@ function closeOpportunity(){
 function docStatusPillClass(status){
   return {Draft:'pill-ink', Sent:'pill-slate', Viewed:'pill-gold', Signed:'pill-jade'}[status] || 'pill-ink';
 }
+// ---- Follow-Up + Meetings for a project with no linked Sales opportunity (e.g. one
+// added directly rather than converted from a lead). Mirrors the Sales-side panels so
+// nothing about scheduling or follow-ups is missing just because there's no source lead. ----
+function setProjectField(projectId, field, value){
+  const p = PROJECTS[projectId];
+  if(!p) return;
+  p[field] = value;
+}
+function buildProjectFollowUpPanelHTML(p){
+  const overdue = p.nextFollowUpDate && new Date(p.nextFollowUpDate+'T00:00:00') < TODAY;
+  return `
+    <div class="section-label-row"><div class="eyebrow">Next Follow-Up</div></div>
+    <div class="panel" style="margin-bottom:20px; ${overdue ? 'border-color:var(--rust);' : ''}"><div class="panel-body" style="padding:16px 20px;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+        <div style="flex:1;">
+          <div style="font-weight:600; font-size:14px;">${escapeHtmlLite(p.nextFollowUpNote || 'Follow up')}</div>
+          <div class="sub-txt" style="margin-top:2px;">${p.nextFollowUpDate ? p.nextFollowUpDate : 'No date set'}</div>
+        </div>
+        ${overdue ? '<span class="pill pill-rust">Overdue</span>' : p.nextFollowUpDate ? '<span class="pill pill-slate">Scheduled</span>' : '<span class="pill pill-ink">Not Set</span>'}
+      </div>
+      <div style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border-soft); display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+        <div><label class="est-lbl">Note</label><input type="text" value="${escapeHtmlLite(p.nextFollowUpNote||'')}" placeholder="e.g. Follow up on selections" onchange="setProjectField('${p.id}','nextFollowUpNote',this.value); renderProjectDetail()"></div>
+        <div><label class="est-lbl">Date</label><input type="date" value="${p.nextFollowUpDate || ''}" onchange="setProjectField('${p.id}','nextFollowUpDate',this.value); renderProjectDetail()"></div>
+      </div>
+      <div style="margin-top:12px;"><label class="est-lbl">Assigned To</label><select onchange="setProjectField('${p.id}','nextFollowUpAssignee',this.value); renderProjectDetail()">${teamMemberOptions(p.nextFollowUpAssignee || p.owner)}</select></div>
+      ${p.nextFollowUpDate ? `<div class="row" style="margin-top:14px; justify-content:flex-end;"><span class="pill pill-jade" style="cursor:pointer;" onclick="setProjectField('${p.id}','nextFollowUpDate',''); setProjectField('${p.id}','nextFollowUpNote',''); renderProjectDetail()">✓ Mark Complete</span></div>` : ''}
+    </div></div>`;
+}
 function buildCarriedFromSalesHTML(opp, e, projectId, clientName){
   const days = daysInStage(opp);
   const contactPanel = `
@@ -4895,9 +4923,11 @@ function buildMondayTableHTML(groups, columns, columnWidths, tableId, bulkKind){
     const groupId = (tableId || 'mb') + '__' + g.label.replace(/[^a-zA-Z0-9]/g, '');
     // Every group stays visible even with nothing in it — but the first time a group is
     // seen empty, default it to collapsed so the board isn't cluttered with empty phases.
-    // Once a person manually expands/collapses it, that choice persists across re-renders.
+    // Once a person manually expands/collapses it, that choice persists across re-renders —
+    // except a group that currently holds anything is always forced open, so an item that
+    // moves into a previously-empty (and thus auto-collapsed) group is never hidden.
     if(!(groupId in MBOARD_COLLAPSED) && !g.rows.length) MBOARD_COLLAPSED[groupId] = true;
-    const isCollapsed = !!MBOARD_COLLAPSED[groupId];
+    const isCollapsed = g.rows.length ? false : !!MBOARD_COLLAPSED[groupId];
     // The select-all checkbox in each group's header is scoped to just that group's own
     // rows — checking it should never reach into other groups. It also reflects whether
     // every row currently in this group is already selected.
@@ -5010,7 +5040,7 @@ function openScheduleMenu(anchorEl, title, dateStr, timeStr, details){
 // ---- Generalized so the same meetings module works for both Sales opportunities and
 // Relationship partners — kind is 'opp' or 'partner'. A scheduled meeting on a New Relations
 // Identified partner is what clears that partner's "needs action" flag on the dashboard. ----
-function meetingEntity(id, kind){ return kind === 'partner' ? RELATIONSHIP_PARTNERS.find(p => p.id === id) : getOpp(id); }
+function meetingEntity(id, kind){ return kind === 'partner' ? RELATIONSHIP_PARTNERS.find(p => p.id === id) : kind === 'project' ? PROJECTS[id] : getOpp(id); }
 function buildMeetingsPanelHTML(entity, kind){
   kind = kind || 'opp';
   const meetings = (entity.meetings || []).slice().sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time));
@@ -5091,6 +5121,8 @@ function openAddMeetingModal(id, kind){
       openPartnerDetail(id);
       renderRelationshipPartners();
       if(document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboardAtAGlance();
+    } else if(kind === 'project'){
+      renderProjectDetail();
     } else if(document.getElementById('oppOverlay')?.style.display !== 'none'){
       openOpportunity(id);
     }
@@ -5105,6 +5137,8 @@ function deleteMeeting(id, meetingId, kind){
   if(kind === 'partner'){
     openPartnerDetail(id);
     if(document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboardAtAGlance();
+  } else if(kind === 'project'){
+    renderProjectDetail();
   } else {
     openOpportunity(id);
   }
@@ -7050,7 +7084,10 @@ function buildActionBannerHTML(p){
     </div>
     ${buildKpiLogHTML(p)}
     ${buildClientLogPanelHTML(p)}
-    ${srcOpp && srcEst ? buildCarriedFromSalesHTML(srcOpp, srcEst, p.id, p.client) : buildClientProfilePanelHTML(srcOppId, p.client, `renderProjectDetail()`)}
+    ${srcOpp && srcEst ? buildCarriedFromSalesHTML(srcOpp, srcEst, p.id, p.client) : `
+    ${buildMeetingsPanelHTML(p, 'project')}
+    ${buildProjectFollowUpPanelHTML(p)}
+    ${buildClientProfilePanelHTML(srcOppId, p.client, `renderProjectDetail()`)}`}
     <div class="section-label-row"><div class="eyebrow">Full Step-by-Step — Every Phase, In Order</div></div>
     <div class="hint" style="margin-bottom:14px;">Scroll to see what's done, what's active now, and exactly what's coming next — not just the current phase.</div>
     ${buildFullStepListHTML(p)}`;
