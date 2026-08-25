@@ -4477,12 +4477,44 @@ function toggleProjectTaskDone(oppId, taskId){
   renderProjectDetail();
 }
 function addProjectTask(oppId){
-  const title = prompt('Task title:');
-  if(!title) return;
-  const est = OPP_ESTIMATES[oppId];
-  if(!est) return;
-  est.tasks.push({id:'t'+Date.now(), title, assignee:'You', due:null, done:false});
-  renderProjectDetail();
+  document.getElementById('addTaskOverlay')?.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'addTaskOverlay';
+  overlay.style.cssText = 'position:fixed; inset:0; z-index:400; display:flex; align-items:center; justify-content:center; background:rgba(20,18,14,.55); padding:20px;';
+  overlay.innerHTML = `
+    <div class="modal-card" style="width:400px; background:#fff; border-radius:14px; padding:20px; box-shadow:0 20px 50px rgba(0,0,0,.25);">
+      <div class="panel-title" style="margin-bottom:14px;">Add Task</div>
+      <div class="sidebar-label" style="padding:0 0 4px;">Title</div>
+      <input type="text" id="taskTitleInput" class="collab-input" placeholder="e.g. Confirm cabinet selections">
+      <div class="field-grid" style="margin-top:10px;">
+        <div><label class="est-lbl">Assigned To</label><select id="taskAssigneeInput">${teamMemberOptions('')}</select></div>
+        <div><label class="est-lbl">Due Date</label><input type="date" id="taskDueInput"></div>
+      </div>
+      <div class="row" style="margin-top:16px; justify-content:flex-end; gap:8px;">
+        <button class="btn" id="cancelAddTask">Cancel</button>
+        <button class="btn btn-primary" id="submitAddTask">Add Task</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.onclick = (e) => { if(e.target === overlay) overlay.remove(); };
+  overlay.querySelector('#cancelAddTask').onclick = () => overlay.remove();
+  overlay.querySelector('#submitAddTask').onclick = () => {
+    const title = overlay.querySelector('#taskTitleInput').value.trim();
+    if(!title){ alert('Give the task a title.'); return; }
+    const est = OPP_ESTIMATES[oppId];
+    if(!est){ overlay.remove(); return; }
+    est.tasks.push({
+      id: 't' + Date.now(),
+      title,
+      assignee: overlay.querySelector('#taskAssigneeInput').value || 'Unassigned',
+      due: overlay.querySelector('#taskDueInput').value || null,
+      done: false
+    });
+    overlay.remove();
+    saveAppState();
+    if(CURRENT_PROJECT_ID) renderProjectDetail();
+    if(CURRENT_OPP_ID && document.getElementById('oppOverlay')?.style.display === 'flex') openOpportunity(CURRENT_OPP_ID);
+  };
 }
 function openAddProjectMeetingNote(oppId){
   openQuickOverlay(`
