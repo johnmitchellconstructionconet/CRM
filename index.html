@@ -983,6 +983,9 @@ select{cursor:pointer;}
 .seq-lead-card .sl-meta{font-size:11.5px; color:var(--ink-faint); margin-top:4px;}
 .seq-lead-card .sl-value{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13.5px; color:var(--taupe-dark); margin-top:5px;}
 .seq-lead-card .sl-foot{display:flex; justify-content:space-between; align-items:center; margin-top:12px; padding-top:11px; border-top:1px solid var(--border-soft);}
+.precon-card-progress{height:6px; background:var(--border-soft); border-radius:3px; overflow:hidden; margin-top:10px;}
+.precon-card-progress-fill{height:100%; background:var(--gold); border-radius:3px; transition:width .3s ease;}
+.precon-card-stats{display:flex; align-items:center; gap:12px; margin-top:9px; padding-top:10px; border-top:1px solid var(--border-soft); font-size:11px; color:var(--ink-faint); flex-wrap:wrap;}
 .seq-avatar{width:26px; height:26px; border-radius:50%; background:linear-gradient(155deg, var(--taupe) 0%, var(--taupe-dark) 100%); color:#fff; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:10px; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(30,27,24,0.15); flex-shrink:0;}
 .seq-temp-pill{font-family:'Montserrat',sans-serif; font-size:9.5px; font-weight:700; letter-spacing:0.03em; text-transform:uppercase; padding:3px 9px; border-radius:20px; display:inline-flex; align-items:center; gap:4px;}
 .seq-temp-pill::before{content:''; width:5px; height:5px; border-radius:50%; background:currentColor;}
@@ -6108,19 +6111,41 @@ function buildPreconProjectCard(p){
     const days = Math.round((new Date(TODAY) - new Date(dueDate+'T00:00:00')) / 86400000);
     return days > 0 ? days : 0;
   })();
+  // Open/overdue/done counts across the CURRENT phase's steps — the phase is a read-only
+  // pill here, not a jump-to dropdown, on purpose: letting someone skip phases from a card
+  // would undercut the strict step-by-step gating the whole engine is built around.
+  const stage = wf.stages.find(s => s.n === wf.currentStageN);
+  let openCount = 0, overdueCount = 0, donePct = 0;
+  if(ph && stage){
+    const total = ph.steps.length;
+    const doneCount = ph.steps.filter(def => { const st = stage.steps[def.id]; return st && (st.status === 'Complete' || st.status === 'N/A'); }).length;
+    openCount = total - doneCount;
+    overdueCount = ph.steps.filter(def => {
+      const st = stage.steps[def.id];
+      if(!st || st.status === 'Complete' || st.status === 'N/A') return false;
+      const due = st.due || st.forecastDue;
+      return due && due < TODAY.toISOString().slice(0,10);
+    }).length;
+    donePct = total ? Math.round(doneCount / total * 100) : 0;
+  } else if(p.currentPhase === null){
+    donePct = 100;
+  }
+  const metaLine = [p.client, p.propertyAddress, p.owner].filter(Boolean).join(' · ');
   return `<div class="seq-lead-card ${overdueDays ? 'seq-lead-card-overdue' : ''}" onclick="openProject('${p.id}')">
     ${overdueDays ? `<div class="card-overdue-flag">⚠ ${overdueDays} day${overdueDays===1?'':'s'} past due</div>` : ''}
     <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
-      <div class="sl-name">${p.name}</div>
-      <span class="seq-avatar">${initials(p.owner)}</span>
+      <div class="sl-name">${escapeHtmlLite(p.name)}</div>
+      <span class="pill ${p.currentPhase===null?'pill-jade':'pill-slate'}" style="font-size:10px; flex-shrink:0;">${p.currentPhase === null ? 'Ready for Production' : `Phase ${p.currentPhase}`}</span>
     </div>
-    <div class="sl-meta">${escapeHtmlLite(p.client || '')}</div>
-    <div class="sl-meta" style="margin-top:-2px;">${p.currentPhase === null ? 'Ready for Production' : `Phase ${p.currentPhase}${ph ? ' · ' + escapeHtmlLite(ph.name) : ''}`}</div>
-    <div class="sl-foot">
-      <span class="pill ${risk.cls}" style="font-size:9px;">${risk.label}</span>
-      <span class="pill pill-slate">${p.owner}</span>
-      ${next ? `<span style="font-size:11px; color:var(--ink-faint);">${escapeHtmlLite(next.def.title)}</span>` : ''}
+    ${metaLine ? `<div class="sl-meta">${escapeHtmlLite(metaLine)}</div>` : ''}
+    <div class="precon-card-progress"><div class="precon-card-progress-fill" style="width:${donePct}%;"></div></div>
+    <div class="precon-card-stats">
+      <span>${openCount} open</span>
+      <span style="${overdueCount ? 'color:var(--rust); font-weight:700;' : ''}">${overdueCount} overdue</span>
+      <span>${donePct}% done</span>
+      <span class="pill ${risk.cls}" style="font-size:9px; margin-left:auto;">${risk.label}</span>
     </div>
+    ${next ? `<div class="sl-meta" style="margin-top:6px; font-style:italic;">Next: ${escapeHtmlLite(next.def.title)}</div>` : ''}
   </div>`;
 }
 const PRECON_PHASE_COLORS = {3:'#63707A', 4:'#6A6455', 5:'#4A453A', 6:'#A69064', 7:'#8C7852', 8:'#5C7A63'};
