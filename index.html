@@ -3518,14 +3518,11 @@ function deleteOppAttachment(oppId, attId){
 // Clicking anywhere but the checkbox opens the full task (assignee, due date, files). ----
 function buildTaskRowHTML(oppId, t){
   const fileCount = (t.attachments || []).length;
-  const est = OPP_ESTIMATES[oppId];
-  const dep = t.dependsOn ? (est && est.tasks.find(x => x.id === t.dependsOn)) : null;
-  const blocked = dep && !dep.done;
-  return `<div class="task-row-mini" style="cursor:pointer; ${blocked ? 'opacity:0.7;' : ''}" onclick="openTaskDetail('${oppId}','${t.id}')">
+  return `<div class="task-row-mini" style="cursor:pointer;" onclick="openTaskDetail('${oppId}','${t.id}')">
     <span class="task-check ${t.done?'done':''}" onclick="event.stopPropagation(); toggleProjectTaskDone('${oppId}','${t.id}')">${t.done ? '✓' : ''}</span>
     <div style="flex:1;">
       <div style="font-size:13px; ${t.done ? 'color:var(--ink-faint); text-decoration:line-through;' : 'font-weight:500;'}">${escapeHtmlLite(t.title)}</div>
-      <div class="sub-txt">${escapeHtmlLite(t.assignee||'Unassigned')}${t.due ? ' \u00b7 Due ' + t.due : ''}${fileCount ? ' \u00b7 📎 ' + fileCount : ''}${dep ? ` \u00b7 ${blocked ? '⏳ Blocked on' : '↳ Depends on'} "${escapeHtmlLite(dep.title)}"` : ''}</div>
+      <div class="sub-txt">${escapeHtmlLite(t.assignee||'Unassigned')}${t.due ? ' \u00b7 Due ' + t.due : ''}${fileCount ? ' \u00b7 📎 ' + fileCount : ''}</div>
     </div>
   </div>`;
 }
@@ -3550,8 +3547,6 @@ function openTaskDetail(oppId, taskId){
         <div><label class="est-lbl">Assigned To</label><select id="taskDetailAssignee">${teamMemberOptions(t.assignee)}</select></div>
         <div><label class="est-lbl">Due Date</label><input type="date" id="taskDetailDue" value="${t.due || ''}"></div>
       </div>
-      <label class="est-lbl" style="margin-top:10px; display:block;">Depends On (optional)</label>
-      <select id="taskDetailDependsOn">${buildTaskDependsOnOptions(est, t.id, t.dependsOn)}</select>
       <label style="margin-top:12px; display:flex; align-items:center; gap:8px; cursor:pointer;">
         <input type="checkbox" id="taskDetailDone" ${t.done ? 'checked' : ''} style="width:16px; height:16px;">
         <span style="font-size:13px;">Marked complete</span>
@@ -3596,7 +3591,6 @@ function saveTaskDetail(oppId, taskId){
   t.title = overlay.querySelector('#taskDetailTitle').value.trim() || t.title;
   t.assignee = overlay.querySelector('#taskDetailAssignee').value || 'Unassigned';
   t.due = overlay.querySelector('#taskDetailDue').value || null;
-  t.dependsOn = overlay.querySelector('#taskDetailDependsOn').value || null;
   t.done = overlay.querySelector('#taskDetailDone').checked;
   overlay.remove();
   saveAppState();
@@ -3635,14 +3629,29 @@ function addProjectTask(oppId){
         <div><label class="est-lbl">Assigned To</label><select id="taskAssigneeInput">${teamMemberOptions('')}</select></div>
         <div><label class="est-lbl">Due Date</label><input type="date" id="taskDueInput"></div>
       </div>
-      <label class="est-lbl" style="margin-top:10px; display:block;">Depends On (optional)</label>
-      <select id="taskDependsOnInput">${buildTaskDependsOnOptions(est, null)}</select>
+      <label class="est-lbl" style="margin-top:10px; display:block;">Files (optional)</label>
+      <label class="pill pill-slate" style="cursor:pointer; display:inline-block;">+ Attach File(s)<input type="file" multiple style="display:none;" id="taskAddFileInput"></label>
+      <div id="taskAddAttachmentsList" style="margin-top:8px;"></div>
       <div class="row" style="margin-top:16px; justify-content:flex-end; gap:8px;">
         <button class="btn" id="cancelAddTask">Cancel</button>
         <button class="btn btn-primary" id="submitAddTask">Add Task</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
+  const pendingAttachments = [];
+  const renderPendingAttachments = () => {
+    const host = overlay.querySelector('#taskAddAttachmentsList');
+    host.innerHTML = pendingAttachments.length ? pendingAttachments.map((a,i) => `<div class="file-row"><span class="fr-name">📎 ${escapeHtmlLite(a.name)}</span><span style="cursor:pointer; color:var(--rust); font-size:14px;" onclick="this.closest('.modal-card').dispatchEvent(new CustomEvent('removeAttach',{detail:${i}}))">&times;</span></div>`).join('') : '';
+  };
+  overlay.querySelector('.modal-card').addEventListener('removeAttach', (e) => { pendingAttachments.splice(e.detail, 1); renderPendingAttachments(); });
+  overlay.querySelector('#taskAddFileInput').onchange = async (e) => {
+    const files = Array.from(e.target.files || []);
+    for(const file of files){
+      const dataUrl = await readFileAsDataUrl(file);
+      pendingAttachments.push({ id: 'a' + Date.now() + Math.random().toString(36).slice(2,6), name: file.name, dataUrl });
+    }
+    renderPendingAttachments();
+  };
   overlay.onclick = (e) => { if(e.target === overlay) overlay.remove(); };
   overlay.querySelector('#cancelAddTask').onclick = () => overlay.remove();
   overlay.querySelector('#submitAddTask').onclick = () => {
@@ -3654,9 +3663,8 @@ function addProjectTask(oppId){
       title,
       assignee: overlay.querySelector('#taskAssigneeInput').value || 'Unassigned',
       due: overlay.querySelector('#taskDueInput').value || null,
-      dependsOn: overlay.querySelector('#taskDependsOnInput').value || null,
       done: false,
-      attachments: []
+      attachments: pendingAttachments
     });
     overlay.remove();
     saveAppState();
@@ -6675,13 +6683,13 @@ function buildActionBannerHTML(p){
     const curPhaseDef = WORKFLOW_PHASE_DEFS.find(pd => pd.n === p.currentPhase);
     const wfBaselineCheck = ensureWorkflowModel(p);
     tabBody = `
+    ${buildProjectTasksPanelHTML(p)}
     ${buildScheduleHealthStripHTML(p)}
     ${buildStageRailHTML(p)}
     ${buildNextActionHeroHTML(p)}
     ${buildScheduleTabHTML(p)}
     ${wfBaselineCheck.baselineSet ? `${buildWaitingBlockedSummaryHTML(p)}${buildFullActionListHTML(p)}` : ''}
     ${buildPropertyHomeownerPanelHTML(p, srcOppId, `renderProjectDetail()`)}
-    ${buildProjectTasksPanelHTML(p)}
     <div class="section-label-row" style="margin-top:8px;"><div class="eyebrow">Review &amp; Send Log</div><span class="pill pill-slate" style="cursor:pointer;" onclick="openCCSubNav('scopes','review')">Open in Scopes →</span></div>
     <div class="panel" style="margin-bottom:20px;"><div class="panel-body" style="padding:6px 20px;" id="reviewSendLogDashboard"><div class="empty-row">Loading…</div></div></div>
     ${buildClientLogPanelHTML(p)}`;
