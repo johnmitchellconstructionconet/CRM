@@ -4777,13 +4777,51 @@ function setStepStatus(projectId, stepId, status){
   recomputeStage(p);
   saveAppState(); renderProjectDetail();
 }
+function shiftDateStr(dateStr, calendarDays){
+  const d = new Date(dateStr+'T00:00:00');
+  d.setDate(d.getDate() + calendarDays);
+  return d.toISOString().slice(0,10);
+}
+// ---- Keeps a phase's Gantt bar anchored to the real dates on its own steps. Called any time
+// a step's due date is edited by hand in the Full Step List, so the two views can't drift
+// apart — editing a date here IS editing the schedule, not a separate note next to it. If the
+// phase's own end date moves as a result, every later phase (and its steps) shifts by the same
+// amount, the same way a late completion already pushes everything downstream. ----
+function recalcStageFinishFromSteps(p, stageN){
+  const wf = ensureWorkflowModel(p);
+  const ph = phaseDef(stageN);
+  const stage = wf.stages.find(s => s.n === stageN);
+  if(!ph || !stage) return;
+  const dates = ph.steps.map(def => { const st = stage.steps[def.id]; return st ? (st.due || st.forecastDue) : null; }).filter(Boolean);
+  if(!dates.length) return;
+  const newFinish = dates.reduce((a,b) => a > b ? a : b);
+  const oldFinish = stage.forecastFinish;
+  stage.forecastFinish = newFinish;
+  if(!oldFinish || newFinish === oldFinish) return;
+  const deltaDays = Math.round((new Date(newFinish+'T00:00:00') - new Date(oldFinish+'T00:00:00')) / 86400000);
+  if(deltaDays === 0) return;
+  wf.stages.forEach(s => {
+    if(s.n <= stageN) return;
+    Object.values(s.steps).forEach(st => {
+      if(st.status !== 'Complete' && st.status !== 'N/A'){
+        if(st.forecastDue) st.forecastDue = shiftDateStr(st.forecastDue, deltaDays);
+        if(st.due) st.due = shiftDateStr(st.due, deltaDays);
+      }
+    });
+    if(s.forecastFinish) s.forecastFinish = shiftDateStr(s.forecastFinish, deltaDays);
+  });
+}
 function setStepField(projectId, stepId, field, val){
   const p = PROJECTS[projectId]; if(!p) return;
   const wf = ensureWorkflowModel(p);
   const stage = wf.stages.find(s => s.n === wf.currentStageN);
   const st = getStepState(stage, stepId);
   st[field] = val || null;
-  saveAppState();
+  if(field === 'due'){
+    if(val) st.forecastDue = val; // editing the visible due date IS editing the schedule
+    recalcStageFinishFromSteps(p, wf.currentStageN);
+  }
+  saveAppState(); renderProjectDetail();
 }
 function buildFreshPhases(){
   return WORKFLOW_PHASE_DEFS.map(p => ({
