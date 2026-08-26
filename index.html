@@ -4411,6 +4411,18 @@ function addBusinessDays(dateStr, days){
   }
   return d.toISOString().slice(0,10);
 }
+function countBusinessDays(startStr, endStr){
+  const start = new Date(startStr+'T00:00:00');
+  const end = new Date(endStr+'T00:00:00');
+  if(end <= start) return 0;
+  let count = 0;
+  const d = new Date(start);
+  while(d < end){
+    d.setDate(d.getDate()+1);
+    if(d.getDay() !== 0 && d.getDay() !== 6) count++;
+  }
+  return count;
+}
 function generateScheduleFromTemplate(projectId, startDate){
   const p = PROJECTS[projectId];
   if(!p) return;
@@ -5374,8 +5386,13 @@ function buildGanttRowHTML(phaseDef, baselineRow, actualRow, overallStart, spanD
     progressFill = `<div style="position:absolute; left:${actualTrackObj.offsetPct}%; width:${fillWidthPct}%; height:${actualTrackObj.height}px; top:${(32-actualTrackObj.height)/2}px; background:var(--jade); border-radius:4px; z-index:2; pointer-events:none;" title="${progressPct}% of this phase\'s tasks checked off"></div>`;
   }
   const hasAny = (baselineRow && baselineRow.start) || (actualRow && actualRow.start);
+  const daysSourceRow = baselineRow && baselineRow.start ? baselineRow : (actualRow && actualRow.start ? actualRow : null);
+  const workingDaysLabel = daysSourceRow ? `${countBusinessDays(daysSourceRow.start, daysSourceRow.end)} working days scheduled` : '';
   return `<div style="display:flex; align-items:center; gap:${GANTT_GAP}px; padding:10px 0; border-bottom:1px solid var(--border-soft);">
-    <div style="width:${GANTT_LEFT_COL}px; flex-shrink:0; font-size:12.5px; font-weight:600; position:sticky; left:0; background:var(--paper); z-index:4; padding-right:8px; ${projectId ? 'cursor:pointer;' : ''}" ${projectId ? `onclick="openPhaseChecklistModal('${projectId}',${phaseDef.n})" title="View this phase's checklist"` : ''}>Phase ${phaseDef.n} \u00b7 ${phaseDef.name}</div>
+    <div style="width:${GANTT_LEFT_COL}px; flex-shrink:0; position:sticky; left:0; background:var(--paper); z-index:4; padding-right:8px; ${projectId ? 'cursor:pointer;' : ''}" ${projectId ? `onclick="openPhaseChecklistModal('${projectId}',${phaseDef.n})" title="View this phase's checklist"` : ''}>
+      <div style="font-size:12.5px; font-weight:600;">Phase ${phaseDef.n} \u00b7 ${phaseDef.name}</div>
+      ${workingDaysLabel ? `<div style="font-size:10px; color:var(--ink-faint); margin-top:2px;">${workingDaysLabel}</div>` : ''}
+    </div>
     <div style="position:relative; width:${timelineWidthPx}px; flex-shrink:0; height:32px;">
       ${hasAny ? (baselineTrackObj ? baselineTrackObj.html : '') + actualBarHTML + progressFill : `<div style="display:flex; align-items:center; height:100%; padding-left:8px; font-size:10.5px; color:var(--ink-faint); font-style:italic; position:relative; z-index:1; ${projectId ? 'cursor:pointer;' : ''}" ${projectId ? `onclick="openPhaseChecklistModal('${projectId}',${phaseDef.n})"` : ''}>Dates TBD${projectId ? ' — click to schedule' : ''}</div>`}
     </div>
