@@ -1082,6 +1082,11 @@ select{cursor:pointer;}
 .duebadge-overdue{background:var(--rust); color:#fff;}
 .duebadge-today{background:#c9a868; color:#fff;}
 .duebadge-soon{background:var(--border); color:var(--ink-faint);}
+.hero-split{display:flex; gap:26px;}
+.hero-main{flex:1.5; min-width:0;}
+.hero-tasks-col{flex:1; min-width:0; border-left:1px solid var(--border-soft); padding-left:24px; max-height:340px; overflow-y:auto;}
+.hero-tasks-list .task-row-mini{padding:7px 0;}
+@media (max-width:820px){ .hero-split{flex-direction:column;} .hero-tasks-col{border-left:none; padding-left:0; border-top:1px solid var(--border-soft); padding-top:16px; max-height:none;} }
 </style>
 </head>
 <body>
@@ -3518,13 +3523,26 @@ function deleteOppAttachment(oppId, attId){
 // Clicking anywhere but the checkbox opens the full task (assignee, due date, files). ----
 function buildTaskRowHTML(oppId, t){
   const fileCount = (t.attachments || []).length;
+  const status = t.status || (t.done ? 'Done' : 'Not Started');
+  const statusCls = status === 'Done' ? 'pill-jade' : status === 'Working On' ? 'pill-gold' : 'pill-slate';
   return `<div class="task-row-mini" style="cursor:pointer;" onclick="openTaskDetail('${oppId}','${t.id}')">
-    <span class="task-check ${t.done?'done':''}" onclick="event.stopPropagation(); toggleProjectTaskDone('${oppId}','${t.id}')">${t.done ? '✓' : ''}</span>
+    <select class="pill ${statusCls}" style="font-size:10px; border:none; flex-shrink:0; min-width:98px; cursor:pointer;" onclick="event.stopPropagation();" onchange="event.stopPropagation(); setTaskStatus('${oppId}','${t.id}', this.value)">
+      ${['Not Started','Working On','Done'].map(o => `<option ${o===status?'selected':''}>${o}</option>`).join('')}
+    </select>
     <div style="flex:1;">
-      <div style="font-size:13px; ${t.done ? 'color:var(--ink-faint); text-decoration:line-through;' : 'font-weight:500;'}">${escapeHtmlLite(t.title)}</div>
+      <div style="font-size:13px; ${status === 'Done' ? 'color:var(--ink-faint); text-decoration:line-through;' : 'font-weight:500;'}">${escapeHtmlLite(t.title)}</div>
       <div class="sub-txt">${escapeHtmlLite(t.assignee||'Unassigned')}${t.due ? ' \u00b7 Due ' + t.due : ''}${fileCount ? ' \u00b7 📎 ' + fileCount : ''}</div>
     </div>
   </div>`;
+}
+function setTaskStatus(oppId, taskId, status){
+  const est = OPP_ESTIMATES[oppId];
+  const t = est && est.tasks.find(x => x.id === taskId);
+  if(!t) return;
+  t.status = status;
+  t.done = (status === 'Done');
+  saveAppState();
+  renderProjectDetail();
 }
 function openTaskDetail(oppId, taskId){
   const est = OPP_ESTIMATES[oppId];
@@ -3547,10 +3565,8 @@ function openTaskDetail(oppId, taskId){
         <div><label class="est-lbl">Assigned To</label><select id="taskDetailAssignee">${teamMemberOptions(t.assignee)}</select></div>
         <div><label class="est-lbl">Due Date</label><input type="date" id="taskDetailDue" value="${t.due || ''}"></div>
       </div>
-      <label style="margin-top:12px; display:flex; align-items:center; gap:8px; cursor:pointer;">
-        <input type="checkbox" id="taskDetailDone" ${t.done ? 'checked' : ''} style="width:16px; height:16px;">
-        <span style="font-size:13px;">Marked complete</span>
-      </label>
+      <label class="est-lbl" style="margin-top:10px; display:block;">Status</label>
+      <select id="taskDetailStatus">${['Not Started','Working On','Done'].map(o => `<option ${o===(t.status || (t.done ? 'Done' : 'Not Started'))?'selected':''}>${o}</option>`).join('')}</select>
       <div class="sidebar-label" style="padding:12px 0 4px;">Files</div>
       <label class="pill pill-slate" style="cursor:pointer; display:inline-block;">+ Attach File(s)<input type="file" multiple style="display:none;" id="taskDetailFileInput"></label>
       <div id="taskDetailAttachments" style="margin-top:8px;"></div>
@@ -3591,7 +3607,8 @@ function saveTaskDetail(oppId, taskId){
   t.title = overlay.querySelector('#taskDetailTitle').value.trim() || t.title;
   t.assignee = overlay.querySelector('#taskDetailAssignee').value || 'Unassigned';
   t.due = overlay.querySelector('#taskDetailDue').value || null;
-  t.done = overlay.querySelector('#taskDetailDone').checked;
+  t.done = overlay.querySelector('#taskDetailStatus').value === 'Done';
+  t.status = overlay.querySelector('#taskDetailStatus').value;
   overlay.remove();
   saveAppState();
   if(CURRENT_PROJECT_ID) renderProjectDetail();
@@ -3663,6 +3680,7 @@ function addProjectTask(oppId){
       title,
       assignee: overlay.querySelector('#taskAssigneeInput').value || 'Unassigned',
       due: overlay.querySelector('#taskDueInput').value || null,
+      status: 'Not Started',
       done: false,
       attachments: pendingAttachments
     });
@@ -5280,43 +5298,44 @@ function buildStageRailHTML(p){
 }
 // ---- The hero: the one step to actually do right now, in strict order. Nothing else on
 // this tab competes with it for attention — that's the point. ----
-function buildNextActionHeroHTML(p){
+// ---- Returns just the inner content + status class for the current hero state, without
+// the outer box — buildNextActionHeroHTML wraps this together with the Tasks column into
+// one shared bordered box, since the two need to sit side by side rather than as separate
+// stacked panels. ----
+function buildHeroInnerHTML(p){
   const wf = ensureWorkflowModel(p);
   // The absolute gate: no baseline schedule means nothing else is allowed to be "next" —
   // not even a step someone already had In Progress before this rule existed. Setting the
   // schedule is step one, every time, full stop.
   if(!wf.baselineSet){
-    return `<div class="hero hero-blocked">
+    return { cls:'hero-blocked', html: `
       <div class="hero-label">Before Anything Else</div>
       <div class="hero-title">Set the Baseline Schedule</div>
       <div class="hero-meta">Every deadline on this project depends on this being set first — nothing else starts until it is.</div>
       <div class="row" style="margin-top:14px;">
         <button class="btn btn-dark" onclick="promptGenerateProcessBaseline('${p.id}')">Set Baseline Schedule</button>
-      </div>
-    </div>`;
+      </div>` };
   }
   const ph = phaseDef(wf.currentStageN);
   if(!ph){
-    return `<div class="hero hero-done"><div class="hero-label">Preconstruction Complete</div><div class="hero-title">Ready for Construction.</div></div>`;
+    return { cls:'hero-done', html: `<div class="hero-label">Preconstruction Complete</div><div class="hero-title">Ready for Construction.</div>` };
   }
   const next = getNextAction(p);
   if(!next){
     const waiting = getWaitingSteps(p);
     if(waiting.length){
       const w = waiting[0];
-      return `<div class="hero hero-waiting">
+      return { cls:'hero-waiting', html: `
         <div class="hero-label">Phase ${ph.n} · ${escapeHtmlLite(ph.name)} — Waiting</div>
         <div class="hero-title">${escapeHtmlLite(w.def.title)}</div>
         <div class="hero-meta">${w.a.waitingParty ? `Waiting on <b>${escapeHtmlLite(w.a.waitingParty)}</b>` : ''}${w.a.waitingExpected ? ` · expected ${escapeHtmlLite(w.a.waitingExpected)}` : ''}</div>
         <div class="row" style="margin-top:12px; gap:8px;">
           <button class="btn btn-outline btn-sm" onclick="setStepStatus('${p.id}','${w.def.id}','Ready')">They responded — mark Ready</button>
-        </div>
-      </div>`;
+        </div>` };
     }
-    return `<div class="hero hero-done">
+    return { cls:'hero-done', html: `
       <div class="hero-label">Phase ${ph.n} · ${escapeHtmlLite(ph.name)} — nothing outstanding</div>
-      <div class="hero-title">This phase will hand off to Phase ${ph.n+1} automatically once every step clears.</div>
-    </div>`;
+      <div class="hero-title">This phase will hand off to Phase ${ph.n+1} automatically once every step clears.</div>` };
   }
   const { def, a, index, total } = next;
   const isBlocked = a.status === 'Blocked';
@@ -5329,7 +5348,7 @@ function buildNextActionHeroHTML(p){
     overdue ? `<span class="duebadge duebadge-overdue">${Math.abs(daysUntil)} DAY${Math.abs(daysUntil)===1?'':'S'} OVERDUE</span>` :
     daysUntil === 0 ? `<span class="duebadge duebadge-today">DUE TODAY</span>` :
     daysUntil <= 3 ? `<span class="duebadge duebadge-soon">Due in ${daysUntil} day${daysUntil===1?'':'s'}</span>` : '';
-  return `<div class="hero ${isBlocked ? 'hero-blocked' : overdue ? 'hero-blocked' : ''}">
+  return { cls: (isBlocked || overdue) ? 'hero-blocked' : '', html: `
     <div class="hero-label">Phase ${ph.n} · ${escapeHtmlLite(ph.name)} — Step ${index+1} of ${total}${dueBadge}</div>
     <div class="hero-title">${escapeHtmlLite(def.title)}</div>
     <div class="hero-meta">${escapeHtmlLite(def.role)}${isBlocked && a.blockerNote ? ` — Blocked: ${escapeHtmlLite(a.blockerNote)}` : ''}</div>
@@ -5343,6 +5362,27 @@ function buildNextActionHeroHTML(p){
       <button class="btn btn-dark" onclick="setStepStatus('${p.id}','${def.id}','Complete')">Mark Complete</button>
       ${!isBlocked ? `<button class="btn btn-outline" onclick="openMarkWaiting('${p.id}','${def.id}')">Waiting on Someone</button>
       <button class="btn btn-outline" style="color:var(--rust); border-color:var(--rust);" onclick="openMarkBlocked('${p.id}','${def.id}')">Flag as Blocked</button>` : `<button class="btn btn-outline" onclick="setStepStatus('${p.id}','${def.id}','Ready')">Resolved — Clear Blocker</button>`}
+    </div>` };
+}
+// ---- The hero and Tasks share one bordered box, side by side — the next required action
+// on the left (the one thing to do right now, computed by the process engine) and the
+// free-form task list on the right (things people add on the fly, not part of the strict
+// phase sequence). Two different kinds of "things to do," one shared surface. ----
+function buildNextActionHeroHTML(p){
+  const { cls, html } = buildHeroInnerHTML(p);
+  const est = getOrCreateOppEstimate({ id: p.id, name: p.client, owner: p.owner, stage: 'Preconstruction' });
+  const tasksHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+      <div class="hero-label" style="margin:0;">Tasks</div>
+      <span class="pill pill-slate" style="cursor:pointer;" onclick="addProjectTask('${p.id}')">+ Add Task</span>
+    </div>
+    <div class="hero-tasks-list">
+      ${est.tasks.length ? est.tasks.map(t => buildTaskRowHTML(p.id, t)).join('') : '<div class="empty-row">No tasks yet.</div>'}
+    </div>`;
+  return `<div class="hero ${cls}">
+    <div class="hero-split">
+      <div class="hero-main">${html}</div>
+      <div class="hero-tasks-col">${tasksHTML}</div>
     </div>
   </div>`;
 }
@@ -6683,7 +6723,6 @@ function buildActionBannerHTML(p){
     const curPhaseDef = WORKFLOW_PHASE_DEFS.find(pd => pd.n === p.currentPhase);
     const wfBaselineCheck = ensureWorkflowModel(p);
     tabBody = `
-    ${buildProjectTasksPanelHTML(p)}
     ${buildScheduleHealthStripHTML(p)}
     ${buildStageRailHTML(p)}
     ${buildNextActionHeroHTML(p)}
