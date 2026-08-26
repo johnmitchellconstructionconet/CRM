@@ -3800,7 +3800,7 @@ function toggleBulkSelect(kind, id, checked){
 }
 function toggleBulkSelectAll(kind, ids, checked){
   ids.forEach(id => { if(checked) BULK_SELECTED[kind].add(id); else BULK_SELECTED[kind].delete(id); });
-  const rerender = { partner: renderRelationshipPartners, project: renderPreconProjectTable }[kind];
+  const rerender = { partner: renderRelationshipPartners, project: renderPreconProjectGrid }[kind];
   if(rerender) rerender();
 }
 function renderBulkActionBar(kind){
@@ -3815,7 +3815,7 @@ function renderBulkActionBar(kind){
 }
 function clearBulkSelect(kind){
   BULK_SELECTED[kind].clear();
-  const rerender = { partner: renderRelationshipPartners, project: renderPreconProjectTable }[kind];
+  const rerender = { partner: renderRelationshipPartners, project: renderPreconProjectGrid }[kind];
   if(rerender) rerender();
 }
 function bulkDeleteSelected(kind){
@@ -4712,7 +4712,12 @@ function recomputeStage(p){
     }
     stage.actualFinish = stage.actualFinish || today;
     const next = wf.stages.find(s => s.n > wf.currentStageN);
-    if(next){ next.status = 'current'; wf.currentStageN = next.n; }
+    // Keep the legacy currentPhase field in sync with the new engine's real position — the
+    // Preconstruction card grid, Dashboard, Task Center, and Locations table all still read
+    // p.currentPhase directly, so if this drifts from wf.currentStageN, every one of those
+    // silently shows a stale phase the moment this auto-advances.
+    if(next){ next.status = 'current'; wf.currentStageN = next.n; p.currentPhase = next.n; }
+    else { p.currentPhase = null; }
     wf.reconciliationRequired = false;
     recomputeStage(p);
   }
@@ -6215,19 +6220,14 @@ function buildPreconTableRow(p){
 function renderPreconProjectGrid(){
   const el = document.getElementById('preconProjectGrid');
   if(!el) return;
-  const projects = Object.values(PROJECTS);
-  const steps = WORKFLOW_PHASE_DEFS.map(pd => ({ n: pd.n, name: pd.name, projs: projects.filter(p => p.currentPhase === pd.n) }));
-  steps.push({ n: 'done', name: 'Ready for Production', projs: projects.filter(p => p.currentPhase === null) });
-
-  const body = steps.map((step, idx) => {
-    const cards = step.projs.length ? step.projs.map(buildPreconProjectCard).join('') : '<div class="seq-empty">No projects currently in this phase.</div>';
-    return `<div class="seq-stage ${step.projs.length ? 'has-leads' : 'seq-empty-stage'}">
-      <div class="seq-badge">${step.n === 'done' ? '✓' : step.n}</div>
-      <div class="seq-stage-head"><h3>${step.n === 'done' ? step.name : `Phase ${step.n} · ${step.name}`}</h3><span class="stage-count">${step.projs.length}</span></div>
-      <div class="seq-lead-grid">${cards}</div>
-    </div>`;
-  }).join('');
-  el.innerHTML = `<div class="seq-timeline">${body}</div>`;
+  const projects = Object.values(PROJECTS).sort((a,b) => {
+    const ra = getProjectScheduleRisk(a), rb = getProjectScheduleRisk(b);
+    if(ra.rank !== rb.rank) return ra.rank - rb.rank;
+    return rb.days - ra.days;
+  });
+  el.innerHTML = projects.length
+    ? `<div class="seq-lead-grid">${projects.map(buildPreconProjectCard).join('')}</div>`
+    : '<div class="seq-empty">No projects yet.</div>';
 }
 function deleteProject(id){
   if(!confirm('Delete this project? This cannot be undone.')) return;
@@ -6746,7 +6746,7 @@ function goPage(id){
   window.scrollTo(0,0);
   if(id === 'automations') renderMeetingReminderQueue();
   if(id === 'dashboard') renderDashboardAtAGlance();
-  if(id === 'precon-dash') renderPreconProjectTable();
+  if(id === 'precon-dash') renderPreconProjectGrid();
   if(id === 'taskcenter') renderTaskCenter();
 }
 navItems.forEach(item => item.addEventListener('click', () => goPage(item.dataset.page)));
