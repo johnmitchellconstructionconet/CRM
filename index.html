@@ -1054,6 +1054,28 @@ select{cursor:pointer;}
 .readyrow{background:#fff; border:1px solid var(--border); border-radius:8px; padding:9px 14px; font-size:13px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;}
 .readyrow:hover{border-color:var(--taupe-dark);}
 .readyrow-action{color:var(--taupe-dark); font-weight:600; font-size:12px;}
+/* ---- Schedule Health strip — the first thing on every project's page. The schedule is
+   the organizing principle here, so this sits above even the next-action hero. ---- */
+.schedhealth{border-radius:12px; padding:14px 18px; margin-bottom:16px; border:1.5px solid var(--border);}
+.schedhealth-unset{background:#FAFAF8;}
+.schedhealth-ontrack{background:#F8FAF8; border-color:var(--jade);}
+.schedhealth-ahead{background:#F8FAF8; border-color:var(--jade);}
+.schedhealth-late{background:#FBF4E4; border-color:#c9a868;}
+.schedhealth-row{display:flex; align-items:center; gap:26px; flex-wrap:wrap;}
+.schedhealth-metric label{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-faint); display:block; margin-bottom:3px;}
+.schedhealth-metric input[type=date]{font-size:13px; padding:5px 8px; min-width:130px;}
+.schedhealth-val{font-family:'Space Grotesk',sans-serif; font-size:16px; font-weight:600;}
+.schedhealth-variance{color:var(--jade);}
+.schedhealth-late .schedhealth-variance{color:#8a6d2f;}
+.schedhealth-warning{margin-top:10px; font-size:12.5px; color:var(--rust); font-weight:600;}
+.schedhealth-cause{margin-top:8px; font-size:12px; color:var(--ink-faint);}
+.railchip-date{display:block; font-size:10px; color:var(--ink-faint); margin-top:2px;}
+.railchip-overdue{border-color:var(--rust) !important; background:#FBEFEA;}
+.railchip-overdue .railchip-n{background:var(--rust) !important; color:#fff;}
+.duebadge{display:inline-block; margin-left:8px; padding:2px 9px; border-radius:99px; font-size:9.5px; font-weight:700; letter-spacing:.03em; vertical-align:middle;}
+.duebadge-overdue{background:var(--rust); color:#fff;}
+.duebadge-today{background:#c9a868; color:#fff;}
+.duebadge-soon{background:var(--border); color:var(--ink-faint);}
 </style>
 </head>
 <body>
@@ -1305,6 +1327,12 @@ select{cursor:pointer;}
           <button class="btn btn-outline" style="margin-left:auto;" onclick="resetToDemoData()">Clear Saved Data &amp; Reset to Demo</button>
         </div>
       </div></div>
+      <div class="section-label-row"><div class="eyebrow">Preconstruction Process</div></div>
+      <div class="hint" style="margin-bottom:12px;">The exact phases and steps every project runs through, in order — this drives the Next Required Action on every project's Overview tab. Edit titles, reassign roles, reorder, add, or remove steps here whenever the real process changes; nothing about the process is hardcoded.</div>
+      <div id="processEditorPanel" class="panel" style="margin-bottom:16px;"></div>
+      <div class="section-label-row"><div class="eyebrow">Default Assignee by Role</div></div>
+      <div class="hint" style="margin-bottom:12px;">Who usually fills each role — pre-fills the "Assigned To" field on a project's next step, but can always be changed per project.</div>
+      <div id="roleAssigneesPanel" class="panel" style="margin-bottom:28px;"></div>
       <div class="section-label-row"><div class="eyebrow">Default Task Assignees</div></div>
       <div id="defaultAssigneesPanel" class="panel" style="margin-bottom:28px;"></div>
       <div class="section-label-row"><div class="eyebrow">Client-Facing Phase Descriptions</div></div>
@@ -3217,6 +3245,49 @@ function setProjectField(projectId, field, value){
 }
 // ---- Contact & Property, matching the Sales pipeline's panel structure, for a project
 // with no linked opportunity — phone/email/property address live directly on the project. ----
+// ---- Property & Homeowner — merged from what used to be two separate panels (Contact &
+// Property, and Client Profile) plus the schedule button that lived with them. This is
+// reference data, not something to act on, so it's tucked below the process itself and
+// collapsed by default rather than splitting the page's attention with the action engine
+// above. Client Profile fields persist on the contact record (survive past this project);
+// property/referral fields are specific to this project. ----
+let PROPERTY_PANEL_OPEN = false;
+function togglePropertyPanel(){
+  PROPERTY_PANEL_OPEN = !PROPERTY_PANEL_OPEN;
+  renderProjectDetail();
+}
+function buildPropertyHomeownerPanelHTML(p, contactId, refreshJs){
+  const c = getOrCreateContact(contactId, p.client || p.name);
+  return `<div class="section-label-row" style="margin-top:22px; cursor:pointer;" onclick="togglePropertyPanel()"><div class="eyebrow">${PROPERTY_PANEL_OPEN ? '▾' : '▸'} Property &amp; Homeowner Info</div></div>
+  ${PROPERTY_PANEL_OPEN ? `<div class="panel" style="margin-bottom:20px;"><div class="panel-body" style="padding:16px 20px;">
+    <div class="field-grid">
+      <div><label>Property Address</label><input id="addr_${p.id}" value="${escapeHtmlLite(p.propertyAddress || '')}" onchange="setProjectField('${p.id}','propertyAddress',this.value)" autocomplete="off"></div>
+      <div><label>Phone</label><input value="${escapeHtmlLite(p.phone || '')}" onchange="setProjectField('${p.id}','phone',this.value)"></div>
+      <div><label>Email</label><input type="email" value="${escapeHtmlLite(p.email || '')}" onchange="setProjectField('${p.id}','email',this.value)"></div>
+      <div><label>Referral Source</label><select onchange="setProjectField('${p.id}','referralPartner',this.value); renderProjectDetail()">${referralPartnerOptions(p.referralPartner)}</select></div>
+      <div><label>Decision Maker</label><input value="${escapeHtmlLite(c.decisionMaker)}" placeholder="e.g. Both, or name" onchange="setContactField('${contactId}','decisionMaker',this.value)"></div>
+      <div><label>Spouse / Partner</label><input value="${escapeHtmlLite(c.spousePartnerName)}" onchange="setContactField('${contactId}','spousePartnerName',this.value)"></div>
+      <div><label>Communication Preference</label><select onchange="setContactField('${contactId}','communicationPref',this.value)">${['No preference','Call','Text','Email'].map(o => `<option ${o===c.communicationPref?'selected':''}>${o}</option>`).join('')}</select></div>
+      <div><label>Best Time to Reach</label><input value="${escapeHtmlLite(c.bestTimeToReach)}" placeholder="e.g. evenings, weekends" onchange="setContactField('${contactId}','bestTimeToReach',this.value)"></div>
+      <div><label>Hobbies / Interests</label><input value="${escapeHtmlLite(c.hobbiesInterests)}" placeholder="e.g. golf, boating, grandkids" onchange="setContactField('${contactId}','hobbiesInterests',this.value)"></div>
+      <div><label>Family Notes</label><input value="${escapeHtmlLite(c.familyNotes)}" placeholder="kids' names, pets, etc." onchange="setContactField('${contactId}','familyNotes',this.value)"></div>
+    </div>
+    <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border-soft);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><label class="est-lbl" style="margin:0;">Get to Know You Form (PDF)</label></div>
+      ${c.getToKnowYouFile
+        ? `<div class="file-row"><a href="javascript:void(0)" onclick="openFilePreview('${c.getToKnowYouFile.dataUrl}', '${escapeHtmlLite(c.getToKnowYouFile.name)}')" class="fr-name" style="text-decoration:none; color:inherit;">📄 ${escapeHtmlLite(c.getToKnowYouFile.name)}</a><span style="display:flex; align-items:center; gap:10px;"><span class="sub-txt">${fmtNoteDate(c.getToKnowYouFile.uploadedAt)}</span><span style="cursor:pointer; color:var(--rust); font-size:14px;" onclick="removeGetToKnowYouForm('${contactId}'); ${refreshJs}">&times;</span></span></div>`
+        : `<label class="pill pill-slate" style="cursor:pointer; display:inline-block;">+ Upload PDF<input type="file" accept="application/pdf" style="display:none;" onchange="uploadGetToKnowYouForm('${contactId}', this).then(() => { ${refreshJs} })"></label>`}
+    </div>
+    <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border-soft);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><label class="est-lbl" style="margin:0;">Important Dates</label><span class="pill pill-slate" style="cursor:pointer;" onclick="openAddContactDateModal('${contactId}', () => { ${refreshJs} })">+ Add Date</span></div>
+      ${c.importantDates.length ? c.importantDates.map(d => `<div class="file-row" style="cursor:pointer;" onclick="openAddContactDateModal('${contactId}', () => { ${refreshJs} }, '${d.id}')"><span class="fr-name">🎂 ${escapeHtmlLite(d.label)}${d.notes ? ' — ' + escapeHtmlLite(d.notes) : ''}${(d.attachments||[]).length ? ' · 📎 ' + d.attachments.length : ''}</span><span style="display:flex; align-items:center; gap:10px;"><span class="pill pill-gold">${escapeHtmlLite(d.date)}</span><span style="cursor:pointer; color:var(--rust); font-size:14px;" onclick="event.stopPropagation(); removeContactDate('${contactId}','${d.id}', () => { ${refreshJs} })">&times;</span></span></div>`).join('') : '<div class="empty-row">No dates saved yet.</div>'}
+    </div>
+    <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border-soft);">
+      <label class="est-lbl">General Notes</label>
+      <textarea style="width:100%; min-height:56px; margin-top:4px; padding:8px 10px; border:1px solid var(--border); border-radius:7px; font-family:'Inter',sans-serif; font-size:13px; resize:vertical;" onchange="setContactField('${contactId}','generalNotes',this.value)">${escapeHtmlLite(c.generalNotes)}</textarea>
+    </div>
+  </div></div>` : ''}`;
+}
 function buildProjectContactPanelHTML(p){
   const dip = daysInPhase(p);
   return `
@@ -4363,6 +4434,79 @@ function setDefaultTaskAssignee(name, assignee){
   const projectPage = document.getElementById('page-project-detail');
   if(projectPage && projectPage.classList.contains('active')) renderProjectDetail();
 }
+// ---- Manage Process — this is the actual editor for PROCESS_PHASES/PROCESS_ROLES, called
+// from Company Settings. Phase add/delete isn't offered here on purpose: phase numbers are
+// referenced directly by p.currentPhase, the dashboard, and the legacy phase tracker, so
+// restructuring the phases themselves is a bigger change than this editor is meant for —
+// but every step within a phase (title, role, order, add, remove) is fully editable. ----
+function renderProcessEditorPanel(){
+  const host = document.getElementById('processEditorPanel');
+  if(!host) return;
+  host.innerHTML = `<div class="panel-body" style="padding:16px 20px;">
+    ${PROCESS_PHASES.map(ph => `
+      <div style="margin:18px 0 8px; display:flex; align-items:center; gap:10px;">
+        <div style="font-weight:700; font-size:12.5px; color:var(--taupe-dark); text-transform:uppercase; letter-spacing:.03em;">Phase ${ph.n} ·</div>
+        <input value="${escapeHtmlLite(ph.name)}" style="max-width:280px; font-weight:600;" onchange="setProcessPhaseName(${ph.n}, this.value)">
+      </div>
+      ${ph.steps.map((step, i) => `
+        <div class="list-row" style="gap:8px; align-items:center;">
+          <span style="color:var(--ink-faint); font-size:12px; width:18px; flex-shrink:0;">${i+1}.</span>
+          <input value="${escapeHtmlLite(step.title)}" style="flex:2; min-width:180px;" onchange="setProcessStepField(${ph.n},'${step.id}','title',this.value)">
+          <input value="${escapeHtmlLite(step.role)}" placeholder="Role" style="max-width:150px;" onchange="setProcessStepField(${ph.n},'${step.id}','role',this.value)">
+          <button class="btn btn-outline btn-sm" ${i===0?'disabled':''} onclick="moveProcessStep(${ph.n},'${step.id}',-1)" title="Move up">↑</button>
+          <button class="btn btn-outline btn-sm" ${i===ph.steps.length-1?'disabled':''} onclick="moveProcessStep(${ph.n},'${step.id}',1)" title="Move down">↓</button>
+          <span style="cursor:pointer; color:var(--rust); font-size:16px; padding:0 4px;" onclick="removeProcessStep(${ph.n},'${step.id}')" title="Remove step">&times;</span>
+        </div>`).join('')}
+      <button class="btn btn-outline btn-sm" style="margin-top:6px;" onclick="addProcessStep(${ph.n})">+ Add Step to Phase ${ph.n}</button>
+    `).join('')}
+  </div>`;
+}
+function setProcessPhaseName(phaseN, value){
+  const ph = phaseDef(phaseN); if(!ph) return;
+  ph.name = value.trim() || ph.name;
+  saveAppState();
+}
+function setProcessStepField(phaseN, stepId, field, value){
+  const ph = phaseDef(phaseN); if(!ph) return;
+  const step = ph.steps.find(s => s.id === stepId); if(!step) return;
+  step[field] = value.trim();
+  saveAppState();
+  if(field === 'role') renderRoleAssigneesPanel();
+}
+function moveProcessStep(phaseN, stepId, dir){
+  const ph = phaseDef(phaseN); if(!ph) return;
+  const i = ph.steps.findIndex(s => s.id === stepId);
+  const j = i + dir;
+  if(i < 0 || j < 0 || j >= ph.steps.length) return;
+  [ph.steps[i], ph.steps[j]] = [ph.steps[j], ph.steps[i]];
+  saveAppState(); renderProcessEditorPanel();
+}
+function removeProcessStep(phaseN, stepId){
+  const ph = phaseDef(phaseN); if(!ph) return;
+  if(!confirm('Remove this step from the process? Any project currently on it will skip straight past it.')) return;
+  ph.steps = ph.steps.filter(s => s.id !== stepId);
+  saveAppState(); renderProcessEditorPanel(); renderRoleAssigneesPanel();
+}
+function addProcessStep(phaseN){
+  const ph = phaseDef(phaseN); if(!ph) return;
+  const title = prompt('New step title:');
+  if(!title || !title.trim()) return;
+  const id = 'p' + phaseN + 's_' + Date.now();
+  ph.steps.push({ id, title: title.trim(), role: '' });
+  saveAppState(); renderProcessEditorPanel();
+}
+function renderRoleAssigneesPanel(){
+  const host = document.getElementById('roleAssigneesPanel');
+  if(!host) return;
+  const rolesInUse = Array.from(new Set(PROCESS_PHASES.flatMap(ph => ph.steps.map(s => s.role)).filter(Boolean)));
+  host.innerHTML = `<div class="panel-body" style="padding:16px 20px;">
+    ${rolesInUse.length ? rolesInUse.map(role => `<div class="list-row"><span class="main-txt" style="font-size:13px;">${escapeHtmlLite(role)}</span><select style="max-width:200px;" onchange="setRoleDefaultAssignee('${role.replace(/'/g,"\\'")}', this.value)">${teamMemberOptions(ROLE_DEFAULT_ASSIGNEE[role] || '')}</select></div>`).join('') : '<div class="empty-row">No roles defined yet — add steps above with a role to set defaults here.</div>'}
+  </div>`;
+}
+function setRoleDefaultAssignee(role, value){
+  ROLE_DEFAULT_ASSIGNEE[role] = value || null;
+  saveAppState();
+}
 function renderDefaultAssigneesPanel(){
   const host = document.getElementById('defaultAssigneesPanel');
   if(!host) return;
@@ -4409,199 +4553,251 @@ const WORKFLOW_PHASE_DEFS = [
     'Construction Agreement Sent','Construction Contract Signed',
     'Final Scheduling Phase','Project Handoff / Production Setup']},
 ];
-const PRECON_STAGES = [
-  { n:1, name:'Launch & Alignment', objective:'Convert the signed Preconstruction Agreement into an organized, scheduled, aligned project.' },
-  { n:2, name:'Concept & Feasibility', objective:'Prove the client\'s vision can work with the site, investment target, constraints, and project strategy.' },
-  { n:3, name:'Design Development', objective:'Convert the approved concept into coordinated architectural information.' },
-  { n:4, name:'Design & Selections', objective:'Translate the client\'s Discovery information into a complete, cohesive, buildable design.' },
-  { n:5, name:'Scope & Constructability', objective:'Turn plans and design decisions into a precise definition of what MC&D is going to build.' },
-  { n:6, name:'Pricing & Contract', objective:'Convert a bid-ready scope package into validated project economics and an executed Construction Agreement.' },
-  { n:7, name:'Construction Readiness', objective:'Deliver a complete, coordinated project to Production — Production formally accepts it, not us.' },
+// ============================================================
+// PRECONSTRUCTION PROCESS — this is the real MC&D process (your phase list + the bidding/
+// estimating responsibility matrix), not a generic template. It is fully editable at runtime
+// via Company Settings → Manage Process — nothing here is meant to stay hardcoded; these
+// arrays are the STARTING defaults, and PROCESS_PHASES is reassigned (not just mutated) by
+// the admin editor and saved/restored with everything else in the app snapshot.
+// Steps are STRICTLY SEQUENTIAL within a phase — step N can't go Ready until step N-1 is
+// Complete or N/A. That's a deliberate change from an earlier draft that modeled parallel
+// workstreams: John's real process is a strict numbered sequence, so the dependency model
+// should say so, not invent parallelism that isn't there. Phase numbers (3–8) intentionally
+// match p.currentPhase elsewhere in the app (dashboard, legacy phase tracker) so a project's
+// position here is exact, not a guess. ----
+const PROCESS_ROLES = ['Estimator', 'P/C Coordinator', 'S/C', 'Designer', 'Owner'];
+// Optional default person per role, editable in Company Settings. Left blank on purpose —
+// guessing who actually fills "Estimator" day to day would be fabricating an assignment.
+let ROLE_DEFAULT_ASSIGNEE = {};
+let PROCESS_PHASES = [
+  { n:3, name:'Design Discovery', steps:[
+    { id:'p3s1', title:'Design Discovery Form sent to client', role:'Estimator' },
+    { id:'p3s2', title:'Internal Discovery Review', role:'Estimator' },
+    { id:'p3s3', title:'Design Discovery / Client Review Meeting', role:'Estimator' },
+  ]},
+  { n:4, name:'Architectural Development', steps:[
+    { id:'p4s1', title:'Start of architectural plans', role:'Estimator & S/C' },
+    { id:'p4s2', title:'Review plan revisions through GoVisually', role:'Estimator' },
+    { id:'p4s3', title:'Plans get approved — Client Plan Review', role:'Estimator' },
+    { id:'p4s4', title:'Selections Identification Meeting', role:'Estimator & S/C' },
+  ]},
+  { n:5, name:'Design Direction & Selections', steps:[
+    { id:'p5s1', title:'Selections Meeting', role:'Estimator & S/C' },
+    { id:'p5s2', title:'Create Clarifications Sheet', role:'Estimator' },
+    { id:'p5s3', title:'Write RFP using selections sheet', role:'Estimator' },
+    { id:'p5s4', title:'Plans takeoffs to match the RFP', role:'Estimator' },
+    { id:'p5s5', title:'Review RFP for scope gaps & grammar', role:'Estimator & S/C' },
+  ]},
+  { n:6, name:'3D Rendering & Refinement', steps:[
+    { id:'p6s1', title:'3D Renderings', role:'Designer' },
+    { id:'p6s2', title:'Internal Rendering Review', role:'Estimator' },
+    { id:'p6s3', title:'Client Rendering Review', role:'Estimator' },
+    { id:'p6s4', title:'Final Architectural Details', role:'Estimator' },
+    { id:'p6s5', title:'Final Design Review', role:'Estimator' },
+  ]},
+  { n:7, name:'Trade Pricing & Final Budget', steps:[
+    { id:'p7s1', title:'Create bid packages', role:'Estimator' },
+    { id:'p7s2', title:'Fill out Bid List of vendors & subs', role:'Estimator' },
+    { id:'p7s3', title:'Assign bidders to BuilderTrend bid packages', role:'P/C Coordinator' },
+    { id:'p7s4', title:'Attach RFP, final plans & takeoffs to bid packages', role:'P/C Coordinator' },
+    { id:'p7s5', title:'Release bid packages', role:'P/C Coordinator' },
+    { id:'p7s6', title:'Email all trades — open bidding & send docs', role:'P/C Coordinator' },
+    { id:'p7s7', title:'Follow up on bids', role:'P/C Coordinator' },
+    { id:'p7s8', title:'Light review of bids — log in BuilderTrend & VE Dashboard', role:'P/C Coordinator' },
+    { id:'p7s9', title:'CHECKPOINT', role:'Estimator' },
+    { id:'p7s10', title:'Input all allowances', role:'Estimator' },
+    { id:'p7s11', title:'All bids received — review & finish estimating', role:'Estimator' },
+    { id:'p7s12', title:'Apply for permitting, if necessary', role:'P/C Coordinator' },
+    { id:'p7s13', title:'Draft Formal Proposal', role:'P/C Coordinator' },
+    { id:'p7s14', title:'Review Formal Proposal for accuracy & scope gaps', role:'Estimator' },
+    { id:'p7s15', title:'Finalize Formal Proposal & present to client', role:'Estimator' },
+  ]},
+  { n:8, name:'Contract & Handoff', steps:[
+    { id:'p8s1', title:'Formal Proposal approved — submit Canvas Plan to CAD', role:'P/C Coordinator' },
+    { id:'p8s2', title:'Draft Final Scope of Work (FSOW)', role:'P/C Coordinator' },
+    { id:'p8s3', title:'Review FSOW & finalize', role:'Estimator' },
+    { id:'p8s4', title:'Put FSOW in BuilderTrend for owner approval — Construction Agreement', role:'P/C Coordinator' },
+    { id:'p8s5', title:'FSOW approved — send to awarded trades', role:'P/C Coordinator' },
+    { id:'p8s6', title:'Approve bids in BuilderTrend', role:'P/C Coordinator' },
+    { id:'p8s7', title:'Send estimate to budget in BuilderTrend', role:'Estimator' },
+    { id:'p8s8', title:'Lock the budget in BuilderTrend', role:'Estimator' },
+    { id:'p8s9', title:'Create POs', role:'P/C Coordinator' },
+    { id:'p8s10', title:'Start shop drawings & field docs — Project Handoff / Production Setup', role:'Estimator & S/C' },
+  ]},
 ];
-// ---- The Action Engine. This is what actually drives the process instead of a checklist:
-// each action lists what it depends on WITHIN its stage (dependsOn), so independent work can
-// run in parallel and the system — not the person — decides what's Ready vs Not Ready. A
-// stage auto-completes and hands off to the next the moment every one of its actions reaches
-// Complete or N/A; nobody has to remember to click "Advance." `linkModule`, when present, is
-// the actual tool the action gets done in (Selections, Scopes, Estimate, Proposals) — the
-// action is a pointer into that real work, not a duplicate manual toggle of it. `critical`
-// marks actions that block Construction Readiness if they slip. ----
-const STAGE_ACTIONS = {
-  1: [
-    { id:'setup', title:'Set up project & assign team', critical:true, dependsOn:[] },
-    { id:'discSent', title:'Send Design Discovery to client', dependsOn:['setup'] },
-    { id:'discBack', title:'Receive completed Design Discovery', dependsOn:['discSent'] },
-    { id:'baseline', title:'Establish baseline schedule', dependsOn:['setup'] },
-    { id:'siteFeas', title:'Initiate site feasibility', dependsOn:['setup'] },
-    { id:'brief', title:'Approve Project Brief', critical:true, dependsOn:['discBack','baseline','siteFeas'] },
-  ],
-  2: [
-    { id:'siteVisit', title:'Site visit — confirm constraints', dependsOn:[] },
-    { id:'concept', title:'Develop conceptual floor plan', dependsOn:[] },
-    { id:'budgetCheck', title:'Preliminary cost sanity check vs. investment target', dependsOn:['concept'] },
-    { id:'conceptApproved', title:'Client approves concept direction', critical:true, dependsOn:['siteVisit','concept','budgetCheck'] },
-  ],
-  3: [
-    { id:'archDev', title:'Architectural development', dependsOn:[] },
-    { id:'engineering', title:'Structural / site engineering coordination', dependsOn:[] },
-    { id:'selectionTakeoffs', title:'Identify selection takeoffs', dependsOn:['archDev'] },
-    { id:'internalReview', title:'Internal plan review', dependsOn:['archDev'], linkModule:'plans' },
-    { id:'clientReview', title:'Client plan review', dependsOn:['internalReview'], linkModule:'plans' },
-    { id:'ddApproved', title:'Design Development approved', critical:true, dependsOn:['clientReview','engineering','selectionTakeoffs'] },
-  ],
-  4: [
-    { id:'designDirection', title:'Lock design direction', dependsOn:[] },
-    { id:'renderings', title:'Renderings developed & approved', dependsOn:['designDirection'] },
-    { id:'majorSelections', title:'Major & pricing-critical selections complete', dependsOn:['designDirection'], linkModule:'selections' },
-    { id:'longLead', title:'Long-lead items identified', dependsOn:['majorSelections'] },
-    { id:'designLocked', title:'Design intent locked', critical:true, dependsOn:['renderings','majorSelections','longLead'] },
-  ],
-  5: [
-    { id:'areaRegister', title:'Area Register complete', dependsOn:[], linkModule:'scopes' },
-    { id:'tradeScopes', title:'Trade scopes built', dependsOn:['areaRegister'], linkModule:'scopes' },
-    { id:'assumptions', title:'Critical assumptions & clarifications resolved', dependsOn:['tradeScopes'], linkModule:'scopes' },
-    { id:'constructability', title:'Constructability review complete', dependsOn:['assumptions'] },
-    { id:'bidReady', title:'Bid-ready package approved', critical:true, dependsOn:['constructability'] },
-  ],
-  6: [
-    { id:'tradePricing', title:'Trade pricing received', dependsOn:[] },
-    { id:'estimate', title:'Formal estimate complete', dependsOn:['tradePricing'], linkModule:'estimate' },
-    { id:'valueEng', title:'Value engineering reconciled against investment target', dependsOn:['estimate'] },
-    { id:'clientApprovesEcon', title:'Client approves economics', dependsOn:['valueEng'], linkModule:'proposals' },
-    { id:'agreementSigned', title:'Construction Agreement signed', critical:true, dependsOn:['clientApprovesEcon'], linkModule:'proposals' },
-  ],
-  7: [
-    { id:'designReady', title:'Design ready — final plans, engineering, approvals', dependsOn:[] },
-    { id:'selectionsReady', title:'Selections ready — specs, finishes, long-lead confirmed', dependsOn:[] },
-    { id:'scopeReady', title:'Scope ready — final trade scopes reconciled to contract', dependsOn:[] },
-    { id:'financialReady', title:'Financial ready — budget, allowances, cost codes set', dependsOn:[] },
-    { id:'siteReady', title:'Site ready — permits, utilities, access', dependsOn:[] },
-    { id:'scheduleReady', title:'Schedule ready — construction baseline & trade sequence', dependsOn:[] },
-    { id:'pmAccept', title:'PM walkthrough & Production acceptance', critical:true, dependsOn:['designReady','selectionsReady','scopeReady','financialReady','siteReady','scheduleReady'] },
-  ],
-};
-const LINK_MODULE_LABELS = { selections:'Open Selections', scopes:'Open Scopes', estimate:'Open Estimate', proposals:'Open Proposals & Contracts', plans:'Open Plans & Design' };
-// Routes an action's linkModule to the actual tab/sub-nav that tool lives behind. Selections
-// and Scopes both live inside the embedded Scope of Work tool, under the 'scopes' CC tab.
-function openModuleLinkJS(linkModule){
-  if(linkModule === 'selections') return "openCCSubNav('scopes','selections')";
-  if(linkModule === 'scopes') return "openCCSubNav('scopes','builder')";
-  return `setCCTab('${linkModule}')`;
-}
-// Deliberately coarse legacy→stage mapping, used only as a migration starting point.
-const LEGACY_PHASE_TO_STAGE = {3:3, 4:3, 5:4, 6:4, 7:6, 8:6};
 function ensureWorkflowModel(p){
   if(p.workflow) return p.workflow;
-  let currentStageN;
-  if(p.currentPhase === null) currentStageN = 7;
-  else currentStageN = LEGACY_PHASE_TO_STAGE[p.currentPhase] || 1;
+  const currentStageN = p.currentPhase === null ? null : p.currentPhase;
   p.workflow = {
-    currentStageN,
-    reconciliationRequired: true,
-    stages: PRECON_STAGES.map(s => ({
-      n: s.n,
-      status: s.n < currentStageN ? 'complete' : s.n === currentStageN ? 'current' : 'upcoming',
-      baselineFinish: null, forecastFinish: null, actualFinish: null,
-      actions: {}, // actionId -> {status, owner, due, note}
-    })),
+    currentStageN: currentStageN === null ? (PROCESS_PHASES[PROCESS_PHASES.length-1].n + 1) : currentStageN,
+    reconciliationRequired: true, // migrated from the legacy tracker — step-level status is a guess until reviewed
+    stages: PROCESS_PHASES.map(ph => ({ n: ph.n, status: currentStageN === null ? 'complete' : ph.n < currentStageN ? 'complete' : ph.n === currentStageN ? 'current' : 'upcoming', steps:{}, baselineFinish:null, forecastFinish:null, actualFinish:null })),
     waitingOn: null,
     blocker: null,
+    baselineSet: false,
+    lastSlip: null, // {phaseName, stepTitle, days, at} — the most recent time a step finished late and pushed the schedule
   };
   return p.workflow;
 }
-// Returns the live status record for an action, creating it — and marking dependency-free
-// actions Ready on first touch — the first time this particular stage is looked at.
-function getActionState(stage, actionId){
-  if(!stage.actions[actionId]) stage.actions[actionId] = { status:'Not Ready', owner:null, due:null };
-  return stage.actions[actionId];
+function getStepState(stage, stepId){
+  if(!stage.steps[stepId]) stage.steps[stepId] = { status:'Not Ready', owner:null, due:null, baselineDue:null, forecastDue:null };
+  return stage.steps[stepId];
 }
-// The dependency engine: recomputes Ready/Not Ready for every action in the project's
-// current stage from its dependsOn graph. Nothing here is set by hand — an action becomes
-// Ready the instant everything it depends on is Complete or N/A, full stop. Also auto-
-// completes the stage and hands off to the next one when every action clears, so nobody has
-// to remember to click an "Advance" button.
+function phaseDef(n){ return PROCESS_PHASES.find(ph => ph.n === n); }
+// ---- Baseline schedule generation — the frozen plan against everything else is measured.
+// Reuses the existing STANDARD_SCHEDULE_TEMPLATE (Company Settings → Standard Schedule
+// Template) so there's one typical-duration source for both the legacy and new systems,
+// distributed evenly across each phase's steps in business days. Never silently regenerated
+// — once set, only an explicit re-run (with confirmation) touches it. ----
+function generateProcessBaseline(projectId, startDate){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const wf = ensureWorkflowModel(p);
+  let cursor = startDate;
+  PROCESS_PHASES.forEach(ph => {
+    const stage = wf.stages.find(s => s.n === ph.n);
+    const totalDays = STANDARD_SCHEDULE_TEMPLATE[ph.n] || 10;
+    const perStep = Math.max(1, Math.round(totalDays / ph.steps.length));
+    ph.steps.forEach(def => {
+      cursor = addBusinessDays(cursor, perStep);
+      const st = getStepState(stage, def.id);
+      st.baselineDue = cursor;
+      st.forecastDue = cursor;
+      if(!st.due) st.due = cursor;
+    });
+    stage.baselineFinish = cursor;
+    stage.forecastFinish = cursor;
+  });
+  wf.baselineSet = true;
+  wf.baselineSetAt = new Date().toISOString().slice(0,10);
+  saveAppState(); renderProjectDetail(); renderProjectCardGrids();
+}
+function promptGenerateProcessBaseline(projectId){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const wf = ensureWorkflowModel(p);
+  if(wf.baselineSet && !confirm('A baseline schedule is already set for this project. Re-generating will overwrite every baseline date (forecast dates and actual progress are untouched). Continue?')) return;
+  const defaultStart = p.preconStartDate || new Date().toISOString().slice(0,10);
+  const startInput = prompt('Baseline start date? (mm/dd/yyyy or yyyy-mm-dd)', defaultStart);
+  if(!startInput) return;
+  const parsed = new Date(startInput);
+  if(isNaN(parsed)){ alert('Could not read that date — try yyyy-mm-dd.'); return; }
+  generateProcessBaseline(projectId, parsed.toISOString().slice(0,10));
+}
+// ---- Schedule impact propagation — the core of "schedule is king." When a step finishes
+// after its forecast date, every remaining step and phase downstream shifts forward by the
+// same amount. This is not cosmetic: it's what keeps "Forecast Ready" honest instead of a
+// number that quietly stops meaning anything the first time something runs late. ----
+function propagateScheduleSlip(p, phaseN, stepTitle, days){
+  const wf = ensureWorkflowModel(p);
+  wf.stages.forEach(stage => {
+    if(stage.n < phaseN) return;
+    Object.values(stage.steps).forEach(st => {
+      if(st.status !== 'Complete' && st.status !== 'N/A' && st.forecastDue){
+        st.forecastDue = addBusinessDays(st.forecastDue, days);
+        if(st.due) st.due = st.forecastDue;
+      }
+    });
+    if(stage.n > phaseN && stage.forecastFinish) stage.forecastFinish = addBusinessDays(stage.forecastFinish, days);
+  });
+  const curStage = wf.stages.find(s => s.n === phaseN);
+  if(curStage && curStage.forecastFinish) curStage.forecastFinish = addBusinessDays(curStage.forecastFinish, days);
+  wf.lastSlip = { phaseName: (phaseDef(phaseN)||{}).name || '', stepTitle, days, at: new Date().toISOString().slice(0,10) };
+}
+// The dependency engine — strictly sequential. Step i is Ready only once step i-1 is
+// Complete or N/A; the first step of a phase is Ready as soon as the phase becomes current.
+// A phase auto-completes and hands off to the next the instant its last step clears —
+// nobody clicks "Advance."
 function recomputeStage(p){
   const wf = ensureWorkflowModel(p);
+  const ph = phaseDef(wf.currentStageN);
   const stage = wf.stages.find(s => s.n === wf.currentStageN);
-  const defs = STAGE_ACTIONS[wf.currentStageN] || [];
-  if(!stage || !defs.length) return;
-  defs.forEach(def => {
-    const a = getActionState(stage, def.id);
-    if(a.status === 'Not Ready' || a.status === 'Ready'){
-      const clear = def.dependsOn.every(depId => {
-        const d = stage.actions[depId];
-        return d && (d.status === 'Complete' || d.status === 'N/A');
-      });
-      a.status = clear ? 'Ready' : 'Not Ready';
+  if(!ph || !stage) return;
+  ph.steps.forEach((def, i) => {
+    const st = getStepState(stage, def.id);
+    if(st.status === 'Not Ready' || st.status === 'Ready'){
+      const prev = i === 0 ? null : ph.steps[i-1];
+      const clear = !prev || (stage.steps[prev.id] && (stage.steps[prev.id].status === 'Complete' || stage.steps[prev.id].status === 'N/A'));
+      st.status = clear ? 'Ready' : 'Not Ready';
     }
   });
-  const allDone = defs.every(def => {
-    const a = stage.actions[def.id];
-    return a && (a.status === 'Complete' || a.status === 'N/A');
+  const allDone = ph.steps.every(def => {
+    const st = stage.steps[def.id];
+    return st && (st.status === 'Complete' || st.status === 'N/A');
   });
   if(allDone && stage.status !== 'complete'){
     stage.status = 'complete';
-    stage.actualFinish = stage.actualFinish || new Date().toISOString().slice(0,10);
-    const next = wf.stages.find(s => s.n === wf.currentStageN + 1);
-    if(next){ next.status = 'current'; wf.currentStageN += 1; }
+    const today = new Date().toISOString().slice(0,10);
+    if(stage.forecastFinish && today > stage.forecastFinish){
+      const days = Math.round((new Date(today+'T00:00:00') - new Date(stage.forecastFinish+'T00:00:00')) / 86400000);
+      propagateScheduleSlip(p, wf.currentStageN, `End of Phase ${ph.n} · ${ph.name}`, days);
+    }
+    stage.actualFinish = stage.actualFinish || today;
+    const next = wf.stages.find(s => s.n > wf.currentStageN);
+    if(next){ next.status = 'current'; wf.currentStageN = next.n; }
     wf.reconciliationRequired = false;
-    recomputeStage(p); // in case the newly-entered stage also auto-clears (all no-dep actions)
+    recomputeStage(p);
   }
 }
-// The single most important thing to work on right now. Priority: anything Blocked, then
-// In Progress, then Ready — critical actions first within each group, earliest-defined next.
-// Waiting-on-someone-else actions are deliberately excluded: there's nothing WE can do on
-// those right now, so surfacing one as "next required action" would be a lie.
+// Rolls the whole project's schedule health into the numbers the top-of-page strip shows —
+// this is deliberately the very first thing computed for a project, since the schedule is
+// meant to be the thing everything else here answers to.
+function computeScheduleHealth(p){
+  const wf = ensureWorkflowModel(p);
+  if(!wf.baselineSet) return null;
+  const lastStage = wf.stages[wf.stages.length-1];
+  const forecastReady = lastStage.forecastFinish;
+  const baselineReady = lastStage.baselineFinish;
+  const varianceDays = (forecastReady && baselineReady) ? Math.round((new Date(forecastReady+'T00:00:00') - new Date(baselineReady+'T00:00:00')) / 86400000) : 0;
+  return { forecastReady, baselineReady, varianceDays, lastSlip: wf.lastSlip };
+}
+// The one thing to work on right now: the earliest step in the current phase that's Ready,
+// In Progress, or Blocked. "Waiting" steps are excluded on purpose — there's nothing WE can
+// do on those, so surfacing one as the next required action would be a lie.
 function getNextAction(p){
   recomputeStage(p);
   const wf = ensureWorkflowModel(p);
+  const ph = phaseDef(wf.currentStageN);
   const stage = wf.stages.find(s => s.n === wf.currentStageN);
-  const defs = STAGE_ACTIONS[wf.currentStageN] || [];
+  if(!ph || !stage) return null;
   const rank = { Blocked:0, 'In Progress':1, Ready:2 };
-  const live = defs
-    .map(def => ({ def, a: getActionState(stage, def.id) }))
-    .filter(x => rank[x.a.status] !== undefined);
-  if(!live.length) return null;
-  live.sort((x,y) => {
-    const rx = rank[x.a.status], ry = rank[y.a.status];
-    if(rx !== ry) return rx - ry;
-    if(!!x.def.critical !== !!y.def.critical) return x.def.critical ? -1 : 1;
-    return 0;
-  });
-  return live[0];
+  for(const def of ph.steps){
+    const st = getStepState(stage, def.id);
+    if(rank[st.status] !== undefined) return { def, a: st, index: ph.steps.indexOf(def), total: ph.steps.length };
+  }
+  return null;
 }
-function getParallelReady(p, excludeId){
+function getWaitingSteps(p){
   recomputeStage(p);
   const wf = ensureWorkflowModel(p);
+  const ph = phaseDef(wf.currentStageN);
   const stage = wf.stages.find(s => s.n === wf.currentStageN);
-  const defs = STAGE_ACTIONS[wf.currentStageN] || [];
-  return defs.filter(def => def.id !== excludeId && stage.actions[def.id] && stage.actions[def.id].status === 'Ready')
-    .map(def => ({ def, a: stage.actions[def.id] }));
+  if(!ph || !stage) return [];
+  return ph.steps.filter(def => stage.steps[def.id] && stage.steps[def.id].status === 'Waiting').map(def => ({ def, a: stage.steps[def.id] }));
 }
-function getWaitingActions(p){
-  recomputeStage(p);
-  const wf = ensureWorkflowModel(p);
-  const stage = wf.stages.find(s => s.n === wf.currentStageN);
-  const defs = STAGE_ACTIONS[wf.currentStageN] || [];
-  return defs.filter(def => stage.actions[def.id] && stage.actions[def.id].status === 'Waiting')
-    .map(def => ({ def, a: stage.actions[def.id] }));
-}
-function setActionStatus(projectId, actionId, status){
+function setStepStatus(projectId, stepId, status){
   const p = PROJECTS[projectId]; if(!p) return;
   const wf = ensureWorkflowModel(p);
   const stage = wf.stages.find(s => s.n === wf.currentStageN);
-  const a = getActionState(stage, actionId);
-  a.status = status;
-  if(status === 'Complete') a.completedAt = new Date().toISOString().slice(0,10);
+  const ph = phaseDef(wf.currentStageN);
+  const st = getStepState(stage, stepId);
+  st.status = status;
+  if(status === 'Complete'){
+    const today = new Date().toISOString().slice(0,10);
+    st.completedAt = today;
+    if(wf.baselineSet && st.forecastDue && today > st.forecastDue){
+      const days = Math.round((new Date(today+'T00:00:00') - new Date(st.forecastDue+'T00:00:00')) / 86400000);
+      const def = ph.steps.find(d => d.id === stepId);
+      propagateScheduleSlip(p, wf.currentStageN, def ? def.title : stepId, days);
+    }
+  }
   recomputeStage(p);
   saveAppState(); renderProjectDetail();
 }
-function setActionField(projectId, actionId, field, val){
+function setStepField(projectId, stepId, field, val){
   const p = PROJECTS[projectId]; if(!p) return;
   const wf = ensureWorkflowModel(p);
   const stage = wf.stages.find(s => s.n === wf.currentStageN);
-  const a = getActionState(stage, actionId);
-  a[field] = val || null;
+  const st = getStepState(stage, stepId);
+  st[field] = val || null;
   saveAppState();
 }
 function buildFreshPhases(){
@@ -4942,116 +5138,148 @@ function printScheduleTab(projectId){
 // ---- Stage Chart — the spine of the new Preconstruction Command view. Replaces the old
 // phase stepper on the Overview tab (see master prompt: "do not stack a new dashboard on
 // top of the old workflow"). Clicking a stage opens its workspace inline below. ----
-let CC_STAGE_OPEN = false; // whether the full stage action list is expanded (progressive disclosure)
+let CC_STAGE_OPEN = false; // whether the full step list for this phase is expanded (progressive disclosure)
 function toggleFullActionList(){
   CC_STAGE_OPEN = !CC_STAGE_OPEN;
   renderProjectDetail();
 }
-// ---- Compact stage rail — navigation and at-a-glance position, not the main event.
-// Deliberately small: this is where you are, not what you have to do. ----
+// ---- Schedule Health — the FIRST thing on the page, above even the next action. The
+// master directive here is "the schedule is king": this project either has a baseline set,
+// in which case its forecast-vs-baseline variance is the headline number, or it doesn't yet,
+// in which case setting one is the most important thing to do before anything else. ----
+function buildScheduleHealthStripHTML(p){
+  const wf = ensureWorkflowModel(p);
+  const health = computeScheduleHealth(p);
+  if(!health){
+    return `<div class="schedhealth schedhealth-unset">
+      <div class="schedhealth-row">
+        <div><div class="hero-label">No Baseline Schedule Set</div><div class="sub" style="margin:2px 0 0;">Nothing to measure against yet — set one so every date from here forward means something.</div></div>
+        <button class="btn btn-dark" onclick="promptGenerateProcessBaseline('${p.id}')">Set Baseline Schedule</button>
+      </div>
+    </div>`;
+  }
+  const varianceDays = health.varianceDays;
+  const cls = varianceDays > 0 ? 'schedhealth-late' : varianceDays < 0 ? 'schedhealth-ahead' : 'schedhealth-ontrack';
+  const varianceLabel = varianceDays === 0 ? 'On Schedule' : varianceDays > 0 ? `+${varianceDays} days behind` : `${Math.abs(varianceDays)} days ahead`;
+  return `<div class="schedhealth ${cls}">
+    <div class="schedhealth-row">
+      <div class="schedhealth-metric"><label>Target Construction Start</label><input type="date" value="${p.targetConstructionStart||''}" onchange="setProjectField('${p.id}','targetConstructionStart',this.value); renderProjectDetail();"></div>
+      <div class="schedhealth-metric"><label>Baseline Ready</label><div class="schedhealth-val">${health.baselineReady ? fmtNoteDate(health.baselineReady) : '—'}</div></div>
+      <div class="schedhealth-metric"><label>Forecast Ready</label><div class="schedhealth-val">${health.forecastReady ? fmtNoteDate(health.forecastReady) : '—'}</div></div>
+      <div class="schedhealth-metric"><label>Variance</label><div class="schedhealth-val schedhealth-variance">${varianceLabel}</div></div>
+      <button class="btn btn-outline btn-sm" style="margin-left:auto; flex-shrink:0;" onclick="promptGenerateProcessBaseline('${p.id}')">Reset Baseline</button>
+    </div>
+    ${p.targetConstructionStart && health.forecastReady && health.forecastReady > p.targetConstructionStart ? `<div class="schedhealth-warning">⚠ Forecast Ready date is past the Target Construction Start — construction start is at risk.</div>` : ''}
+    ${health.lastSlip ? `<div class="schedhealth-cause">Primary cause: <b>${escapeHtmlLite(health.lastSlip.stepTitle)}</b> finished ${health.lastSlip.days} day${health.lastSlip.days===1?'':'s'} late (${escapeHtmlLite(health.lastSlip.phaseName)}), pushing everything downstream.</div>` : ''}
+  </div>`;
+}
+// ---- Compact phase rail — where you are, not what you have to do. Now carries the
+// forecast finish date for the current phase, since a bare phase name told you nothing
+// about whether you were on time. ----
 function buildStageRailHTML(p){
   const wf = ensureWorkflowModel(p);
-  const chips = PRECON_STAGES.map(s => {
-    const st = wf.stages.find(x=>x.n===s.n);
-    const cls = st.status==='complete' ? 'railchip-complete' : st.status==='current' ? 'railchip-current' : 'railchip-upcoming';
-    return `<div class="railchip ${cls}" title="${escapeHtmlLite(s.name)}"><span class="railchip-n">${s.n}</span>${st.status==='current' ? `<span class="railchip-name">${escapeHtmlLite(s.name)}</span>` : ''}</div>`;
+  const today = new Date().toISOString().slice(0,10);
+  const chips = PROCESS_PHASES.map(ph => {
+    const st = wf.stages.find(x=>x.n===ph.n);
+    let cls = st.status==='complete' ? 'railchip-complete' : st.status==='current' ? 'railchip-current' : 'railchip-upcoming';
+    if(st.status !== 'complete' && st.forecastFinish && st.forecastFinish < today) cls += ' railchip-overdue';
+    const dateNote = st.status==='current' && st.forecastFinish ? `<span class="railchip-date">${fmtNoteDate(st.forecastFinish)}</span>` : '';
+    return `<div class="railchip ${cls}" title="Phase ${ph.n} · ${escapeHtmlLite(ph.name)}"><span class="railchip-n">${ph.n}</span>${st.status==='current' ? `<span class="railchip-name">${escapeHtmlLite(ph.name)}</span>${dateNote}` : ''}</div>`;
   }).join('<div class="railchip-sep"></div>');
   return `<div class="stagerail">${chips}<div class="railchip-sep"></div><div class="railchip ${wf.stages.every(s=>s.status==='complete')?'railchip-complete':'railchip-upcoming'}" title="Ready for Construction"><span class="railchip-n">✓</span></div></div>
-    ${wf.reconciliationRequired ? '<div class="reconcile-note">⚠ Migrated from the old phase tracker — review the action below and adjust status if it doesn\'t match reality.</div>' : ''}`;
+    ${wf.reconciliationRequired ? '<div class="reconcile-note">⚠ Migrated from the old phase tracker — step-by-step status below is a starting guess. Review it against where the project actually stands.</div>' : ''}`;
 }
-// ---- The hero: the one thing to actually do right now. This is computed, not chosen —
-// see getNextAction(). Nothing else on this tab competes with it for attention. ----
+// ---- The hero: the one step to actually do right now, in strict order. Nothing else on
+// this tab competes with it for attention — that's the point. ----
 function buildNextActionHeroHTML(p){
   const wf = ensureWorkflowModel(p);
-  const stageDef = PRECON_STAGES.find(s=>s.n===wf.currentStageN);
+  const ph = phaseDef(wf.currentStageN);
+  if(!ph){
+    return `<div class="hero hero-done"><div class="hero-label">Preconstruction Complete</div><div class="hero-title">Ready for Construction.</div></div>`;
+  }
   const next = getNextAction(p);
   if(!next){
-    const waiting = getWaitingActions(p);
+    const waiting = getWaitingSteps(p);
     if(waiting.length){
       const w = waiting[0];
       return `<div class="hero hero-waiting">
-        <div class="hero-label">Waiting — nothing for us to do right now</div>
+        <div class="hero-label">Phase ${ph.n} · ${escapeHtmlLite(ph.name)} — Waiting</div>
         <div class="hero-title">${escapeHtmlLite(w.def.title)}</div>
         <div class="hero-meta">${w.a.waitingParty ? `Waiting on <b>${escapeHtmlLite(w.a.waitingParty)}</b>` : ''}${w.a.waitingExpected ? ` · expected ${escapeHtmlLite(w.a.waitingExpected)}` : ''}</div>
         <div class="row" style="margin-top:12px; gap:8px;">
-          <button class="btn btn-outline btn-sm" onclick="setActionStatus('${p.id}','${w.def.id}','Ready')">They responded — mark Ready</button>
+          <button class="btn btn-outline btn-sm" onclick="setStepStatus('${p.id}','${w.def.id}','Ready')">They responded — mark Ready</button>
         </div>
       </div>`;
     }
     return `<div class="hero hero-done">
-      <div class="hero-label">${escapeHtmlLite(stageDef.name)} — nothing outstanding</div>
-      <div class="hero-title">This stage will hand off automatically once every action clears.</div>
+      <div class="hero-label">Phase ${ph.n} · ${escapeHtmlLite(ph.name)} — nothing outstanding</div>
+      <div class="hero-title">This phase will hand off to Phase ${ph.n+1} automatically once every step clears.</div>
     </div>`;
   }
-  const { def, a } = next;
+  const { def, a, index, total } = next;
   const isBlocked = a.status === 'Blocked';
   const isInProgress = a.status === 'In Progress';
-  return `<div class="hero ${isBlocked ? 'hero-blocked' : ''}">
-    <div class="hero-label">${escapeHtmlLite(stageDef.name)} — Next Required Action${def.critical ? ' <span class=\"pill pill-rust\" style=\"margin-left:6px;\">Critical Path</span>' : ''}</div>
+  const dueDate = a.due || a.forecastDue;
+  const today = new Date().toISOString().slice(0,10);
+  const daysUntil = dueDate ? Math.round((new Date(dueDate+'T00:00:00') - new Date(today+'T00:00:00')) / 86400000) : null;
+  const overdue = daysUntil !== null && daysUntil < 0;
+  const dueBadge = daysUntil === null ? '' :
+    overdue ? `<span class="duebadge duebadge-overdue">${Math.abs(daysUntil)} DAY${Math.abs(daysUntil)===1?'':'S'} OVERDUE</span>` :
+    daysUntil === 0 ? `<span class="duebadge duebadge-today">DUE TODAY</span>` :
+    daysUntil <= 3 ? `<span class="duebadge duebadge-soon">Due in ${daysUntil} day${daysUntil===1?'':'s'}</span>` : '';
+  return `<div class="hero ${isBlocked ? 'hero-blocked' : overdue ? 'hero-blocked' : ''}">
+    <div class="hero-label">Phase ${ph.n} · ${escapeHtmlLite(ph.name)} — Step ${index+1} of ${total}${dueBadge}</div>
     <div class="hero-title">${escapeHtmlLite(def.title)}</div>
-    ${isBlocked && a.blockerNote ? `<div class="hero-meta" style="color:var(--rust);">Blocked: ${escapeHtmlLite(a.blockerNote)}</div>` : ''}
+    <div class="hero-meta">${escapeHtmlLite(def.role)}${isBlocked && a.blockerNote ? ` — Blocked: ${escapeHtmlLite(a.blockerNote)}` : ''}</div>
     <div class="hero-row">
-      <div><label>Owner</label><select onchange="setActionField('${p.id}','${def.id}','owner',this.value)">${teamMemberOptions(a.owner)}</select></div>
-      <div><label>Due</label><input type="date" value="${a.due||''}" onchange="setActionField('${p.id}','${def.id}','due',this.value)"></div>
+      <div><label>Assigned To</label><select onchange="setStepField('${p.id}','${def.id}','owner',this.value)">${teamMemberOptions(a.owner || ROLE_DEFAULT_ASSIGNEE[def.role])}</select></div>
+      <div><label>Due</label><input type="date" value="${a.due||''}" onchange="setStepField('${p.id}','${def.id}','due',this.value)"></div>
+      ${a.baselineDue ? `<div><label>Baseline Was</label><div style="font-size:13px; color:var(--ink-faint); padding-top:8px;">${fmtNoteDate(a.baselineDue)}</div></div>` : ''}
     </div>
     <div class="row" style="margin-top:14px; gap:8px; flex-wrap:wrap;">
-      ${def.linkModule ? `<button class="btn btn-outline" onclick="${openModuleLinkJS(def.linkModule)}">${escapeHtmlLite(LINK_MODULE_LABELS[def.linkModule])} →</button>` : ''}
-      ${!isInProgress && !isBlocked ? `<button class="btn btn-outline" onclick="setActionStatus('${p.id}','${def.id}','In Progress')">Start</button>` : ''}
-      <button class="btn btn-dark" onclick="setActionStatus('${p.id}','${def.id}','Complete')">Mark Complete</button>
+      ${!isInProgress && !isBlocked ? `<button class="btn btn-outline" onclick="setStepStatus('${p.id}','${def.id}','In Progress')">Start</button>` : ''}
+      <button class="btn btn-dark" onclick="setStepStatus('${p.id}','${def.id}','Complete')">Mark Complete</button>
       ${!isBlocked ? `<button class="btn btn-outline" onclick="openMarkWaiting('${p.id}','${def.id}')">Waiting on Someone</button>
-      <button class="btn btn-outline" style="color:var(--rust); border-color:var(--rust);" onclick="openMarkBlocked('${p.id}','${def.id}')">Flag as Blocked</button>` : `<button class="btn btn-outline" onclick="setActionStatus('${p.id}','${def.id}','Ready')">Resolved — Clear Blocker</button>`}
+      <button class="btn btn-outline" style="color:var(--rust); border-color:var(--rust);" onclick="openMarkBlocked('${p.id}','${def.id}')">Flag as Blocked</button>` : `<button class="btn btn-outline" onclick="setStepStatus('${p.id}','${def.id}','Ready')">Resolved — Clear Blocker</button>`}
     </div>
   </div>`;
 }
-// ---- What else could happen in parallel right now — collapsed to a thin list, since it's
-// secondary to the one action above, but real dependency-cleared work shouldn't be hidden. ----
-function buildParallelReadyHTML(p, excludeId){
-  const ready = getParallelReady(p, excludeId);
-  if(!ready.length) return '';
-  return `<div class="section-label-row" style="margin-top:18px;"><div class="eyebrow">Also Ready Right Now</div></div>
-    <div class="readylist">${ready.map(({def}) => `<div class="readyrow" onclick="setActionStatus('${p.id}','${def.id}','In Progress')">
-      <span>${escapeHtmlLite(def.title)}${def.critical ? ' <span class=\"pill pill-rust\" style=\"font-size:9px;\">Critical</span>' : ''}</span>
-      <span class="readyrow-action">Start →</span>
-    </div>`).join('')}</div>`;
-}
 function buildWaitingBlockedSummaryHTML(p){
   const wf = ensureWorkflowModel(p);
+  const ph = phaseDef(wf.currentStageN);
+  if(!ph) return '';
   const stage = wf.stages.find(s=>s.n===wf.currentStageN);
-  const defs = STAGE_ACTIONS[wf.currentStageN] || [];
-  const blocked = defs.filter(d => stage.actions[d.id] && stage.actions[d.id].status==='Blocked');
-  const waiting = defs.filter(d => stage.actions[d.id] && stage.actions[d.id].status==='Waiting');
+  const blocked = ph.steps.filter(d => stage.steps[d.id] && stage.steps[d.id].status==='Blocked');
+  const waiting = ph.steps.filter(d => stage.steps[d.id] && stage.steps[d.id].status==='Waiting');
   if(!blocked.length && !waiting.length) return '';
-  return `<div class="section-label-row" style="margin-top:18px;"><div class="eyebrow">Everything Else Outstanding</div></div>
+  return `<div class="section-label-row" style="margin-top:18px;"><div class="eyebrow">Everything Else Outstanding This Phase</div></div>
     <div class="readylist">
-      ${blocked.map(def => `<div class="readyrow" style="border-left:3px solid var(--rust);"><span>🔴 ${escapeHtmlLite(def.title)}${stage.actions[def.id].blockerNote ? ' — ' + escapeHtmlLite(stage.actions[def.id].blockerNote) : ''}</span></div>`).join('')}
-      ${waiting.map(def => `<div class="readyrow" style="border-left:3px solid #c9a868;"><span>🟡 ${escapeHtmlLite(def.title)}${stage.actions[def.id].waitingParty ? ' — waiting on ' + escapeHtmlLite(stage.actions[def.id].waitingParty) : ''}</span></div>`).join('')}
+      ${blocked.map(d => `<div class="readyrow" style="border-left:3px solid var(--rust); cursor:default;"><span>🔴 ${escapeHtmlLite(d.title)}${stage.steps[d.id].blockerNote ? ' — ' + escapeHtmlLite(stage.steps[d.id].blockerNote) : ''}</span></div>`).join('')}
+      ${waiting.map(d => `<div class="readyrow" style="border-left:3px solid #c9a868; cursor:default;"><span>🟡 ${escapeHtmlLite(d.title)}${stage.steps[d.id].waitingParty ? ' — waiting on ' + escapeHtmlLite(stage.steps[d.id].waitingParty) : ''}</span></div>`).join('')}
     </div>`;
 }
-// ---- Progressive disclosure, level 3: the full action list for this stage, collapsed by
-// default. This is for when someone genuinely needs to see everything at once — it is not
-// the default view, on purpose. ----
+// ---- Progressive disclosure, level 3: every step in this phase, collapsed by default. ----
 function buildFullActionListHTML(p){
   const wf = ensureWorkflowModel(p);
-  const stageDef = PRECON_STAGES.find(s=>s.n===wf.currentStageN);
+  const ph = phaseDef(wf.currentStageN);
+  if(!ph) return '';
   const stage = wf.stages.find(s=>s.n===wf.currentStageN);
-  const defs = STAGE_ACTIONS[wf.currentStageN] || [];
   const statusClass = { 'Not Ready':'pill-slate', 'Ready':'pill-ink', 'In Progress':'pill-gold', 'Waiting':'pill-gold', 'Blocked':'pill-rust', 'Complete':'pill-jade', 'N/A':'pill-slate' };
-  return `<div class="section-label-row" style="margin-top:20px; cursor:pointer;" onclick="toggleFullActionList()"><div class="eyebrow">${CC_STAGE_OPEN ? '▾' : '▸'} Full Action List — ${escapeHtmlLite(stageDef.name)}</div></div>
-    ${CC_STAGE_OPEN ? `<div class="hint" style="margin-bottom:10px;">${escapeHtmlLite(stageDef.objective)}</div>
-    <table><thead><tr><th>Action</th><th>Depends On</th><th>Status</th><th>Owner</th></tr></thead><tbody>
-      ${defs.map(def => {
-        const a = getActionState(stage, def.id);
-        const depNames = def.dependsOn.map(id => (defs.find(d=>d.id===id)||{}).title).filter(Boolean);
+  return `<div class="section-label-row" style="margin-top:20px; cursor:pointer;" onclick="toggleFullActionList()"><div class="eyebrow">${CC_STAGE_OPEN ? '▾' : '▸'} Full Step List — Phase ${ph.n} · ${escapeHtmlLite(ph.name)}</div></div>
+    ${CC_STAGE_OPEN ? `<table><thead><tr><th>#</th><th>Step</th><th>Role</th><th>Status</th><th>Owner</th></tr></thead><tbody>
+      ${ph.steps.map((def, i) => {
+        const a = getStepState(stage, def.id);
         return `<tr>
-          <td class="name-cell">${escapeHtmlLite(def.title)}${def.critical ? ' <span class="pill pill-rust" style="font-size:9px;">Critical</span>' : ''}</td>
-          <td style="font-size:11.5px; color:var(--ink-faint);">${depNames.length ? escapeHtmlLite(depNames.join(', ')) : '—'}</td>
+          <td>${i+1}</td>
+          <td class="name-cell">${escapeHtmlLite(def.title)}</td>
+          <td style="font-size:11.5px; color:var(--ink-faint);">${escapeHtmlLite(def.role)}</td>
           <td><span class="pill ${statusClass[a.status]||'pill-ink'}">${a.status}</span></td>
           <td>${escapeHtmlLite(a.owner || '—')}</td>
         </tr>`;
       }).join('')}
     </tbody></table>` : ''}`;
 }
-function openMarkWaiting(projectId, actionId){
+function openMarkWaiting(projectId, stepId){
   openQuickOverlay(`
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
       <h3 style="font-family:'Space Grotesk',sans-serif; font-size:18px;">Waiting On Someone</h3>
@@ -5063,17 +5291,17 @@ function openMarkWaiting(projectId, actionId){
     <input id="woExpected" type="date">
     <div class="row" style="margin-top:18px; justify-content:flex-end; gap:8px;">
       <button class="btn btn-outline" onclick="closeQuickOverlay()">Cancel</button>
-      <button class="btn btn-dark" onclick="submitMarkWaiting('${projectId}','${actionId}')">Save</button>
+      <button class="btn btn-dark" onclick="submitMarkWaiting('${projectId}','${stepId}')">Save</button>
     </div>
   `);
 }
-function submitMarkWaiting(projectId, actionId){
-  setActionField(projectId, actionId, 'waitingParty', document.getElementById('woParty').value);
-  setActionField(projectId, actionId, 'waitingExpected', document.getElementById('woExpected').value);
+function submitMarkWaiting(projectId, stepId){
+  setStepField(projectId, stepId, 'waitingParty', document.getElementById('woParty').value);
+  setStepField(projectId, stepId, 'waitingExpected', document.getElementById('woExpected').value);
   closeQuickOverlay();
-  setActionStatus(projectId, actionId, 'Waiting');
+  setStepStatus(projectId, stepId, 'Waiting');
 }
-function openMarkBlocked(projectId, actionId){
+function openMarkBlocked(projectId, stepId){
   openQuickOverlay(`
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
       <h3 style="font-family:'Space Grotesk',sans-serif; font-size:18px;">Flag as Blocked</h3>
@@ -5083,16 +5311,16 @@ function openMarkBlocked(projectId, actionId){
     <input id="bkNote" placeholder="e.g. Fireplace material not confirmed">
     <div class="row" style="margin-top:18px; justify-content:flex-end; gap:8px;">
       <button class="btn btn-outline" onclick="closeQuickOverlay()">Cancel</button>
-      <button class="btn btn-dark" onclick="submitMarkBlocked('${projectId}','${actionId}')">Save</button>
+      <button class="btn btn-dark" onclick="submitMarkBlocked('${projectId}','${stepId}')">Save</button>
     </div>
   `);
 }
-function submitMarkBlocked(projectId, actionId){
+function submitMarkBlocked(projectId, stepId){
   const note = document.getElementById('bkNote').value.trim();
-  if(!note){ alert('Enter what\'s blocking this.'); return; }
-  setActionField(projectId, actionId, 'blockerNote', note);
+  if(!note){ alert("Enter what's blocking this."); return; }
+  setStepField(projectId, stepId, 'blockerNote', note);
   closeQuickOverlay();
-  setActionStatus(projectId, actionId, 'Blocked');
+  setStepStatus(projectId, stepId, 'Blocked');
 }
 function buildPhaseStepperHTML(project){
   if(project.currentPhase === null){
@@ -5846,11 +6074,22 @@ function isProjectWaiting(p){
   const b = (p.nextAction && p.nextAction.blocking) || '';
   return b && b !== 'None' && !b.toLowerCase().startsWith('none');
 }
+// ---- Schedule risk, for sorting and flagging project lists — separate from (and now
+// primary to) the older "Needs Action/Waiting/On Track" status derived from the legacy
+// milestone system just below. That older status still drives Task Center and stays as-is;
+// this is the schedule-first view the master directive calls for on top of it. ----
+function getProjectScheduleRisk(p){
+  const health = computeScheduleHealth(p);
+  if(!health) return { rank:2, label:'No Baseline', cls:'pill-slate', days:0 };
+  if(health.varianceDays > 0) return { rank:0, label:`+${health.varianceDays}d behind`, cls:'pill-rust', days:health.varianceDays };
+  return { rank:1, label: health.varianceDays < 0 ? `${Math.abs(health.varianceDays)}d ahead` : 'On Schedule', cls:'pill-jade', days:health.varianceDays };
+}
 function buildPreconProjectCard(p){
   const task = getActiveTaskForProject(p);
   const needsAction = task && (!task.milestone.assignee || (task.days !== null && task.days > 10));
   const waiting = isProjectWaiting(p);
   const flag = needsAction ? '🔴' : waiting ? '🟡' : (p.currentPhase === null ? '✅' : task ? '🟢' : '');
+  const risk = getProjectScheduleRisk(p);
   return `<div class="seq-lead-card" onclick="openProject('${p.id}')">
     <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
       <div class="sl-name">${flag ? flag + ' ' : ''}${p.name}</div>
@@ -5859,6 +6098,7 @@ function buildPreconProjectCard(p){
     <div class="sl-meta">${p.projectType} · ${p.location}</div>
     <div class="sl-value">${fmtMoneyOrDash(p.dealValue)}</div>
     <div class="sl-foot">
+      <span class="pill ${risk.cls}" style="font-size:9px;">${risk.label}</span>
       <span class="pill pill-slate">${p.owner}</span>
       ${task ? `<span style="font-size:11px; color:var(--ink-faint);">${escapeHtmlLite(task.milestone.name)}</span>` : ''}
     </div>
@@ -5875,14 +6115,18 @@ function renderPreconProjectTable(){
   const el = document.getElementById('preconProjectTable');
   if(!el) return;
   const projects = Object.values(PROJECTS);
-  const groups = WORKFLOW_PHASE_DEFS.map(pd => ({
-    label: `Phase ${pd.n} · ${pd.name}`, color: PRECON_PHASE_COLORS[pd.n], hideIfEmpty: true,
-    rowIds: projects.filter(p => p.currentPhase === pd.n).map(p => p.id),
-    rows: projects.filter(p => p.currentPhase === pd.n).map(buildPreconTableRow)
-  }));
+  const byRisk = (a,b) => {
+    const ra = getProjectScheduleRisk(a), rb = getProjectScheduleRisk(b);
+    if(ra.rank !== rb.rank) return ra.rank - rb.rank;
+    return rb.days - ra.days;
+  };
+  const groups = WORKFLOW_PHASE_DEFS.map(pd => {
+    const rows = projects.filter(p => p.currentPhase === pd.n).sort(byRisk);
+    return { label: `Phase ${pd.n} · ${pd.name}`, color: PRECON_PHASE_COLORS[pd.n], hideIfEmpty: true, rowIds: rows.map(p => p.id), rows: rows.map(buildPreconTableRow) };
+  });
   const readyProjects = projects.filter(p => p.currentPhase === null);
   groups.push({ label: 'Ready for Production', color: '#5C7A63', hideIfEmpty: true, rowIds: readyProjects.map(p => p.id), rows: readyProjects.map(buildPreconTableRow) });
-  el.innerHTML = `<div class="bulk-action-bar" id="bulkBar_project"></div>` + buildMondayTableHTML(groups, ['','Project','Owner','Project Type','Deal Value','Status','Next Step','Change Phase'], ['4%','17%','10%','13%','11%','12%','20%','13%'], 'precon', 'project');
+  el.innerHTML = `<div class="bulk-action-bar" id="bulkBar_project"></div>` + buildMondayTableHTML(groups, ['','Project','Owner','Project Type','Deal Value','Schedule','Status','Next Step','Change Phase'], ['4%','15%','9%','11%','10%','11%','10%','17%','13%'], 'precon', 'project');
   renderBulkActionBar('project');
 }
 function buildPreconTableRow(p){
@@ -5915,6 +6159,7 @@ function buildPreconTableRow(p){
     <td>${p.owner}</td>
     <td>${p.projectType}</td>
     <td>${fmtMoneyOrDash(p.dealValue)}</td>
+    <td>${(() => { const r = getProjectScheduleRisk(p); return `<span class="pill ${r.cls}" style="font-size:10px;">${r.label}</span>`; })()}</td>
     <td title="${escapeHtmlLite(reason)}" style="cursor:pointer;" onclick="event.stopPropagation(); alert('${escapeHtmlLite(p.name)}\\n\\n${escapeHtmlLite(reason)}')">${flag ? `<span class="pill ${pillClass}">${flag}</span>` : '—'}</td>
     <td onclick="event.stopPropagation();"><input type="text" value="${escapeHtmlLite(p.nextStepNote || '')}" placeholder="${task ? escapeHtmlLite('e.g. ' + task.milestone.name) : 'What happens next'}" style="width:100%; border:1px solid var(--border-soft); background:var(--paper); padding:5px 8px; border-radius:6px; font-size:12.5px;" onchange="setProjectField('${p.id}','nextStepNote', this.value); saveAppState();"></td>
     <td onclick="event.stopPropagation();"><select class="rel-status-select" style="max-width:150px; background:var(--border-soft); color:var(--ink-soft);" onchange="setProjectPhase('${p.id}', this.value)">
@@ -6305,32 +6550,17 @@ function buildActionBannerHTML(p){
     const dpc = daysInPreconstruction(p);
     const dep = daysInEntirePipeline(p);
     const curPhaseDef = WORKFLOW_PHASE_DEFS.find(pd => pd.n === p.currentPhase);
-    const nextForOverview = getNextAction(p);
     tabBody = `
+    ${buildScheduleHealthStripHTML(p)}
     ${buildStageRailHTML(p)}
     ${buildNextActionHeroHTML(p)}
-    ${buildParallelReadyHTML(p, nextForOverview ? nextForOverview.def.id : null)}
     ${buildWaitingBlockedSummaryHTML(p)}
     ${buildFullActionListHTML(p)}
-    <div class="section-label-row" style="margin-top:24px;"><div class="eyebrow">Review &amp; Send Log</div><span class="pill pill-slate" style="cursor:pointer;" onclick="openCCSubNav('scopes','review')">Open in Scopes →</span></div>
+    ${buildPropertyHomeownerPanelHTML(p, srcOppId, `renderProjectDetail()`)}
+    <div class="section-label-row" style="margin-top:8px;"><div class="eyebrow">Review &amp; Send Log</div><span class="pill pill-slate" style="cursor:pointer;" onclick="openCCSubNav('scopes','review')">Open in Scopes →</span></div>
     <div class="panel" style="margin-bottom:20px;"><div class="panel-body" style="padding:6px 20px;" id="reviewSendLogDashboard"><div class="empty-row">Loading…</div></div></div>
     ${buildKpiLogHTML(p)}
-    ${buildClientLogPanelHTML(p)}
-    ${srcOpp && srcEst ? buildCarriedFromSalesHTML(srcOpp, srcEst, p.id, p.client) : `
-    <div style="max-width:1160px; margin:0 auto;">
-      <div class="two-col" style="margin-top:8px; grid-template-columns:1.4fr 1fr; align-items:start; gap:20px;">
-        <div>
-          ${buildProjectContactPanelHTML(p)}
-          ${buildMeetingsPanelHTML(p, 'project')}
-          ${buildProjectFollowUpPanelHTML(p)}
-        </div>
-        <div>
-          ${buildClientProfilePanelHTML(srcOppId, p.client, `renderProjectDetail()`)}
-          ${buildProjectTasksPanelHTML(p)}
-          ${buildProjectNextStepsPanelHTML(p)}
-        </div>
-      </div>
-    </div>`}`;
+    ${buildClientLogPanelHTML(p)}`;
   } else if(CC_TAB === 'schedule'){
     tabBody = buildScheduleTabHTML(p);
   } else if(CC_TAB === 'scopes'){
@@ -16047,6 +16277,7 @@ function buildAppSnapshot(){
     PARTNER_CATEGORIES, COMPANY_LOCATIONS, TEAM_MEMBERS, TEAM_ROSTER, CUSTOM_AUTOMATIONS,
     DEFAULT_TASK_ASSIGNEES, COMPANY_TEMPLATES, COMPANY_LOGO, COMPANY_LOGO_SIZE, CONTACTS,
     DRIP_CAMPAIGN_CONNECTION, PHASE_DESCRIPTIONS,
+    PROCESS_PHASES, ROLE_DEFAULT_ASSIGNEE,
     themeVars: captureThemeVars(),
   };
 }
@@ -16069,6 +16300,8 @@ function applyAppSnapshot(snap){
   if(snap.CONTACTS) Object.assign(CONTACTS, snap.CONTACTS);
   if(snap.DRIP_CAMPAIGN_CONNECTION) DRIP_CAMPAIGN_CONNECTION = snap.DRIP_CAMPAIGN_CONNECTION;
   if(snap.PHASE_DESCRIPTIONS) PHASE_DESCRIPTIONS = snap.PHASE_DESCRIPTIONS;
+  if(snap.PROCESS_PHASES) PROCESS_PHASES = snap.PROCESS_PHASES;
+  if(snap.ROLE_DEFAULT_ASSIGNEE) ROLE_DEFAULT_ASSIGNEE = snap.ROLE_DEFAULT_ASSIGNEE;
   if(snap.themeVars) applyThemeVars(snap.themeVars);
 }
 function setSyncIndicator(text){
@@ -16185,6 +16418,8 @@ function renderEverything(){
   renderUsersPermissionsTable();
   renderLocationsTable();
   renderThemeColorPanel();
+  renderProcessEditorPanel();
+  renderRoleAssigneesPanel();
   renderDefaultAssigneesPanel();
   renderPhaseDescriptionsPanel();
   renderScheduleTemplatePanel();
