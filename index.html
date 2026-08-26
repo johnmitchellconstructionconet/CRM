@@ -4464,22 +4464,25 @@ function renderProcessEditorPanel(){
   const host = document.getElementById('processEditorPanel');
   if(!host) return;
   host.innerHTML = `<div class="panel-body" style="padding:16px 20px;">
-    ${PROCESS_PHASES.map(ph => `
+    <div class="hint" style="margin-bottom:4px;">"Typical Days" is per step, not per phase — a phase's total is however long its own steps actually add up to, not an arbitrary number split evenly across however many steps happen to be in it. This is what "Auto-Generate Baseline" uses on every new project.</div>
+    ${PROCESS_PHASES.map(ph => { const totalDays = ph.steps.reduce((s,st) => s + (st.days||0), 0); return `
       <div style="margin:18px 0 8px; display:flex; align-items:center; gap:10px;">
         <div style="font-weight:700; font-size:12.5px; color:var(--taupe-dark); text-transform:uppercase; letter-spacing:.03em;">Phase ${ph.n} ·</div>
         <input value="${escapeHtmlLite(ph.name)}" style="max-width:280px; font-weight:600;" onchange="setProcessPhaseName(${ph.n}, this.value)">
+        <span class="pill pill-slate" style="margin-left:auto; font-size:10px;">${totalDays} typical business days total</span>
       </div>
       ${ph.steps.map((step, i) => `
         <div class="list-row" style="gap:8px; align-items:center;">
           <span style="color:var(--ink-faint); font-size:12px; width:18px; flex-shrink:0;">${i+1}.</span>
           <input value="${escapeHtmlLite(step.title)}" style="flex:2; min-width:180px;" onchange="setProcessStepField(${ph.n},'${step.id}','title',this.value)">
           <input value="${escapeHtmlLite(step.role)}" placeholder="Role" style="max-width:150px;" onchange="setProcessStepField(${ph.n},'${step.id}','role',this.value)">
+          <input type="number" min="1" value="${step.days||2}" title="Typical days" style="max-width:64px; text-align:center;" onchange="setProcessStepField(${ph.n},'${step.id}','days',parseInt(this.value,10)||1)">
           <button class="btn btn-outline btn-sm" ${i===0?'disabled':''} onclick="moveProcessStep(${ph.n},'${step.id}',-1)" title="Move up">↑</button>
           <button class="btn btn-outline btn-sm" ${i===ph.steps.length-1?'disabled':''} onclick="moveProcessStep(${ph.n},'${step.id}',1)" title="Move down">↓</button>
           <span style="cursor:pointer; color:var(--rust); font-size:16px; padding:0 4px;" onclick="removeProcessStep(${ph.n},'${step.id}')" title="Remove step">&times;</span>
         </div>`).join('')}
       <button class="btn btn-outline btn-sm" style="margin-top:6px;" onclick="addProcessStep(${ph.n})">+ Add Step to Phase ${ph.n}</button>
-    `).join('')}
+    `; }).join('')}
   </div>`;
 }
 function setProcessPhaseName(phaseN, value){
@@ -4490,9 +4493,10 @@ function setProcessPhaseName(phaseN, value){
 function setProcessStepField(phaseN, stepId, field, value){
   const ph = phaseDef(phaseN); if(!ph) return;
   const step = ph.steps.find(s => s.id === stepId); if(!step) return;
-  step[field] = value.trim();
+  step[field] = (typeof value === 'string') ? value.trim() : value;
   saveAppState();
   if(field === 'role') renderRoleAssigneesPanel();
+  if(field === 'days') renderProcessEditorPanel();
 }
 function moveProcessStep(phaseN, stepId, dir){
   const ph = phaseDef(phaseN); if(!ph) return;
@@ -4513,7 +4517,7 @@ function addProcessStep(phaseN){
   const title = prompt('New step title:');
   if(!title || !title.trim()) return;
   const id = 'p' + phaseN + 's_' + Date.now();
-  ph.steps.push({ id, title: title.trim(), role: '' });
+  ph.steps.push({ id, title: title.trim(), role: '', days: 2 });
   saveAppState(); renderProcessEditorPanel();
 }
 function renderRoleAssigneesPanel(){
@@ -4592,58 +4596,58 @@ const PROCESS_ROLES = ['Estimator', 'P/C Coordinator', 'S/C', 'Designer', 'Owner
 let ROLE_DEFAULT_ASSIGNEE = {};
 let PROCESS_PHASES = [
   { n:3, name:'Design Discovery', steps:[
-    { id:'p3s1', title:'Design Discovery Form sent to client', role:'Estimator' },
-    { id:'p3s2', title:'Internal Discovery Review', role:'Estimator' },
-    { id:'p3s3', title:'Design Discovery / Client Review Meeting', role:'Estimator' },
+    { id:'p3s1', title:'Design Discovery Form sent to client', role:'Estimator', days:3 },
+    { id:'p3s2', title:'Internal Discovery Review', role:'Estimator', days:3 },
+    { id:'p3s3', title:'Design Discovery / Client Review Meeting', role:'Estimator', days:4 },
   ]},
   { n:4, name:'Architectural Development', steps:[
-    { id:'p4s1', title:'Start of architectural plans', role:'Estimator & S/C' },
-    { id:'p4s2', title:'Review plan revisions through GoVisually', role:'Estimator' },
-    { id:'p4s3', title:'Plans get approved — Client Plan Review', role:'Estimator' },
-    { id:'p4s4', title:'Selections Identification Meeting', role:'Estimator & S/C' },
+    { id:'p4s1', title:'Start of architectural plans', role:'Estimator & S/C', days:6 },
+    { id:'p4s2', title:'Review plan revisions through GoVisually', role:'Estimator', days:4 },
+    { id:'p4s3', title:'Plans get approved — Client Plan Review', role:'Estimator', days:3 },
+    { id:'p4s4', title:'Selections Identification Meeting', role:'Estimator & S/C', days:2 },
   ]},
   { n:5, name:'Design Direction & Selections', steps:[
-    { id:'p5s1', title:'Selections Meeting', role:'Estimator & S/C' },
-    { id:'p5s2', title:'Create Clarifications Sheet', role:'Estimator' },
-    { id:'p5s3', title:'Write RFP using selections sheet', role:'Estimator' },
-    { id:'p5s4', title:'Plans takeoffs to match the RFP', role:'Estimator' },
-    { id:'p5s5', title:'Review RFP for scope gaps & grammar', role:'Estimator & S/C' },
+    { id:'p5s1', title:'Selections Meeting', role:'Estimator & S/C', days:3 },
+    { id:'p5s2', title:'Create Clarifications Sheet', role:'Estimator', days:2 },
+    { id:'p5s3', title:'Write RFP using selections sheet', role:'Estimator', days:3 },
+    { id:'p5s4', title:'Plans takeoffs to match the RFP', role:'Estimator', days:2 },
+    { id:'p5s5', title:'Review RFP for scope gaps & grammar', role:'Estimator & S/C', days:2 },
   ]},
   { n:6, name:'3D Rendering & Refinement', steps:[
-    { id:'p6s1', title:'3D Renderings', role:'Designer' },
-    { id:'p6s2', title:'Internal Rendering Review', role:'Estimator' },
-    { id:'p6s3', title:'Client Rendering Review', role:'Estimator' },
-    { id:'p6s4', title:'Final Architectural Details', role:'Estimator' },
-    { id:'p6s5', title:'Final Design Review', role:'Estimator' },
+    { id:'p6s1', title:'3D Renderings', role:'Designer', days:6 },
+    { id:'p6s2', title:'Internal Rendering Review', role:'Estimator', days:2 },
+    { id:'p6s3', title:'Client Rendering Review', role:'Estimator', days:3 },
+    { id:'p6s4', title:'Final Architectural Details', role:'Estimator', days:2 },
+    { id:'p6s5', title:'Final Design Review', role:'Estimator', days:2 },
   ]},
   { n:7, name:'Trade Pricing & Final Budget', steps:[
-    { id:'p7s1', title:'Create bid packages', role:'Estimator' },
-    { id:'p7s2', title:'Fill out Bid List of vendors & subs', role:'Estimator' },
-    { id:'p7s3', title:'Assign bidders to BuilderTrend bid packages', role:'P/C Coordinator' },
-    { id:'p7s4', title:'Attach RFP, final plans & takeoffs to bid packages', role:'P/C Coordinator' },
-    { id:'p7s5', title:'Release bid packages', role:'P/C Coordinator' },
-    { id:'p7s6', title:'Email all trades — open bidding & send docs', role:'P/C Coordinator' },
-    { id:'p7s7', title:'Follow up on bids', role:'P/C Coordinator' },
-    { id:'p7s8', title:'Light review of bids — log in BuilderTrend & VE Dashboard', role:'P/C Coordinator' },
-    { id:'p7s9', title:'CHECKPOINT', role:'Estimator' },
-    { id:'p7s10', title:'Input all allowances', role:'Estimator' },
-    { id:'p7s11', title:'All bids received — review & finish estimating', role:'Estimator' },
-    { id:'p7s12', title:'Apply for permitting, if necessary', role:'P/C Coordinator' },
-    { id:'p7s13', title:'Draft Formal Proposal', role:'P/C Coordinator' },
-    { id:'p7s14', title:'Review Formal Proposal for accuracy & scope gaps', role:'Estimator' },
-    { id:'p7s15', title:'Finalize Formal Proposal & present to client', role:'Estimator' },
+    { id:'p7s1', title:'Create bid packages', role:'Estimator', days:3 },
+    { id:'p7s2', title:'Fill out Bid List of vendors & subs', role:'Estimator', days:2 },
+    { id:'p7s3', title:'Assign bidders to BuilderTrend bid packages', role:'P/C Coordinator', days:1 },
+    { id:'p7s4', title:'Attach RFP, final plans & takeoffs to bid packages', role:'P/C Coordinator', days:1 },
+    { id:'p7s5', title:'Release bid packages', role:'P/C Coordinator', days:1 },
+    { id:'p7s6', title:'Email all trades — open bidding & send docs', role:'P/C Coordinator', days:1 },
+    { id:'p7s7', title:'Follow up on bids', role:'P/C Coordinator', days:3 },
+    { id:'p7s8', title:'Light review of bids — log in BuilderTrend & VE Dashboard', role:'P/C Coordinator', days:2 },
+    { id:'p7s9', title:'CHECKPOINT', role:'Estimator', days:1 },
+    { id:'p7s10', title:'Input all allowances', role:'Estimator', days:2 },
+    { id:'p7s11', title:'All bids received — review & finish estimating', role:'Estimator', days:3 },
+    { id:'p7s12', title:'Apply for permitting, if necessary', role:'P/C Coordinator', days:3 },
+    { id:'p7s13', title:'Draft Formal Proposal', role:'P/C Coordinator', days:2 },
+    { id:'p7s14', title:'Review Formal Proposal for accuracy & scope gaps', role:'Estimator', days:2 },
+    { id:'p7s15', title:'Finalize Formal Proposal & present to client', role:'Estimator', days:2 },
   ]},
   { n:8, name:'Contract & Handoff', steps:[
-    { id:'p8s1', title:'Formal Proposal approved — submit Canvas Plan to CAD', role:'P/C Coordinator' },
-    { id:'p8s2', title:'Draft Final Scope of Work (FSOW)', role:'P/C Coordinator' },
-    { id:'p8s3', title:'Review FSOW & finalize', role:'Estimator' },
-    { id:'p8s4', title:'Put FSOW in BuilderTrend for owner approval — Construction Agreement', role:'P/C Coordinator' },
-    { id:'p8s5', title:'FSOW approved — send to awarded trades', role:'P/C Coordinator' },
-    { id:'p8s6', title:'Approve bids in BuilderTrend', role:'P/C Coordinator' },
-    { id:'p8s7', title:'Send estimate to budget in BuilderTrend', role:'Estimator' },
-    { id:'p8s8', title:'Lock the budget in BuilderTrend', role:'Estimator' },
-    { id:'p8s9', title:'Create POs', role:'P/C Coordinator' },
-    { id:'p8s10', title:'Start shop drawings & field docs — Project Handoff / Production Setup', role:'Estimator & S/C' },
+    { id:'p8s1', title:'Formal Proposal approved — submit Canvas Plan to CAD', role:'P/C Coordinator', days:2 },
+    { id:'p8s2', title:'Draft Final Scope of Work (FSOW)', role:'P/C Coordinator', days:3 },
+    { id:'p8s3', title:'Review FSOW & finalize', role:'Estimator', days:2 },
+    { id:'p8s4', title:'Put FSOW in BuilderTrend for owner approval — Construction Agreement', role:'P/C Coordinator', days:2 },
+    { id:'p8s5', title:'FSOW approved — send to awarded trades', role:'P/C Coordinator', days:1 },
+    { id:'p8s6', title:'Approve bids in BuilderTrend', role:'P/C Coordinator', days:1 },
+    { id:'p8s7', title:'Send estimate to budget in BuilderTrend', role:'Estimator', days:1 },
+    { id:'p8s8', title:'Lock the budget in BuilderTrend', role:'Estimator', days:1 },
+    { id:'p8s9', title:'Create POs', role:'P/C Coordinator', days:2 },
+    { id:'p8s10', title:'Start shop drawings & field docs — Project Handoff / Production Setup', role:'Estimator & S/C', days:5 },
   ]},
 ];
 function ensureWorkflowModel(p){
@@ -4675,12 +4679,13 @@ function generateProcessBaseline(projectId, startDate){
   const wf = ensureWorkflowModel(p);
   wf.baselineStartDate = startDate;
   let cursor = startDate;
+  // Uses each step's own typical duration (Company Settings → Preconstruction Process)
+  // rather than splitting a phase-level total evenly — a 15-step phase and a 3-step phase
+  // shouldn't get the same per-step allotment just because they're both "one phase."
   PROCESS_PHASES.forEach(ph => {
     const stage = wf.stages.find(s => s.n === ph.n);
-    const totalDays = STANDARD_SCHEDULE_TEMPLATE[ph.n] || 10;
-    const perStep = Math.max(1, Math.round(totalDays / ph.steps.length));
     ph.steps.forEach(def => {
-      cursor = addBusinessDays(cursor, perStep);
+      cursor = addBusinessDays(cursor, def.days || 2);
       const st = getStepState(stage, def.id);
       st.baselineDue = cursor;
       st.forecastDue = cursor;
@@ -4723,6 +4728,28 @@ function propagateScheduleSlip(p, phaseN, stepTitle, days){
   const curStage = wf.stages.find(s => s.n === phaseN);
   if(curStage && curStage.forecastFinish) curStage.forecastFinish = addBusinessDays(curStage.forecastFinish, days);
   wf.lastSlip = { phaseName: (phaseDef(phaseN)||{}).name || '', stepTitle, days, at: new Date().toISOString().slice(0,10) };
+}
+// ---- Explicit "needs more time" actions — the baseline never moves; this only pushes the
+// forecast, and always through propagateScheduleSlip so it's tracked as a deviation (visible
+// in the Schedule Health strip's "Primary cause" line) rather than a quiet date edit. Works
+// at either the single-step or whole-phase level, independently, per that request. ----
+function extendCurrentStep(projectId, stepId, stepTitle){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const days = parseInt(prompt(`How many extra days does "${stepTitle}" need? The baseline target stays fixed — this is tracked as a deviation, not a silent change.`, '3'), 10);
+  if(!days || days <= 0) return;
+  const wf = ensureWorkflowModel(p);
+  propagateScheduleSlip(p, wf.currentStageN, stepTitle, days);
+  saveAppState(); renderProjectDetail(); renderProjectCardGrids();
+}
+function extendCurrentPhase(projectId){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const wf = ensureWorkflowModel(p);
+  const ph = phaseDef(wf.currentStageN);
+  if(!ph) return;
+  const days = parseInt(prompt(`How many extra days does Phase ${ph.n} · ${ph.name} need? The baseline target stays fixed — this is tracked as a deviation, not a silent change.`, '5'), 10);
+  if(!days || days <= 0) return;
+  propagateScheduleSlip(p, wf.currentStageN, `Phase ${ph.n} · ${ph.name} extended by request`, days);
+  saveAppState(); renderProjectDetail(); renderProjectCardGrids();
 }
 // The dependency engine — strictly sequential. Step i is Ready only once step i-1 is
 // Complete or N/A; the first step of a phase is Ready as soon as the phase becomes current.
@@ -4878,12 +4905,115 @@ function setStepFieldForPhase(projectId, phaseN, stepId, field, val){
   const stage = wf.stages.find(s => s.n === phaseN);
   const st = getStepState(stage, stepId);
   st[field] = val || null;
+  if(field === 'due'){
+    if(val) st.forecastDue = val;
+    recalcStageFinishFromSteps(p, phaseN); // harmless no-op pre-baseline; cascades downstream once one exists
+  }
   saveAppState();
+}
+// ---- Click any phase on the Gantt to see its full checklist, even a phase that isn't
+// current yet — same Owner/Due editing as the current phase's Full Step List, just for any
+// phase you point at. Status is read-only here on purpose: whether a step is actually Ready
+// is decided by the sequential dependency engine, not by clicking around a chart. ----
+function openPhaseChecklistModal(projectId, phaseN){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const wf = ensureWorkflowModel(p);
+  const ph = phaseDef(phaseN);
+  const stage = wf.stages.find(s => s.n === phaseN);
+  if(!ph || !stage) return;
+  document.getElementById('phaseChecklistOverlay')?.remove();
+  const statusClass = { 'Not Ready':'pill-slate', 'Ready':'pill-ink', 'In Progress':'pill-gold', 'Waiting':'pill-gold', 'Blocked':'pill-rust', 'Complete':'pill-jade', 'N/A':'pill-slate' };
+  const rows = ph.steps.map((def,i) => {
+    const st = getStepState(stage, def.id);
+    return `<tr>
+      <td>${i+1}</td>
+      <td class="name-cell">${escapeHtmlLite(def.title)}</td>
+      <td style="font-size:11px; color:var(--ink-faint);">${escapeHtmlLite(def.role)}</td>
+      <td><span class="pill ${statusClass[st.status]||'pill-ink'}">${st.status}</span></td>
+      <td><select style="min-width:140px;" onchange="setStepFieldForPhase('${p.id}',${phaseN},'${def.id}','owner',this.value)">${teamMemberOptions(st.owner || ROLE_DEFAULT_ASSIGNEE[def.role])}</select></td>
+      <td><input type="date" style="min-width:130px;" value="${st.due||''}" onchange="setStepFieldForPhase('${p.id}',${phaseN},'${def.id}','due',this.value); openPhaseChecklistModal('${p.id}',${phaseN}); renderProjectDetail();"></td>
+    </tr>`;
+  }).join('');
+  const overlay = document.createElement('div');
+  overlay.id = 'phaseChecklistOverlay';
+  overlay.style.cssText = 'position:fixed; inset:0; z-index:400; display:flex; align-items:center; justify-content:center; background:rgba(20,18,14,.55); padding:20px;';
+  overlay.innerHTML = `
+    <div class="modal-card" style="width:760px; max-width:94vw; max-height:85vh; overflow-y:auto; background:#fff; border-radius:14px; padding:22px; box-shadow:0 20px 50px rgba(0,0,0,.25);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <div class="panel-title" style="margin-bottom:0;">Phase ${ph.n} · ${escapeHtmlLite(ph.name)}${stage.status==='current'?' <span class="pill pill-slate" style="font-size:9px;">Current</span>':stage.status==='complete'?' <span class="pill pill-jade" style="font-size:9px;">Complete</span>':''}</div>
+        <span style="cursor:pointer; color:var(--ink-faint); font-size:20px;" onclick="document.getElementById('phaseChecklistOverlay').remove()">&times;</span>
+      </div>
+      <table><thead><tr><th>#</th><th>Step</th><th>Role</th><th>Status</th><th>Owner</th><th>Due</th></tr></thead><tbody>${rows}</tbody></table>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.onclick = (e) => { if(e.target === overlay) overlay.remove(); };
+}
+// ---- Drag-to-reschedule on the Gantt. Dragging a phase's Actual bar moves that phase and
+// everything after it by the same number of days — same principle as "Extend Current Phase"
+// or a step finishing late, just driven by the mouse instead of a prompt. The baseline bar
+// never moves; only the Actual/forecast bar responds to the drag, and the move is tracked
+// as a deviation the same way any other schedule change is. ----
+let GANTT_DRAG = null;
+function startGanttDrag(e, projectId, phaseN){
+  e.preventDefault();
+  const p = PROJECTS[projectId]; if(!p) return;
+  const wf = ensureWorkflowModel(p);
+  const stage = wf.stages.find(s => s.n === phaseN);
+  if(!stage || !stage.forecastFinish) return;
+  GANTT_DRAG = { projectId, phaseN, startX: e.clientX, barEl: e.currentTarget };
+  document.addEventListener('mousemove', onGanttDragMove);
+  document.addEventListener('mouseup', onGanttDragEnd);
+}
+function onGanttDragMove(e){
+  if(!GANTT_DRAG) return;
+  const deltaPx = e.clientX - GANTT_DRAG.startX;
+  GANTT_DRAG.barEl.style.transform = `translateX(${deltaPx}px)`;
+  GANTT_DRAG.barEl.style.opacity = '0.7';
+  GANTT_DRAG.barEl.style.boxShadow = '0 2px 8px rgba(0,0,0,.25)';
+}
+function onGanttDragEnd(e){
+  if(!GANTT_DRAG) return;
+  const { projectId, phaseN, barEl, startX } = GANTT_DRAG;
+  const deltaPx = e.clientX - startX;
+  const deltaDays = Math.round(deltaPx / GANTT_PX_PER_DAY);
+  document.removeEventListener('mousemove', onGanttDragMove);
+  document.removeEventListener('mouseup', onGanttDragEnd);
+  barEl.style.transform = ''; barEl.style.opacity = ''; barEl.style.boxShadow = '';
+  GANTT_DRAG = null;
+  if(!deltaDays) return;
+  const p = PROJECTS[projectId]; if(!p) return;
+  const ph = phaseDef(phaseN);
+  if(!confirm(`Move Phase ${ph.n} · ${ph.name} ${deltaDays>0?'out':'earlier'} by ${Math.abs(deltaDays)} day${Math.abs(deltaDays)===1?'':'s'}? Every phase after it shifts by the same amount. The baseline stays fixed — this is tracked as a deviation.`)){
+    renderProjectDetail();
+    return;
+  }
+  shiftPhaseAndDownstream(p, phaseN, deltaDays);
+  saveAppState(); renderProjectDetail(); renderProjectCardGrids();
+}
+function shiftPhaseAndDownstream(p, phaseN, deltaDays){
+  const wf = ensureWorkflowModel(p);
+  wf.stages.forEach(stage => {
+    if(stage.n < phaseN) return;
+    Object.values(stage.steps).forEach(st => {
+      if(st.status !== 'Complete' && st.status !== 'N/A'){
+        if(st.forecastDue) st.forecastDue = shiftDateStr(st.forecastDue, deltaDays);
+        if(st.due) st.due = shiftDateStr(st.due, deltaDays);
+      }
+    });
+    if(stage.forecastFinish) stage.forecastFinish = shiftDateStr(stage.forecastFinish, deltaDays);
+  });
+  const ph = phaseDef(phaseN);
+  wf.lastSlip = { phaseName: ph ? ph.name : '', stepTitle: `Phase ${phaseN} dragged on the Gantt`, days: deltaDays, at: new Date().toISOString().slice(0,10) };
 }
 let MANUAL_SCHEDULE_OPEN = false;
 function toggleManualScheduleBuilder(){
   MANUAL_SCHEDULE_OPEN = !MANUAL_SCHEDULE_OPEN;
   renderProjectDetail();
+}
+function openManualScheduleBuilder(){
+  MANUAL_SCHEDULE_OPEN = true;
+  renderProjectDetail();
+  setTimeout(() => { document.getElementById('manualScheduleBuilder')?.scrollIntoView({behavior:'smooth', block:'start'}); }, 50);
 }
 // Takes whatever due dates have been typed in across every phase and step and locks them
 // in as the baseline — the same baselineDue/forecastDue/baselineFinish/forecastFinish
@@ -4938,7 +5068,7 @@ function buildManualScheduleBuilderHTML(p){
     return `<div class="section-label-row" style="margin-top:16px;"><div class="eyebrow">Phase ${ph.n} · ${escapeHtmlLite(ph.name)}</div></div>
       <table><thead><tr><th>#</th><th>Step</th><th>Role</th><th>Owner</th><th>Due</th></tr></thead><tbody>${stepRows}</tbody></table>`;
   }).join('');
-  return `<div class="section-label-row" style="margin-top:20px; cursor:pointer;" onclick="toggleManualScheduleBuilder()"><div class="eyebrow">${MANUAL_SCHEDULE_OPEN ? '▾' : '▸'} Build the Schedule Manually — Every Step, Phase 3 through 8</div></div>
+  return `<div id="manualScheduleBuilder" class="section-label-row" style="margin-top:20px; cursor:pointer;" onclick="toggleManualScheduleBuilder()"><div class="eyebrow">${MANUAL_SCHEDULE_OPEN ? '▾' : '▸'} Build the Schedule Manually — Every Step, Phase 3 through 8</div></div>
     ${MANUAL_SCHEDULE_OPEN ? `<div class="panel" style="margin-bottom:16px;"><div class="panel-body" style="padding:16px 20px;">
       <div class="hint" style="margin-bottom:6px;">Set a real due date for every step below, then lock it in. Those dates become the baseline the Gantt chart and every schedule-health number are measured against from then on — this replaces the auto-generated template spacing with the actual plan.</div>
       ${phaseBlocks}
@@ -5212,7 +5342,7 @@ function buildMonthGridHTML(overallStart, overallEnd){
   }
   return { axis: axis + dayAxis, gridlines: gridlines + todayLine };
 }
-function buildGanttRowHTML(phaseDef, baselineRow, actualRow, overallStart, spanDays, progressPct, timelineWidthPx){
+function buildGanttRowHTML(phaseDef, baselineRow, actualRow, overallStart, spanDays, progressPct, timelineWidthPx, projectId){
   const track = (row, color, height, opacity) => {
     if(row && row.start && row.end && overallStart){
       const offsetPct = ((new Date(row.start) - new Date(overallStart)) / 86400000) / spanDays * 100;
@@ -5224,16 +5354,21 @@ function buildGanttRowHTML(phaseDef, baselineRow, actualRow, overallStart, spanD
   const actualColor = actualRow && actualRow.status === 'done' ? 'var(--jade)' : actualRow && actualRow.status === 'active' ? 'var(--taupe-dark)' : '#D9CFBB';
   const baselineTrackObj = track(baselineRow, 'var(--ink-faint)', 8, 0.6);
   const actualTrackObj = track(actualRow, actualColor, 18, 1);
+  let actualBarHTML = '';
+  if(actualTrackObj){
+    const draggable = projectId && actualRow.status !== 'done';
+    actualBarHTML = `<div style="position:absolute; left:${actualTrackObj.offsetPct}%; width:${actualTrackObj.widthPct}%; height:${actualTrackObj.height}px; top:${(32-actualTrackObj.height)/2}px; background:${actualColor}; border-radius:4px; z-index:1; ${draggable ? 'cursor:grab;' : ''}" ${draggable ? `onmousedown="startGanttDrag(event,'${projectId}',${phaseDef.n})" title="Drag to reschedule this phase and everything after it"` : ''}></div>`;
+  }
   let progressFill = '';
   if(actualTrackObj && progressPct > 0){
     const fillWidthPct = actualTrackObj.widthPct * (progressPct / 100);
-    progressFill = `<div style="position:absolute; left:${actualTrackObj.offsetPct}%; width:${fillWidthPct}%; height:${actualTrackObj.height}px; top:${(32-actualTrackObj.height)/2}px; background:var(--jade); border-radius:4px; z-index:2;" title="${progressPct}% of this phase\'s tasks checked off"></div>`;
+    progressFill = `<div style="position:absolute; left:${actualTrackObj.offsetPct}%; width:${fillWidthPct}%; height:${actualTrackObj.height}px; top:${(32-actualTrackObj.height)/2}px; background:var(--jade); border-radius:4px; z-index:2; pointer-events:none;" title="${progressPct}% of this phase\'s tasks checked off"></div>`;
   }
   const hasAny = (baselineRow && baselineRow.start) || (actualRow && actualRow.start);
   return `<div style="display:flex; align-items:center; gap:${GANTT_GAP}px; padding:10px 0; border-bottom:1px solid var(--border-soft);">
-    <div style="width:${GANTT_LEFT_COL}px; flex-shrink:0; font-size:12.5px; font-weight:600; position:sticky; left:0; background:var(--paper); z-index:4; padding-right:8px;">Phase ${phaseDef.n} \u00b7 ${phaseDef.name}</div>
+    <div style="width:${GANTT_LEFT_COL}px; flex-shrink:0; font-size:12.5px; font-weight:600; position:sticky; left:0; background:var(--paper); z-index:4; padding-right:8px; ${projectId ? 'cursor:pointer;' : ''}" ${projectId ? `onclick="openPhaseChecklistModal('${projectId}',${phaseDef.n})" title="View this phase's checklist"` : ''}>Phase ${phaseDef.n} \u00b7 ${phaseDef.name}</div>
     <div style="position:relative; width:${timelineWidthPx}px; flex-shrink:0; height:32px;">
-      ${hasAny ? (baselineTrackObj ? baselineTrackObj.html : '') + (actualTrackObj ? actualTrackObj.html : '') + progressFill : `<div style="display:flex; align-items:center; height:100%; padding-left:8px; font-size:10.5px; color:var(--ink-faint); font-style:italic; position:relative; z-index:1;">Dates TBD</div>`}
+      ${hasAny ? (baselineTrackObj ? baselineTrackObj.html : '') + actualBarHTML + progressFill : `<div style="display:flex; align-items:center; height:100%; padding-left:8px; font-size:10.5px; color:var(--ink-faint); font-style:italic; position:relative; z-index:1; ${projectId ? 'cursor:pointer;' : ''}" ${projectId ? `onclick="openPhaseChecklistModal('${projectId}',${phaseDef.n})"` : ''}>Dates TBD${projectId ? ' — click to schedule' : ''}</div>`}
     </div>
     <div style="width:${GANTT_RIGHT_COL}px; flex-shrink:0; font-size:10.5px; color:var(--ink-faint); text-align:right; position:sticky; right:0; background:var(--paper); z-index:4; padding-left:8px;">${actualRow && actualRow.start && actualRow.end ? (actualRow.start===actualRow.end ? actualRow.start : actualRow.start+' \u2192 '+actualRow.end) : ''}</div>
   </div>`;
@@ -5276,11 +5411,12 @@ function buildScheduleTabHTML(p){
   const timelineWidthPx = Math.max(600, Math.ceil(spanDays) * GANTT_PX_PER_DAY);
   const grid = buildMonthGridHTML(overallStart, overallEnd);
 
-  const rows = ganttRows.map(r => buildGanttRowHTML({n:r.n, name:r.name}, r.baselineRow, r.actualRow, overallStart, spanDays, r.pct, timelineWidthPx)).join('');
+  const rows = ganttRows.map(r => buildGanttRowHTML({n:r.n, name:r.name}, r.baselineRow, r.actualRow, overallStart, spanDays, r.pct, timelineWidthPx, p.id)).join('');
 
   return `
     <div class="section-label-row"><div class="eyebrow">Preconstruction Schedule</div>
       <div class="row no-print" style="gap:8px;">
+        <button class="btn btn-dark" onclick="openManualScheduleBuilder()">📝 Build All 42 Steps Manually</button>
         <span class="pill pill-slate" style="cursor:pointer;" onclick="promptGenerateProcessBaseline('${p.id}')">${wf.baselineSet ? '↻ Reset Baseline Schedule' : '📌 Auto-Generate Baseline'}</span>
         <span class="pill pill-slate" style="cursor:pointer;" onclick="printScheduleTab('${p.id}')">🖨 Print</span>
       </div>
@@ -5356,10 +5492,11 @@ function buildScheduleHealthStripHTML(p){
       <div class="schedhealth-metric"><label>Baseline Ready</label><div class="schedhealth-val">${health.baselineReady ? fmtNoteDate(health.baselineReady) : '—'}</div></div>
       <div class="schedhealth-metric"><label>Forecast Ready</label><div class="schedhealth-val">${health.forecastReady ? fmtNoteDate(health.forecastReady) : '—'}</div></div>
       <div class="schedhealth-metric"><label>Variance</label><div class="schedhealth-val schedhealth-variance">${varianceLabel}</div></div>
+      <button class="btn btn-outline btn-sm" onclick="extendCurrentPhase('${p.id}')">Extend Current Phase</button>
       <button class="btn btn-outline btn-sm" style="margin-left:auto; flex-shrink:0;" onclick="promptGenerateProcessBaseline('${p.id}')">Reset Baseline</button>
     </div>
     ${p.targetConstructionStart && health.forecastReady && health.forecastReady > p.targetConstructionStart ? `<div class="schedhealth-warning">⚠ Forecast Ready date is past the Target Construction Start — construction start is at risk.</div>` : ''}
-    ${health.lastSlip ? `<div class="schedhealth-cause">Primary cause: <b>${escapeHtmlLite(health.lastSlip.stepTitle)}</b> finished ${health.lastSlip.days} day${health.lastSlip.days===1?'':'s'} late (${escapeHtmlLite(health.lastSlip.phaseName)}), pushing everything downstream.</div>` : ''}
+    ${health.lastSlip ? `<div class="schedhealth-cause">Primary cause: <b>${escapeHtmlLite(health.lastSlip.stepTitle)}</b> — ${health.lastSlip.days} day${health.lastSlip.days===1?'':'s'} added (${escapeHtmlLite(health.lastSlip.phaseName)}), pushing everything downstream.</div>` : ''}
   </div>`;
 }
 // ---- Compact phase rail — where you are, not what you have to do. Now carries the
@@ -5443,7 +5580,8 @@ function buildHeroInnerHTML(p){
       ${!isInProgress && !isBlocked ? `<button class="btn btn-outline" onclick="setStepStatus('${p.id}','${def.id}','In Progress')">Start</button>` : ''}
       <button class="btn btn-dark" onclick="setStepStatus('${p.id}','${def.id}','Complete')">Mark Complete</button>
       ${!isBlocked ? `<button class="btn btn-outline" onclick="openMarkWaiting('${p.id}','${def.id}')">Waiting on Someone</button>
-      <button class="btn btn-outline" style="color:var(--rust); border-color:var(--rust);" onclick="openMarkBlocked('${p.id}','${def.id}')">Flag as Blocked</button>` : `<button class="btn btn-outline" onclick="setStepStatus('${p.id}','${def.id}','Ready')">Resolved — Clear Blocker</button>`}
+      <button class="btn btn-outline" style="color:var(--rust); border-color:var(--rust);" onclick="openMarkBlocked('${p.id}','${def.id}')">Flag as Blocked</button>
+      <button class="btn btn-outline" onclick="extendCurrentStep('${p.id}','${def.id}','${escapeHtmlLite(def.title).replace(/'/g,"\\'")}')">Needs More Time</button>` : `<button class="btn btn-outline" onclick="setStepStatus('${p.id}','${def.id}','Ready')">Resolved — Clear Blocker</button>`}
     </div>` };
 }
 // ---- The hero and Tasks share one bordered box, side by side — the next required action
