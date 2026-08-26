@@ -1492,6 +1492,15 @@ function teamMemberOptions(selected){
   const extra = (selected && !TEAM_MEMBERS.includes(selected)) ? `<option selected>${escapeHtmlLite(selected)}</option>` : '';
   return `<option value="" ${!selected?'selected':''}>Unassigned</option>${extra}${opts}`;
 }
+// ---- Process-step owner dropdown — a step is assigned BY ROLE by default (matching the
+// real responsibility matrix), not left generically "Unassigned." Picking a specific person
+// here is an override for this one step, not a requirement — until someone does, the step
+// is simply owned by whoever fills that role. ----
+function stepOwnerOptions(role, selected){
+  const opts = TEAM_MEMBERS.map(name => `<option ${name===selected?'selected':''}>${name}</option>`).join('');
+  const extra = (selected && !TEAM_MEMBERS.includes(selected)) ? `<option selected>${escapeHtmlLite(selected)}</option>` : '';
+  return `<option value="" ${!selected?'selected':''}>${escapeHtmlLite(role || 'Unassigned')}</option>${extra}${opts}`;
+}
 // Referral Partner as a real dropdown tied to the Relationship Pipeline roster — a free-text
 // field here would silently break the KPI link the moment a name is typo'd or doesn't match
 // exactly. RELATIONSHIP_PARTNERS is defined further down this file but that's fine: this only
@@ -4930,7 +4939,7 @@ function openPhaseChecklistModal(projectId, phaseN){
       <td class="name-cell">${escapeHtmlLite(def.title)}</td>
       <td style="font-size:11px; color:var(--ink-faint);">${escapeHtmlLite(def.role)}</td>
       <td><span class="pill ${statusClass[st.status]||'pill-ink'}">${st.status}</span></td>
-      <td><select style="min-width:140px;" onchange="setStepFieldForPhase('${p.id}',${phaseN},'${def.id}','owner',this.value)">${teamMemberOptions(st.owner || ROLE_DEFAULT_ASSIGNEE[def.role])}</select></td>
+      <td><select style="min-width:140px;" onchange="setStepFieldForPhase('${p.id}',${phaseN},'${def.id}','owner',this.value)">${stepOwnerOptions(def.role, st.owner || ROLE_DEFAULT_ASSIGNEE[def.role])}</select></td>
       <td><input type="date" style="min-width:130px;" value="${st.due||''}" onchange="setStepFieldForPhase('${p.id}',${phaseN},'${def.id}','due',this.value); openPhaseChecklistModal('${p.id}',${phaseN}); renderProjectDetail();"></td>
     </tr>`;
   }).join('');
@@ -5061,7 +5070,7 @@ function buildManualScheduleBuilderHTML(p){
         <td>${i+1}</td>
         <td class="name-cell">${escapeHtmlLite(def.title)}</td>
         <td style="font-size:11px; color:var(--ink-faint);">${escapeHtmlLite(def.role)}</td>
-        <td><select style="min-width:150px;" onchange="setStepFieldForPhase('${p.id}',${ph.n},'${def.id}','owner',this.value)">${teamMemberOptions(st.owner || ROLE_DEFAULT_ASSIGNEE[def.role])}</select></td>
+        <td><select style="min-width:150px;" onchange="setStepFieldForPhase('${p.id}',${ph.n},'${def.id}','owner',this.value)">${stepOwnerOptions(def.role, st.owner || ROLE_DEFAULT_ASSIGNEE[def.role])}</select></td>
         <td><input type="date" style="min-width:135px;" value="${st.due||''}" onchange="setStepFieldForPhase('${p.id}',${ph.n},'${def.id}','due',this.value)"></td>
       </tr>`;
     }).join('');
@@ -5343,17 +5352,17 @@ function buildMonthGridHTML(overallStart, overallEnd){
   return { axis: axis + dayAxis, gridlines: gridlines + todayLine };
 }
 function buildGanttRowHTML(phaseDef, baselineRow, actualRow, overallStart, spanDays, progressPct, timelineWidthPx, projectId){
-  const track = (row, color, height, opacity) => {
+  const track = (row, color, height, opacity, locked) => {
     if(row && row.start && row.end && overallStart){
       const offsetPct = ((new Date(row.start) - new Date(overallStart)) / 86400000) / spanDays * 100;
       const widthPct = Math.max(2, ((new Date(row.end) - new Date(row.start)) / 86400000) / spanDays * 100);
-      return { html: `<div style="position:absolute; left:${offsetPct}%; width:${widthPct}%; height:${height}px; top:${(32-height)/2}px; background:${color}; opacity:${opacity}; border-radius:4px; z-index:1;"></div>`, offsetPct, widthPct, height };
+      return { html: `<div style="position:absolute; left:${offsetPct}%; width:${widthPct}%; height:${height}px; top:${(32-height)/2}px; background:${color}; opacity:${opacity}; border-radius:4px; z-index:1; ${locked ? 'pointer-events:none;' : ''}" ${locked ? `draggable="false" title="Baseline — the original target, locked and never dragged"` : ''}></div>`, offsetPct, widthPct, height };
     }
     return null;
   };
   const actualColor = actualRow && actualRow.status === 'done' ? 'var(--jade)' : actualRow && actualRow.status === 'active' ? 'var(--taupe-dark)' : '#D9CFBB';
-  const baselineTrackObj = track(baselineRow, 'var(--ink-faint)', 8, 0.6);
-  const actualTrackObj = track(actualRow, actualColor, 18, 1);
+  const baselineTrackObj = track(baselineRow, 'var(--ink-faint)', 8, 0.6, true);
+  const actualTrackObj = track(actualRow, actualColor, 18, 1, false);
   let actualBarHTML = '';
   if(actualTrackObj){
     const draggable = projectId && actualRow.status !== 'done';
@@ -5416,7 +5425,7 @@ function buildScheduleTabHTML(p){
   return `
     <div class="section-label-row"><div class="eyebrow">Preconstruction Schedule</div>
       <div class="row no-print" style="gap:8px;">
-        <button class="btn btn-dark" onclick="openManualScheduleBuilder()">📝 Build All 42 Steps Manually</button>
+        <button class="btn btn-dark" onclick="openManualScheduleBuilder()">📝 Build the Schedule Manually</button>
         <span class="pill pill-slate" style="cursor:pointer;" onclick="promptGenerateProcessBaseline('${p.id}')">${wf.baselineSet ? '↻ Reset Baseline Schedule' : '📌 Auto-Generate Baseline'}</span>
         <span class="pill pill-slate" style="cursor:pointer;" onclick="printScheduleTab('${p.id}')">🖨 Print</span>
       </div>
@@ -5572,7 +5581,7 @@ function buildHeroInnerHTML(p){
     <div class="hero-title">${escapeHtmlLite(def.title)}</div>
     <div class="hero-meta">${escapeHtmlLite(def.role)}${isBlocked && a.blockerNote ? ` — Blocked: ${escapeHtmlLite(a.blockerNote)}` : ''}</div>
     <div class="hero-row">
-      <div><label>Assigned To</label><select onchange="setStepField('${p.id}','${def.id}','owner',this.value)">${teamMemberOptions(a.owner || ROLE_DEFAULT_ASSIGNEE[def.role])}</select></div>
+      <div><label>Assigned To</label><select onchange="setStepField('${p.id}','${def.id}','owner',this.value)">${stepOwnerOptions(def.role, a.owner || ROLE_DEFAULT_ASSIGNEE[def.role])}</select></div>
       <div><label>Due</label><input type="date" value="${a.due||''}" onchange="setStepField('${p.id}','${def.id}','due',this.value)"></div>
       ${a.baselineDue ? `<div><label>Baseline Was</label><div style="font-size:13px; color:var(--ink-faint); padding-top:8px;">${fmtNoteDate(a.baselineDue)}</div></div>` : ''}
     </div>
@@ -5637,7 +5646,7 @@ function buildFullActionListHTML(p){
           <td class="name-cell">${escapeHtmlLite(def.title)}</td>
           <td style="font-size:11.5px; color:var(--ink-faint);">${escapeHtmlLite(def.role)}</td>
           <td><span class="pill ${statusClass[a.status]||'pill-ink'}">${a.status}</span></td>
-          <td><select style="min-width:150px;" onchange="setStepField('${p.id}','${def.id}','owner',this.value)">${teamMemberOptions(a.owner || ROLE_DEFAULT_ASSIGNEE[def.role])}</select></td>
+          <td><select style="min-width:150px;" onchange="setStepField('${p.id}','${def.id}','owner',this.value)">${stepOwnerOptions(def.role, a.owner || ROLE_DEFAULT_ASSIGNEE[def.role])}</select></td>
           <td><input type="date" style="min-width:135px;" value="${dueVal}" onchange="setStepField('${p.id}','${def.id}','due',this.value)"></td>
         </tr>`;
       }).join('')}
