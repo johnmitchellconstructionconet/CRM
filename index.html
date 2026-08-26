@@ -1026,33 +1026,34 @@ select{cursor:pointer;}
   body:has(#projectDetailHost .client-view-frame) #projectDetailHost{padding:20px !important;}
 }
 
-/* ---- Preconstruction Command: Stage Chart, Control Center, Stage Workspace ---- */
-.stagechart-scroll{overflow-x:auto; padding-bottom:6px; margin-bottom:22px;}
-.stagechart{display:flex; align-items:stretch; gap:0; min-width:max-content;}
-.stagechip{background:#fff; border:1px solid var(--border); border-radius:10px; padding:12px 14px; min-width:150px; cursor:pointer; transition:border-color .15s ease, box-shadow .15s ease;}
-.stagechip:hover{border-color:var(--taupe-dark); box-shadow:0 2px 8px rgba(0,0,0,.05);}
-.stagechip-n{font-size:10px; font-weight:700; color:var(--ink-faint); letter-spacing:.06em; margin-bottom:4px;}
-.stagechip-name{font-weight:600; font-size:13px; line-height:1.3;}
-.stagechip-sub{font-size:11px; color:var(--ink-faint); margin-top:4px;}
-.stagechip-complete{background:#F3F6F3; border-color:var(--jade);}
-.stagechip-current{background:#fff; border-color:var(--taupe-dark); border-width:2px; box-shadow:0 2px 10px rgba(0,0,0,.06);}
-.stagechip-upcoming{background:#FAFAF8; color:var(--ink-faint);}
-.stagechip-arrow{display:flex; align-items:center; justify-content:center; padding:0 8px; color:var(--ink-faint); font-size:14px; flex-shrink:0;}
-.cc-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:8px;}
-.ccpanel{background:#fff; border:1px solid var(--border); border-radius:10px; padding:14px 16px; min-height:96px;}
-.ccpanel-head{font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-faint); margin-bottom:8px;}
-.ccpanel-title{font-weight:600; font-size:13.5px; margin-bottom:6px;}
-.ccpanel-row{display:flex; justify-content:space-between; font-size:12px; margin-top:3px; gap:8px;}
-.ccpanel-row span{color:var(--ink-faint);}
-.ccpanel-empty{font-size:12px; color:var(--ink-faint); font-style:italic;}
-.wsgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px; margin-bottom:6px;}
-.wscard{border:1px solid var(--border); border-radius:8px; padding:10px 12px; background:#FAFAF8;}
-.wscard-name{font-size:12.5px; font-weight:600; margin-bottom:6px;}
-.wscard-status{width:100%; font-size:11.5px; padding:5px 7px;}
-.gatelist{display:flex; flex-direction:column; gap:7px; margin-top:4px;}
-.gaterow{display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;}
-.gaterow input{width:15px; height:15px; cursor:pointer;}
-@media (max-width:900px){ .cc-grid{grid-template-columns:repeat(2,1fr);} }
+/* ---- Preconstruction Command: stage rail + single next-action hero. Deliberately not a
+   dashboard of panels — one dominant action, everything else recedes until asked for. ---- */
+.stagerail{display:flex; align-items:center; gap:0; margin-bottom:14px; overflow-x:auto; padding-bottom:2px;}
+.railchip{display:flex; align-items:center; gap:6px; padding:6px 10px; border-radius:99px; border:1px solid var(--border); flex-shrink:0; font-size:12px;}
+.railchip-n{width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; flex-shrink:0;}
+.railchip-complete{background:#F3F6F3; border-color:var(--jade); color:var(--jade);}
+.railchip-complete .railchip-n{background:var(--jade); color:#fff;}
+.railchip-current{background:#fff; border-color:var(--taupe-dark); border-width:2px; font-weight:600;}
+.railchip-current .railchip-n{background:var(--taupe-dark); color:#fff;}
+.railchip-upcoming{background:#FAFAF8; color:var(--ink-faint);}
+.railchip-upcoming .railchip-n{background:var(--border); color:var(--ink-faint);}
+.railchip-name{white-space:nowrap;}
+.railchip-sep{width:16px; height:1px; background:var(--border); flex-shrink:0;}
+.reconcile-note{font-size:12px; color:#8a6d2f; background:#FBF4E4; border:1px solid #E8D9AE; border-radius:8px; padding:8px 12px; margin-bottom:16px;}
+.hero{background:#fff; border:1.5px solid var(--taupe-dark); border-radius:14px; padding:22px 26px; margin-bottom:6px; box-shadow:0 2px 12px rgba(0,0,0,.05);}
+.hero-blocked{border-color:var(--rust);}
+.hero-waiting{border-color:#c9a868;}
+.hero-done{border-color:var(--jade); background:#F8FAF8;}
+.hero-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-faint); margin-bottom:8px;}
+.hero-title{font-family:'Space Grotesk',sans-serif; font-size:22px; font-weight:600; line-height:1.3;}
+.hero-meta{font-size:13px; color:var(--ink-faint); margin-top:6px;}
+.hero-row{display:flex; gap:20px; margin-top:16px; flex-wrap:wrap;}
+.hero-row label{font-size:10.5px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-faint); margin-bottom:4px; display:block;}
+.hero-row select, .hero-row input{min-width:160px;}
+.readylist{display:flex; flex-direction:column; gap:6px; margin-bottom:6px;}
+.readyrow{background:#fff; border:1px solid var(--border); border-radius:8px; padding:9px 14px; font-size:13px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;}
+.readyrow:hover{border-color:var(--taupe-dark);}
+.readyrow-action{color:var(--taupe-dark); font-weight:600; font-size:12px;}
 </style>
 </head>
 <body>
@@ -4408,47 +4409,86 @@ const WORKFLOW_PHASE_DEFS = [
     'Construction Agreement Sent','Construction Contract Signed',
     'Final Scheduling Phase','Project Handoff / Production Setup']},
 ];
-// ============================================================
-// PRECONSTRUCTION COMMAND — new stage/workstream/gate model.
-// This runs alongside the legacy phase/milestone system above (WORKFLOW_PHASE_DEFS,
-// buildFreshPhases, p.phases) rather than replacing it outright. The legacy system is
-// still the source of truth for per-task assignment and days-in-phase tracking; this
-// layer adds the Stage Chart, Control Center, and Gate concepts from the master prompt
-// on top. A project's workflow model is created lazily (ensureWorkflowModel) the first
-// time it's viewed, mapped from its legacy currentPhase as a *starting point only* —
-// never treated as confirmed, hence reconciliationRequired staying true until someone
-// actually reviews it. ----
 const PRECON_STAGES = [
-  { n:1, name:'Launch & Alignment',
-    objective:'Convert the signed Preconstruction Agreement into an organized, scheduled, aligned project.',
-    workstreams:['Project Setup','Client Alignment','Preconstruction Planning'],
-    gateRequirements:['Project Brief complete','Project team assigned','Investment target documented','Property information documented','Discovery complete','Baseline schedule established'] },
-  { n:2, name:'Concept & Feasibility',
-    objective:'Prove the client\'s vision can work with the site, investment target, constraints, and project strategy.',
-    workstreams:['Site / Property','Concept Design','Financial Feasibility'],
-    gateRequirements:['Site strategy viable','Major constraints understood','Concept approved','Budget direction viable','Consultants identified'] },
-  { n:3, name:'Design Development',
-    objective:'Convert the approved concept into coordinated architectural information.',
-    workstreams:['Architecture & Engineering','Site & Exterior','Client Reviews','Selection Takeoffs'],
-    gateRequirements:['Architectural direction approved','Required internal review complete','Required client review complete','Major structural/site issues identified','Selection takeoffs complete'] },
-  { n:4, name:'Design & Selections',
-    objective:'Translate the client\'s Discovery information into a complete, cohesive, buildable design.',
-    workstreams:['Design Direction','Renderings','Selections'],
-    gateRequirements:['Design direction locked','Major selections established','Pricing-critical selections established','Renderings approved (if applicable)','Long-lead items identified'] },
-  { n:5, name:'Scope & Constructability',
-    objective:'Turn plans and design decisions into a precise definition of what MC&D is going to build.',
-    workstreams:['Area Definition','Trade Scopes','Assumptions & Clarifications','Constructability Review'],
-    gateRequirements:['Area Register complete','Required scopes ready','Critical assumptions resolved','Critical clarifications resolved','Constructability review complete'] },
-  { n:6, name:'Pricing & Contract',
-    objective:'Convert a bid-ready scope package into validated project economics and an executed Construction Agreement.',
-    workstreams:['Trade Pricing','Formal Estimate','Value Engineering','Contract'],
-    gateRequirements:['Reliable trade pricing basis','Estimate complete','Investment aligned','Client approves economics','Construction Agreement signed'] },
-  { n:7, name:'Construction Readiness',
-    objective:'Deliver a complete, coordinated project to Production — Production formally accepts it, not us.',
-    workstreams:['Design Ready','Selections Ready','Scope Ready','Financial Ready','Site Ready','Schedule Ready','Production Handoff'],
-    gateRequirements:['All readiness categories at Ready','Production walkthrough complete','PM accepts project'] },
+  { n:1, name:'Launch & Alignment', objective:'Convert the signed Preconstruction Agreement into an organized, scheduled, aligned project.' },
+  { n:2, name:'Concept & Feasibility', objective:'Prove the client\'s vision can work with the site, investment target, constraints, and project strategy.' },
+  { n:3, name:'Design Development', objective:'Convert the approved concept into coordinated architectural information.' },
+  { n:4, name:'Design & Selections', objective:'Translate the client\'s Discovery information into a complete, cohesive, buildable design.' },
+  { n:5, name:'Scope & Constructability', objective:'Turn plans and design decisions into a precise definition of what MC&D is going to build.' },
+  { n:6, name:'Pricing & Contract', objective:'Convert a bid-ready scope package into validated project economics and an executed Construction Agreement.' },
+  { n:7, name:'Construction Readiness', objective:'Deliver a complete, coordinated project to Production — Production formally accepts it, not us.' },
 ];
-// Deliberately coarse legacy→stage mapping, used only as a starting point (see note above).
+// ---- The Action Engine. This is what actually drives the process instead of a checklist:
+// each action lists what it depends on WITHIN its stage (dependsOn), so independent work can
+// run in parallel and the system — not the person — decides what's Ready vs Not Ready. A
+// stage auto-completes and hands off to the next the moment every one of its actions reaches
+// Complete or N/A; nobody has to remember to click "Advance." `linkModule`, when present, is
+// the actual tool the action gets done in (Selections, Scopes, Estimate, Proposals) — the
+// action is a pointer into that real work, not a duplicate manual toggle of it. `critical`
+// marks actions that block Construction Readiness if they slip. ----
+const STAGE_ACTIONS = {
+  1: [
+    { id:'setup', title:'Set up project & assign team', critical:true, dependsOn:[] },
+    { id:'discSent', title:'Send Design Discovery to client', dependsOn:['setup'] },
+    { id:'discBack', title:'Receive completed Design Discovery', dependsOn:['discSent'] },
+    { id:'baseline', title:'Establish baseline schedule', dependsOn:['setup'] },
+    { id:'siteFeas', title:'Initiate site feasibility', dependsOn:['setup'] },
+    { id:'brief', title:'Approve Project Brief', critical:true, dependsOn:['discBack','baseline','siteFeas'] },
+  ],
+  2: [
+    { id:'siteVisit', title:'Site visit — confirm constraints', dependsOn:[] },
+    { id:'concept', title:'Develop conceptual floor plan', dependsOn:[] },
+    { id:'budgetCheck', title:'Preliminary cost sanity check vs. investment target', dependsOn:['concept'] },
+    { id:'conceptApproved', title:'Client approves concept direction', critical:true, dependsOn:['siteVisit','concept','budgetCheck'] },
+  ],
+  3: [
+    { id:'archDev', title:'Architectural development', dependsOn:[] },
+    { id:'engineering', title:'Structural / site engineering coordination', dependsOn:[] },
+    { id:'selectionTakeoffs', title:'Identify selection takeoffs', dependsOn:['archDev'] },
+    { id:'internalReview', title:'Internal plan review', dependsOn:['archDev'], linkModule:'plans' },
+    { id:'clientReview', title:'Client plan review', dependsOn:['internalReview'], linkModule:'plans' },
+    { id:'ddApproved', title:'Design Development approved', critical:true, dependsOn:['clientReview','engineering','selectionTakeoffs'] },
+  ],
+  4: [
+    { id:'designDirection', title:'Lock design direction', dependsOn:[] },
+    { id:'renderings', title:'Renderings developed & approved', dependsOn:['designDirection'] },
+    { id:'majorSelections', title:'Major & pricing-critical selections complete', dependsOn:['designDirection'], linkModule:'selections' },
+    { id:'longLead', title:'Long-lead items identified', dependsOn:['majorSelections'] },
+    { id:'designLocked', title:'Design intent locked', critical:true, dependsOn:['renderings','majorSelections','longLead'] },
+  ],
+  5: [
+    { id:'areaRegister', title:'Area Register complete', dependsOn:[], linkModule:'scopes' },
+    { id:'tradeScopes', title:'Trade scopes built', dependsOn:['areaRegister'], linkModule:'scopes' },
+    { id:'assumptions', title:'Critical assumptions & clarifications resolved', dependsOn:['tradeScopes'], linkModule:'scopes' },
+    { id:'constructability', title:'Constructability review complete', dependsOn:['assumptions'] },
+    { id:'bidReady', title:'Bid-ready package approved', critical:true, dependsOn:['constructability'] },
+  ],
+  6: [
+    { id:'tradePricing', title:'Trade pricing received', dependsOn:[] },
+    { id:'estimate', title:'Formal estimate complete', dependsOn:['tradePricing'], linkModule:'estimate' },
+    { id:'valueEng', title:'Value engineering reconciled against investment target', dependsOn:['estimate'] },
+    { id:'clientApprovesEcon', title:'Client approves economics', dependsOn:['valueEng'], linkModule:'proposals' },
+    { id:'agreementSigned', title:'Construction Agreement signed', critical:true, dependsOn:['clientApprovesEcon'], linkModule:'proposals' },
+  ],
+  7: [
+    { id:'designReady', title:'Design ready — final plans, engineering, approvals', dependsOn:[] },
+    { id:'selectionsReady', title:'Selections ready — specs, finishes, long-lead confirmed', dependsOn:[] },
+    { id:'scopeReady', title:'Scope ready — final trade scopes reconciled to contract', dependsOn:[] },
+    { id:'financialReady', title:'Financial ready — budget, allowances, cost codes set', dependsOn:[] },
+    { id:'siteReady', title:'Site ready — permits, utilities, access', dependsOn:[] },
+    { id:'scheduleReady', title:'Schedule ready — construction baseline & trade sequence', dependsOn:[] },
+    { id:'pmAccept', title:'PM walkthrough & Production acceptance', critical:true, dependsOn:['designReady','selectionsReady','scopeReady','financialReady','siteReady','scheduleReady'] },
+  ],
+};
+const LINK_MODULE_LABELS = { selections:'Open Selections', scopes:'Open Scopes', estimate:'Open Estimate', proposals:'Open Proposals & Contracts', plans:'Open Plans & Design' };
+// Routes an action's linkModule to the actual tab/sub-nav that tool lives behind. Selections
+// and Scopes both live inside the embedded Scope of Work tool, under the 'scopes' CC tab.
+function openModuleLinkJS(linkModule){
+  if(linkModule === 'selections') return "openCCSubNav('scopes','selections')";
+  if(linkModule === 'scopes') return "openCCSubNav('scopes','builder')";
+  return `setCCTab('${linkModule}')`;
+}
+// Deliberately coarse legacy→stage mapping, used only as a migration starting point.
 const LEGACY_PHASE_TO_STAGE = {3:3, 4:3, 5:4, 6:4, 7:6, 8:6};
 function ensureWorkflowModel(p){
   if(p.workflow) return p.workflow;
@@ -4462,12 +4502,107 @@ function ensureWorkflowModel(p){
       n: s.n,
       status: s.n < currentStageN ? 'complete' : s.n === currentStageN ? 'current' : 'upcoming',
       baselineFinish: null, forecastFinish: null, actualFinish: null,
-      workstreamStatus: {}, gateChecked: {},
+      actions: {}, // actionId -> {status, owner, due, note}
     })),
     waitingOn: null,
     blocker: null,
   };
   return p.workflow;
+}
+// Returns the live status record for an action, creating it — and marking dependency-free
+// actions Ready on first touch — the first time this particular stage is looked at.
+function getActionState(stage, actionId){
+  if(!stage.actions[actionId]) stage.actions[actionId] = { status:'Not Ready', owner:null, due:null };
+  return stage.actions[actionId];
+}
+// The dependency engine: recomputes Ready/Not Ready for every action in the project's
+// current stage from its dependsOn graph. Nothing here is set by hand — an action becomes
+// Ready the instant everything it depends on is Complete or N/A, full stop. Also auto-
+// completes the stage and hands off to the next one when every action clears, so nobody has
+// to remember to click an "Advance" button.
+function recomputeStage(p){
+  const wf = ensureWorkflowModel(p);
+  const stage = wf.stages.find(s => s.n === wf.currentStageN);
+  const defs = STAGE_ACTIONS[wf.currentStageN] || [];
+  if(!stage || !defs.length) return;
+  defs.forEach(def => {
+    const a = getActionState(stage, def.id);
+    if(a.status === 'Not Ready' || a.status === 'Ready'){
+      const clear = def.dependsOn.every(depId => {
+        const d = stage.actions[depId];
+        return d && (d.status === 'Complete' || d.status === 'N/A');
+      });
+      a.status = clear ? 'Ready' : 'Not Ready';
+    }
+  });
+  const allDone = defs.every(def => {
+    const a = stage.actions[def.id];
+    return a && (a.status === 'Complete' || a.status === 'N/A');
+  });
+  if(allDone && stage.status !== 'complete'){
+    stage.status = 'complete';
+    stage.actualFinish = stage.actualFinish || new Date().toISOString().slice(0,10);
+    const next = wf.stages.find(s => s.n === wf.currentStageN + 1);
+    if(next){ next.status = 'current'; wf.currentStageN += 1; }
+    wf.reconciliationRequired = false;
+    recomputeStage(p); // in case the newly-entered stage also auto-clears (all no-dep actions)
+  }
+}
+// The single most important thing to work on right now. Priority: anything Blocked, then
+// In Progress, then Ready — critical actions first within each group, earliest-defined next.
+// Waiting-on-someone-else actions are deliberately excluded: there's nothing WE can do on
+// those right now, so surfacing one as "next required action" would be a lie.
+function getNextAction(p){
+  recomputeStage(p);
+  const wf = ensureWorkflowModel(p);
+  const stage = wf.stages.find(s => s.n === wf.currentStageN);
+  const defs = STAGE_ACTIONS[wf.currentStageN] || [];
+  const rank = { Blocked:0, 'In Progress':1, Ready:2 };
+  const live = defs
+    .map(def => ({ def, a: getActionState(stage, def.id) }))
+    .filter(x => rank[x.a.status] !== undefined);
+  if(!live.length) return null;
+  live.sort((x,y) => {
+    const rx = rank[x.a.status], ry = rank[y.a.status];
+    if(rx !== ry) return rx - ry;
+    if(!!x.def.critical !== !!y.def.critical) return x.def.critical ? -1 : 1;
+    return 0;
+  });
+  return live[0];
+}
+function getParallelReady(p, excludeId){
+  recomputeStage(p);
+  const wf = ensureWorkflowModel(p);
+  const stage = wf.stages.find(s => s.n === wf.currentStageN);
+  const defs = STAGE_ACTIONS[wf.currentStageN] || [];
+  return defs.filter(def => def.id !== excludeId && stage.actions[def.id] && stage.actions[def.id].status === 'Ready')
+    .map(def => ({ def, a: stage.actions[def.id] }));
+}
+function getWaitingActions(p){
+  recomputeStage(p);
+  const wf = ensureWorkflowModel(p);
+  const stage = wf.stages.find(s => s.n === wf.currentStageN);
+  const defs = STAGE_ACTIONS[wf.currentStageN] || [];
+  return defs.filter(def => stage.actions[def.id] && stage.actions[def.id].status === 'Waiting')
+    .map(def => ({ def, a: stage.actions[def.id] }));
+}
+function setActionStatus(projectId, actionId, status){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const wf = ensureWorkflowModel(p);
+  const stage = wf.stages.find(s => s.n === wf.currentStageN);
+  const a = getActionState(stage, actionId);
+  a.status = status;
+  if(status === 'Complete') a.completedAt = new Date().toISOString().slice(0,10);
+  recomputeStage(p);
+  saveAppState(); renderProjectDetail();
+}
+function setActionField(projectId, actionId, field, val){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const wf = ensureWorkflowModel(p);
+  const stage = wf.stages.find(s => s.n === wf.currentStageN);
+  const a = getActionState(stage, actionId);
+  a[field] = val || null;
+  saveAppState();
 }
 function buildFreshPhases(){
   return WORKFLOW_PHASE_DEFS.map(p => ({
@@ -4807,194 +4942,157 @@ function printScheduleTab(projectId){
 // ---- Stage Chart — the spine of the new Preconstruction Command view. Replaces the old
 // phase stepper on the Overview tab (see master prompt: "do not stack a new dashboard on
 // top of the old workflow"). Clicking a stage opens its workspace inline below. ----
-let CC_STAGE_OPEN = null;
-function toggleStageWorkspace(n){
-  CC_STAGE_OPEN = (CC_STAGE_OPEN === n) ? null : n;
+let CC_STAGE_OPEN = false; // whether the full stage action list is expanded (progressive disclosure)
+function toggleFullActionList(){
+  CC_STAGE_OPEN = !CC_STAGE_OPEN;
   renderProjectDetail();
-  if(CC_STAGE_OPEN) setTimeout(()=>{ const el=document.getElementById('stageWorkspaceHost'); if(el) el.scrollIntoView({behavior:'smooth', block:'start'}); }, 50);
 }
-function buildStageChartHTML(p){
+// ---- Compact stage rail — navigation and at-a-glance position, not the main event.
+// Deliberately small: this is where you are, not what you have to do. ----
+function buildStageRailHTML(p){
   const wf = ensureWorkflowModel(p);
-  const nodes = PRECON_STAGES.map(s => {
+  const chips = PRECON_STAGES.map(s => {
     const st = wf.stages.find(x=>x.n===s.n);
-    const cls = st.status==='complete' ? 'stagechip-complete' : st.status==='current' ? 'stagechip-current' : 'stagechip-upcoming';
-    const sub = st.status==='complete' ? '✓ Complete' : st.status==='current' ? (st.forecastFinish ? 'Forecast ' + fmtNoteDate(st.forecastFinish) : '● Current') : (st.baselineFinish ? fmtNoteDate(st.baselineFinish) : '');
-    return `<div class="stagechip ${cls}" onclick="toggleStageWorkspace(${s.n})">
-      <div class="stagechip-n">0${s.n}</div>
-      <div class="stagechip-name">${escapeHtmlLite(s.name)}</div>
-      ${sub ? `<div class="stagechip-sub">${sub}</div>` : ''}
-    </div><div class="stagechip-arrow">→</div>`;
-  }).join('');
-  const allDone = wf.stages.every(s=>s.status==='complete');
-  return `<div class="section-label-row"><div class="eyebrow">Preconstruction Stage Chart</div>${wf.reconciliationRequired ? '<span class="pill pill-gold">Workflow Reconciliation Required — review workstreams below</span>' : ''}</div>
-    <div class="stagechart-scroll"><div class="stagechart">${nodes}<div class="stagechip ${allDone?'stagechip-complete':'stagechip-upcoming'}"><div class="stagechip-name">Ready for Construction</div></div></div></div>`;
+    const cls = st.status==='complete' ? 'railchip-complete' : st.status==='current' ? 'railchip-current' : 'railchip-upcoming';
+    return `<div class="railchip ${cls}" title="${escapeHtmlLite(s.name)}"><span class="railchip-n">${s.n}</span>${st.status==='current' ? `<span class="railchip-name">${escapeHtmlLite(s.name)}</span>` : ''}</div>`;
+  }).join('<div class="railchip-sep"></div>');
+  return `<div class="stagerail">${chips}<div class="railchip-sep"></div><div class="railchip ${wf.stages.every(s=>s.status==='complete')?'railchip-complete':'railchip-upcoming'}" title="Ready for Construction"><span class="railchip-n">✓</span></div></div>
+    ${wf.reconciliationRequired ? '<div class="reconcile-note">⚠ Migrated from the old phase tracker — review the action below and adjust status if it doesn\'t match reality.</div>' : ''}`;
 }
-function buildProjectControlCenterHTML(p){
+// ---- The hero: the one thing to actually do right now. This is computed, not chosen —
+// see getNextAction(). Nothing else on this tab competes with it for attention. ----
+function buildNextActionHeroHTML(p){
   const wf = ensureWorkflowModel(p);
-  const task = getActiveTaskForProject(p);
   const stageDef = PRECON_STAGES.find(s=>s.n===wf.currentStageN);
-  const nextActionHTML = task
-    ? `<div class="ccpanel-title">${escapeHtmlLite(task.milestone.name)}</div>
-       <div class="ccpanel-row"><span>Owner</span><b>${escapeHtmlLite(task.milestone.assignee||'Unassigned')}</b></div>
-       <div class="ccpanel-row"><span>Stage</span><b>${escapeHtmlLite(stageDef ? stageDef.name : '—')}</b></div>`
-    : `<div class="ccpanel-empty">Nothing active right now in ${escapeHtmlLite(stageDef ? stageDef.name : 'this stage')}.</div>`;
-  const w = wf.waitingOn;
-  const waitingHTML = w
-    ? `<div class="ccpanel-title">${escapeHtmlLite(w.party)}</div>
-       <div class="ccpanel-row"><span>Item</span><b>${escapeHtmlLite(w.item)}</b></div>
-       <div class="ccpanel-row"><span>Expected</span><b>${escapeHtmlLite(w.expectedDate||'—')}</b></div>
-       <div class="row" style="margin-top:8px;"><button class="btn btn-outline btn-sm" onclick="clearWaitingOn('${p.id}')">Clear</button></div>`
-    : `<div class="ccpanel-empty">Nothing on record.</div><button class="btn btn-outline btn-sm" style="margin-top:6px;" onclick="openLogWaitingOn('${p.id}')">+ Log Request</button>`;
-  const b = wf.blocker;
-  const blockerHTML = b
-    ? `<div class="ccpanel-title" style="color:var(--rust);">${escapeHtmlLite(b.title)}</div>
-       <div class="ccpanel-row"><span>Blocks</span><b>${escapeHtmlLite((b.blocks||[]).join(', ')||'—')}</b></div>
-       <div class="row" style="margin-top:8px;"><button class="btn btn-outline btn-sm" onclick="clearBlocker('${p.id}')">Resolve</button></div>`
-    : `<div class="ccpanel-empty">No blockers logged.</div><button class="btn btn-outline btn-sm" style="margin-top:6px;" onclick="openLogBlocker('${p.id}')">+ Log Blocker</button>`;
-  const curStage = wf.stages.find(s=>s.n===wf.currentStageN);
-  let scheduleHTML = `<div class="ccpanel-empty">Baseline dates not set yet.</div>`;
-  if(curStage && curStage.baselineFinish && curStage.forecastFinish){
-    const variance = Math.round((new Date(curStage.forecastFinish+'T00:00:00') - new Date(curStage.baselineFinish+'T00:00:00'))/86400000);
-    scheduleHTML = `<div class="ccpanel-row"><span>Baseline Finish</span><b>${fmtNoteDate(curStage.baselineFinish)}</b></div>
-       <div class="ccpanel-row"><span>Forecast Finish</span><b>${fmtNoteDate(curStage.forecastFinish)}</b></div>
-       <div class="ccpanel-row"><span>Variance</span><b style="${variance>0?'color:var(--rust);':''}">${variance>0?'+':''}${variance} days</b></div>`;
+  const next = getNextAction(p);
+  if(!next){
+    const waiting = getWaitingActions(p);
+    if(waiting.length){
+      const w = waiting[0];
+      return `<div class="hero hero-waiting">
+        <div class="hero-label">Waiting — nothing for us to do right now</div>
+        <div class="hero-title">${escapeHtmlLite(w.def.title)}</div>
+        <div class="hero-meta">${w.a.waitingParty ? `Waiting on <b>${escapeHtmlLite(w.a.waitingParty)}</b>` : ''}${w.a.waitingExpected ? ` · expected ${escapeHtmlLite(w.a.waitingExpected)}` : ''}</div>
+        <div class="row" style="margin-top:12px; gap:8px;">
+          <button class="btn btn-outline btn-sm" onclick="setActionStatus('${p.id}','${w.def.id}','Ready')">They responded — mark Ready</button>
+        </div>
+      </div>`;
+    }
+    return `<div class="hero hero-done">
+      <div class="hero-label">${escapeHtmlLite(stageDef.name)} — nothing outstanding</div>
+      <div class="hero-title">This stage will hand off automatically once every action clears.</div>
+    </div>`;
   }
-  return `<div class="cc-grid">
-    <div class="ccpanel"><div class="ccpanel-head">Next Required Action</div>${nextActionHTML}</div>
-    <div class="ccpanel"><div class="ccpanel-head">Waiting On</div>${waitingHTML}</div>
-    <div class="ccpanel"><div class="ccpanel-head">Blocker</div>${blockerHTML}</div>
-    <div class="ccpanel"><div class="ccpanel-head">Schedule Health</div>${scheduleHTML}</div>
+  const { def, a } = next;
+  const isBlocked = a.status === 'Blocked';
+  const isInProgress = a.status === 'In Progress';
+  return `<div class="hero ${isBlocked ? 'hero-blocked' : ''}">
+    <div class="hero-label">${escapeHtmlLite(stageDef.name)} — Next Required Action${def.critical ? ' <span class=\"pill pill-rust\" style=\"margin-left:6px;\">Critical Path</span>' : ''}</div>
+    <div class="hero-title">${escapeHtmlLite(def.title)}</div>
+    ${isBlocked && a.blockerNote ? `<div class="hero-meta" style="color:var(--rust);">Blocked: ${escapeHtmlLite(a.blockerNote)}</div>` : ''}
+    <div class="hero-row">
+      <div><label>Owner</label><select onchange="setActionField('${p.id}','${def.id}','owner',this.value)">${teamMemberOptions(a.owner)}</select></div>
+      <div><label>Due</label><input type="date" value="${a.due||''}" onchange="setActionField('${p.id}','${def.id}','due',this.value)"></div>
+    </div>
+    <div class="row" style="margin-top:14px; gap:8px; flex-wrap:wrap;">
+      ${def.linkModule ? `<button class="btn btn-outline" onclick="${openModuleLinkJS(def.linkModule)}">${escapeHtmlLite(LINK_MODULE_LABELS[def.linkModule])} →</button>` : ''}
+      ${!isInProgress && !isBlocked ? `<button class="btn btn-outline" onclick="setActionStatus('${p.id}','${def.id}','In Progress')">Start</button>` : ''}
+      <button class="btn btn-dark" onclick="setActionStatus('${p.id}','${def.id}','Complete')">Mark Complete</button>
+      ${!isBlocked ? `<button class="btn btn-outline" onclick="openMarkWaiting('${p.id}','${def.id}')">Waiting on Someone</button>
+      <button class="btn btn-outline" style="color:var(--rust); border-color:var(--rust);" onclick="openMarkBlocked('${p.id}','${def.id}')">Flag as Blocked</button>` : `<button class="btn btn-outline" onclick="setActionStatus('${p.id}','${def.id}','Ready')">Resolved — Clear Blocker</button>`}
+    </div>
   </div>`;
 }
-function buildStageWorkspaceHTML(p, n){
-  const stageDef = PRECON_STAGES.find(s=>s.n===n);
+// ---- What else could happen in parallel right now — collapsed to a thin list, since it's
+// secondary to the one action above, but real dependency-cleared work shouldn't be hidden. ----
+function buildParallelReadyHTML(p, excludeId){
+  const ready = getParallelReady(p, excludeId);
+  if(!ready.length) return '';
+  return `<div class="section-label-row" style="margin-top:18px;"><div class="eyebrow">Also Ready Right Now</div></div>
+    <div class="readylist">${ready.map(({def}) => `<div class="readyrow" onclick="setActionStatus('${p.id}','${def.id}','In Progress')">
+      <span>${escapeHtmlLite(def.title)}${def.critical ? ' <span class=\"pill pill-rust\" style=\"font-size:9px;\">Critical</span>' : ''}</span>
+      <span class="readyrow-action">Start →</span>
+    </div>`).join('')}</div>`;
+}
+function buildWaitingBlockedSummaryHTML(p){
   const wf = ensureWorkflowModel(p);
-  const st = wf.stages.find(s=>s.n===n);
-  if(!stageDef || !st) return '';
-  const wsCards = stageDef.workstreams.map(ws => {
-    const status = st.workstreamStatus[ws] || 'Not Started';
-    return `<div class="wscard">
-      <div class="wscard-name">${escapeHtmlLite(ws)}</div>
-      <select class="wscard-status" onchange="setWorkstreamStatus('${p.id}',${n},'${ws.replace(/'/g,"\\'")}' ,this.value)">
-        ${['Not Started','In Progress','Waiting on Client','Needs Attention','Complete'].map(o=>`<option ${o===status?'selected':''}>${o}</option>`).join('')}
-      </select>
+  const stage = wf.stages.find(s=>s.n===wf.currentStageN);
+  const defs = STAGE_ACTIONS[wf.currentStageN] || [];
+  const blocked = defs.filter(d => stage.actions[d.id] && stage.actions[d.id].status==='Blocked');
+  const waiting = defs.filter(d => stage.actions[d.id] && stage.actions[d.id].status==='Waiting');
+  if(!blocked.length && !waiting.length) return '';
+  return `<div class="section-label-row" style="margin-top:18px;"><div class="eyebrow">Everything Else Outstanding</div></div>
+    <div class="readylist">
+      ${blocked.map(def => `<div class="readyrow" style="border-left:3px solid var(--rust);"><span>🔴 ${escapeHtmlLite(def.title)}${stage.actions[def.id].blockerNote ? ' — ' + escapeHtmlLite(stage.actions[def.id].blockerNote) : ''}</span></div>`).join('')}
+      ${waiting.map(def => `<div class="readyrow" style="border-left:3px solid #c9a868;"><span>🟡 ${escapeHtmlLite(def.title)}${stage.actions[def.id].waitingParty ? ' — waiting on ' + escapeHtmlLite(stage.actions[def.id].waitingParty) : ''}</span></div>`).join('')}
     </div>`;
-  }).join('');
-  const gateRows = stageDef.gateRequirements.map((req,i) => {
-    const checked = !!(st.gateChecked && st.gateChecked[i]);
-    return `<label class="gaterow"><input type="checkbox" ${checked?'checked':''} onchange="toggleGateRequirement('${p.id}',${n},${i})"> ${escapeHtmlLite(req)}</label>`;
-  }).join('');
-  const incompleteCount = stageDef.gateRequirements.filter((_,i)=>!(st.gateChecked && st.gateChecked[i])).length;
-  const nextName = (PRECON_STAGES.find(s=>s.n===n+1) || {}).name || 'Ready for Construction';
-  return `<div class="panel" id="stageWorkspaceHost" style="margin:16px 0 22px; border-color:var(--taupe-dark);"><div class="panel-body" style="padding:20px 24px;">
-      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
-        <div><div class="eyebrow">STAGE 0${n} — ${escapeHtmlLite(stageDef.name.toUpperCase())}</div>
-        <div class="sub" style="margin-top:4px;">${escapeHtmlLite(stageDef.objective)}</div></div>
-        <span style="cursor:pointer; color:var(--ink-faint); font-size:20px;" onclick="toggleStageWorkspace(${n})">&times;</span>
-      </div>
-      <div class="section-label-row" style="margin-top:16px;"><div class="eyebrow">Workstreams</div></div>
-      <div class="wsgrid">${wsCards}</div>
-      <div class="section-label-row" style="margin-top:18px;"><div class="eyebrow">Stage Gate</div><span class="pill ${incompleteCount?'pill-gold':'pill-jade'}">${incompleteCount ? incompleteCount+' incomplete' : 'Ready to advance'}</span></div>
-      <div class="gatelist">${gateRows}</div>
-      <div class="row" style="margin-top:16px; justify-content:flex-end;">
-        <button class="btn ${incompleteCount?'btn-outline':'btn-dark'}" onclick="advanceStage('${p.id}',${n})">${incompleteCount ? `Override &amp; Advance (${incompleteCount} incomplete) →` : `Advance to ${escapeHtmlLite(nextName)} →`}</button>
-      </div>
-  </div></div>`;
 }
-function setWorkstreamStatus(projectId, stageN, wsName, status){
-  const p = PROJECTS[projectId]; if(!p) return;
+// ---- Progressive disclosure, level 3: the full action list for this stage, collapsed by
+// default. This is for when someone genuinely needs to see everything at once — it is not
+// the default view, on purpose. ----
+function buildFullActionListHTML(p){
   const wf = ensureWorkflowModel(p);
-  const st = wf.stages.find(s=>s.n===stageN); if(!st) return;
-  st.workstreamStatus[wsName] = status;
-  saveAppState(); renderProjectDetail();
+  const stageDef = PRECON_STAGES.find(s=>s.n===wf.currentStageN);
+  const stage = wf.stages.find(s=>s.n===wf.currentStageN);
+  const defs = STAGE_ACTIONS[wf.currentStageN] || [];
+  const statusClass = { 'Not Ready':'pill-slate', 'Ready':'pill-ink', 'In Progress':'pill-gold', 'Waiting':'pill-gold', 'Blocked':'pill-rust', 'Complete':'pill-jade', 'N/A':'pill-slate' };
+  return `<div class="section-label-row" style="margin-top:20px; cursor:pointer;" onclick="toggleFullActionList()"><div class="eyebrow">${CC_STAGE_OPEN ? '▾' : '▸'} Full Action List — ${escapeHtmlLite(stageDef.name)}</div></div>
+    ${CC_STAGE_OPEN ? `<div class="hint" style="margin-bottom:10px;">${escapeHtmlLite(stageDef.objective)}</div>
+    <table><thead><tr><th>Action</th><th>Depends On</th><th>Status</th><th>Owner</th></tr></thead><tbody>
+      ${defs.map(def => {
+        const a = getActionState(stage, def.id);
+        const depNames = def.dependsOn.map(id => (defs.find(d=>d.id===id)||{}).title).filter(Boolean);
+        return `<tr>
+          <td class="name-cell">${escapeHtmlLite(def.title)}${def.critical ? ' <span class="pill pill-rust" style="font-size:9px;">Critical</span>' : ''}</td>
+          <td style="font-size:11.5px; color:var(--ink-faint);">${depNames.length ? escapeHtmlLite(depNames.join(', ')) : '—'}</td>
+          <td><span class="pill ${statusClass[a.status]||'pill-ink'}">${a.status}</span></td>
+          <td>${escapeHtmlLite(a.owner || '—')}</td>
+        </tr>`;
+      }).join('')}
+    </tbody></table>` : ''}`;
 }
-function toggleGateRequirement(projectId, stageN, reqIdx){
-  const p = PROJECTS[projectId]; if(!p) return;
-  const wf = ensureWorkflowModel(p);
-  const st = wf.stages.find(s=>s.n===stageN); if(!st) return;
-  st.gateChecked = st.gateChecked || {};
-  st.gateChecked[reqIdx] = !st.gateChecked[reqIdx];
-  saveAppState(); renderProjectDetail();
-}
-function advanceStage(projectId, stageN){
-  const p = PROJECTS[projectId]; if(!p) return;
-  const wf = ensureWorkflowModel(p);
-  const stageDef = PRECON_STAGES.find(s=>s.n===stageN);
-  const st = wf.stages.find(s=>s.n===stageN);
-  const allChecked = stageDef.gateRequirements.every((_,i) => st.gateChecked && st.gateChecked[i]);
-  if(!allChecked && !confirm('Not all gate requirements are checked off. Override and advance anyway? This will be logged permanently.')) return;
-  st.status = 'complete';
-  st.actualFinish = st.actualFinish || new Date().toISOString().slice(0,10);
-  st.advancedBy = CURRENT_LOGGED_IN_USER;
-  st.advancedAt = new Date().toISOString();
-  if(!allChecked){ st.overridden = true; st.overrideBy = CURRENT_LOGGED_IN_USER; st.overrideAt = new Date().toISOString(); }
-  const next = wf.stages.find(s=>s.n===stageN+1);
-  if(next){ next.status = 'current'; wf.currentStageN = stageN+1; }
-  wf.reconciliationRequired = false;
-  CC_STAGE_OPEN = null;
-  saveAppState(); renderProjectDetail();
-}
-function openLogWaitingOn(projectId){
+function openMarkWaiting(projectId, actionId){
   openQuickOverlay(`
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-      <h3 style="font-family:'Space Grotesk',sans-serif; font-size:18px;">Log What We're Waiting On</h3>
+      <h3 style="font-family:'Space Grotesk',sans-serif; font-size:18px;">Waiting On Someone</h3>
       <span style="cursor:pointer; color:var(--ink-faint); font-size:20px;" onclick="closeQuickOverlay()">&times;</span>
     </div>
     <label class="est-lbl">Waiting On</label>
     <select id="woParty"><option>Client</option><option>Architect</option><option>Designer</option><option>Engineer</option><option>Surveyor</option><option>Municipality</option><option>Lender</option><option>Trade</option><option>Vendor</option><option>Internal MC&amp;D</option></select>
-    <label class="est-lbl" style="margin-top:12px;">What are we waiting on?</label>
-    <input id="woItem" placeholder="e.g. Revised stair detail">
     <label class="est-lbl" style="margin-top:12px;">Expected Date</label>
     <input id="woExpected" type="date">
     <div class="row" style="margin-top:18px; justify-content:flex-end; gap:8px;">
       <button class="btn btn-outline" onclick="closeQuickOverlay()">Cancel</button>
-      <button class="btn btn-dark" onclick="submitLogWaitingOn('${projectId}')">Save</button>
+      <button class="btn btn-dark" onclick="submitMarkWaiting('${projectId}','${actionId}')">Save</button>
     </div>
   `);
 }
-function submitLogWaitingOn(projectId){
-  const p = PROJECTS[projectId]; if(!p) return;
-  const wf = ensureWorkflowModel(p);
-  const item = document.getElementById('woItem').value.trim();
-  if(!item){ alert("Enter what we're waiting on."); return; }
-  wf.waitingOn = { party: document.getElementById('woParty').value, item, requestedDate: new Date().toISOString().slice(0,10), expectedDate: document.getElementById('woExpected').value || null };
+function submitMarkWaiting(projectId, actionId){
+  setActionField(projectId, actionId, 'waitingParty', document.getElementById('woParty').value);
+  setActionField(projectId, actionId, 'waitingExpected', document.getElementById('woExpected').value);
   closeQuickOverlay();
-  saveAppState(); renderProjectDetail();
+  setActionStatus(projectId, actionId, 'Waiting');
 }
-function clearWaitingOn(projectId){
-  const p = PROJECTS[projectId]; if(!p) return;
-  ensureWorkflowModel(p).waitingOn = null;
-  saveAppState(); renderProjectDetail();
-}
-function openLogBlocker(projectId){
+function openMarkBlocked(projectId, actionId){
   openQuickOverlay(`
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-      <h3 style="font-family:'Space Grotesk',sans-serif; font-size:18px;">Log a Blocker</h3>
+      <h3 style="font-family:'Space Grotesk',sans-serif; font-size:18px;">Flag as Blocked</h3>
       <span style="cursor:pointer; color:var(--ink-faint); font-size:20px;" onclick="closeQuickOverlay()">&times;</span>
     </div>
-    <label class="est-lbl">Blocker</label>
-    <input id="bkTitle" placeholder="e.g. Fireplace material not confirmed">
-    <label class="est-lbl" style="margin-top:12px;">What does this block? (comma-separated)</label>
-    <input id="bkBlocks" placeholder="e.g. Masonry Scope, Rendering Approval">
+    <label class="est-lbl">What's blocking this?</label>
+    <input id="bkNote" placeholder="e.g. Fireplace material not confirmed">
     <div class="row" style="margin-top:18px; justify-content:flex-end; gap:8px;">
       <button class="btn btn-outline" onclick="closeQuickOverlay()">Cancel</button>
-      <button class="btn btn-dark" onclick="submitLogBlocker('${projectId}')">Save</button>
+      <button class="btn btn-dark" onclick="submitMarkBlocked('${projectId}','${actionId}')">Save</button>
     </div>
   `);
 }
-function submitLogBlocker(projectId){
-  const p = PROJECTS[projectId]; if(!p) return;
-  const wf = ensureWorkflowModel(p);
-  const title = document.getElementById('bkTitle').value.trim();
-  if(!title){ alert('Enter the blocker.'); return; }
-  wf.blocker = { title, blocks: document.getElementById('bkBlocks').value.split(',').map(s=>s.trim()).filter(Boolean) };
+function submitMarkBlocked(projectId, actionId){
+  const note = document.getElementById('bkNote').value.trim();
+  if(!note){ alert('Enter what\'s blocking this.'); return; }
+  setActionField(projectId, actionId, 'blockerNote', note);
   closeQuickOverlay();
-  saveAppState(); renderProjectDetail();
-}
-function clearBlocker(projectId){
-  const p = PROJECTS[projectId]; if(!p) return;
-  ensureWorkflowModel(p).blocker = null;
-  saveAppState(); renderProjectDetail();
+  setActionStatus(projectId, actionId, 'Blocked');
 }
 function buildPhaseStepperHTML(project){
   if(project.currentPhase === null){
@@ -6207,19 +6305,15 @@ function buildActionBannerHTML(p){
     const dpc = daysInPreconstruction(p);
     const dep = daysInEntirePipeline(p);
     const curPhaseDef = WORKFLOW_PHASE_DEFS.find(pd => pd.n === p.currentPhase);
+    const nextForOverview = getNextAction(p);
     tabBody = `
-    ${buildStageChartHTML(p)}
-    ${buildProjectControlCenterHTML(p)}
-    ${CC_STAGE_OPEN !== null ? buildStageWorkspaceHTML(p, CC_STAGE_OPEN) : ''}
-    <div class="section-label-row" style="margin-top:22px;"><div class="eyebrow">Review &amp; Send Log</div><span class="pill pill-slate" style="cursor:pointer;" onclick="setCCTab('scopes'); setTimeout(()=>openCCSubNav('scopes','review'), 200);">Open in Scopes →</span></div>
+    ${buildStageRailHTML(p)}
+    ${buildNextActionHeroHTML(p)}
+    ${buildParallelReadyHTML(p, nextForOverview ? nextForOverview.def.id : null)}
+    ${buildWaitingBlockedSummaryHTML(p)}
+    ${buildFullActionListHTML(p)}
+    <div class="section-label-row" style="margin-top:24px;"><div class="eyebrow">Review &amp; Send Log</div><span class="pill pill-slate" style="cursor:pointer;" onclick="openCCSubNav('scopes','review')">Open in Scopes →</span></div>
     <div class="panel" style="margin-bottom:20px;"><div class="panel-body" style="padding:6px 20px;" id="reviewSendLogDashboard"><div class="empty-row">Loading…</div></div></div>
-    <div class="section-label-row" style="margin-top:4px;"><div class="eyebrow">Legacy Phase Tracker</div><span class="pill pill-slate">Retained for task assignment below — being folded into the Stage Chart above</span></div>
-    <div class="sub" style="margin:2px 0 16px;">${p.currentPhase !== null ? `Currently in Phase ${p.currentPhase} · ${curPhaseDef ? curPhaseDef.name : ''}` : 'All phases complete'}</div>
-    <div class="stat-grid" style="grid-template-columns:repeat(3,1fr); margin-bottom:22px;">
-      <div class="stat-card"><div class="num">${dip !== null ? dip : '—'}</div><div class="lbl">Days in This Phase</div></div>
-      <div class="stat-card"><div class="num">${dpc !== null ? dpc : '—'}</div><div class="lbl">Days in Preconstruction</div></div>
-      <div class="stat-card"><div class="num">${dep !== null ? dep : '—'}</div><div class="lbl">Days in Entire Pipeline</div></div>
-    </div>
     ${buildKpiLogHTML(p)}
     ${buildClientLogPanelHTML(p)}
     ${srcOpp && srcEst ? buildCarriedFromSalesHTML(srcOpp, srcEst, p.id, p.client) : `
@@ -6236,10 +6330,7 @@ function buildActionBannerHTML(p){
           ${buildProjectNextStepsPanelHTML(p)}
         </div>
       </div>
-    </div>`}
-    <div class="section-label-row"><div class="eyebrow">Full Step-by-Step — Every Phase, In Order</div></div>
-    <div class="hint" style="margin-bottom:14px;">Scroll to see what's done, what's active now, and exactly what's coming next — not just the current phase.</div>
-    ${buildFullStepListHTML(p)}`;
+    </div>`}`;
   } else if(CC_TAB === 'schedule'){
     tabBody = buildScheduleTabHTML(p);
   } else if(CC_TAB === 'scopes'){
