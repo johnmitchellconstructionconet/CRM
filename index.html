@@ -5061,7 +5061,7 @@ function setBaseline(projectId){
   p.baselineSetDate = new Date().toISOString().slice(0,10);
   renderProjectDetail();
 }
-const GANTT_LEFT_COL = 210, GANTT_GAP = 12, GANTT_RIGHT_COL = 170;
+const GANTT_LEFT_COL = 210, GANTT_GAP = 12, GANTT_RIGHT_COL = 170, GANTT_PX_PER_DAY = 28;
 function buildMonthGridHTML(overallStart, overallEnd){
   if(!overallStart || !overallEnd) return { axis: '', gridlines: '' };
   const start = new Date(overallStart+'T00:00:00');
@@ -5077,26 +5077,25 @@ function buildMonthGridHTML(overallStart, overallEnd){
     const offsetPct = Math.max(0, (m - start) / 86400000 / totalDays * 100);
     return `<span style="position:absolute; left:${offsetPct}%; top:0; font-size:10px; font-weight:700; letter-spacing:0.02em; text-transform:uppercase; color:var(--ink-faint); font-family:'Montserrat',sans-serif;">${m.toLocaleDateString(undefined,{month:'short',year:'2-digit'})}</span>`;
   }).join('');
-  // Day-level ticks — spaced by week if the span is long enough that daily ticks would just
-  // overlap into an unreadable smear, so the axis stays a real reference at any zoom level
-  // instead of only ever telling you the month.
-  const tickEveryDays = totalDays > 220 ? 14 : totalDays > 100 ? 7 : totalDays > 45 ? 3 : 1;
+  // Every individual day, by design — this only stays legible because the caller now gives
+  // the timeline a real fixed width (GANTT_PX_PER_DAY per day) inside a horizontally
+  // scrolling container, instead of squeezing the whole span into a fixed-width box.
   const dayTicks = [];
   let dcursor = new Date(start);
   while(dcursor <= end){
     dayTicks.push(new Date(dcursor));
-    dcursor = new Date(dcursor); dcursor.setDate(dcursor.getDate() + tickEveryDays);
+    dcursor = new Date(dcursor); dcursor.setDate(dcursor.getDate() + 1);
   }
   const dayAxis = dayTicks.map(d => {
     const offsetPct = Math.max(0, (d - start) / 86400000 / totalDays * 100);
-    return `<span style="position:absolute; left:${offsetPct}%; top:15px; font-size:9px; color:var(--ink-faint); opacity:0.75; font-family:'Montserrat',sans-serif; white-space:nowrap;">${d.toLocaleDateString(undefined,{month:'numeric',day:'numeric'})}</span>`;
+    const isMonthStart = d.getDate() === 1;
+    return `<span style="position:absolute; left:${offsetPct}%; top:15px; font-size:9.5px; color:var(--ink-faint); ${isMonthStart?'font-weight:700; color:var(--ink);':''} font-family:'Montserrat',sans-serif; white-space:nowrap; transform:translateX(-1px);">${d.getDate()}</span>`;
   }).join('');
-  const gridlines = months.map(m => {
-    const offsetPct = Math.max(0, (m - start) / 86400000 / totalDays * 100);
-    return `<div style="position:absolute; left:${offsetPct}%; top:0; bottom:0; width:1px; background:var(--border-soft);"></div>`;
-  }).join('') + dayTicks.map(d => {
+  const gridlines = dayTicks.map(d => {
     const offsetPct = Math.max(0, (d - start) / 86400000 / totalDays * 100);
-    return `<div style="position:absolute; left:${offsetPct}%; top:0; bottom:0; width:1px; background:var(--border-soft); opacity:0.35;"></div>`;
+    const isMonthStart = d.getDate() === 1;
+    const isWeekStart = d.getDay() === 1;
+    return `<div style="position:absolute; left:${offsetPct}%; top:0; bottom:0; width:1px; background:var(--border-soft); opacity:${isMonthStart ? 1 : isWeekStart ? 0.6 : 0.25};"></div>`;
   }).join('');
   const today = new Date(TODAY);
   let todayLine = '';
@@ -5106,7 +5105,7 @@ function buildMonthGridHTML(overallStart, overallEnd){
   }
   return { axis: axis + dayAxis, gridlines: gridlines + todayLine };
 }
-function buildGanttRowHTML(phaseDef, baselineRow, actualRow, overallStart, spanDays, progressPct){
+function buildGanttRowHTML(phaseDef, baselineRow, actualRow, overallStart, spanDays, progressPct, timelineWidthPx){
   const track = (row, color, height, opacity) => {
     if(row && row.start && row.end && overallStart){
       const offsetPct = ((new Date(row.start) - new Date(overallStart)) / 86400000) / spanDays * 100;
@@ -5125,11 +5124,11 @@ function buildGanttRowHTML(phaseDef, baselineRow, actualRow, overallStart, spanD
   }
   const hasAny = (baselineRow && baselineRow.start) || (actualRow && actualRow.start);
   return `<div style="display:flex; align-items:center; gap:${GANTT_GAP}px; padding:10px 0; border-bottom:1px solid var(--border-soft);">
-    <div style="width:${GANTT_LEFT_COL}px; flex-shrink:0; font-size:12.5px; font-weight:600;">Phase ${phaseDef.n} \u00b7 ${phaseDef.name}</div>
-    <div style="position:relative; flex:1; height:32px;">
-      ${hasAny ? (baselineTrackObj ? baselineTrackObj.html : '') + (actualTrackObj ? actualTrackObj.html : '') + progressFill : `<div style="display:flex; align-items:center; height:100%; padding-left:8px; font-size:10.5px; color:var(--ink-faint); font-style:italic; position:relative; z-index:1; background:var(--paper);">Dates TBD</div>`}
+    <div style="width:${GANTT_LEFT_COL}px; flex-shrink:0; font-size:12.5px; font-weight:600; position:sticky; left:0; background:var(--paper); z-index:4; padding-right:8px;">Phase ${phaseDef.n} \u00b7 ${phaseDef.name}</div>
+    <div style="position:relative; width:${timelineWidthPx}px; flex-shrink:0; height:32px;">
+      ${hasAny ? (baselineTrackObj ? baselineTrackObj.html : '') + (actualTrackObj ? actualTrackObj.html : '') + progressFill : `<div style="display:flex; align-items:center; height:100%; padding-left:8px; font-size:10.5px; color:var(--ink-faint); font-style:italic; position:relative; z-index:1;">Dates TBD</div>`}
     </div>
-    <div style="width:${GANTT_RIGHT_COL}px; flex-shrink:0; font-size:10.5px; color:var(--ink-faint); text-align:right;">${actualRow && actualRow.start && actualRow.end ? (actualRow.start===actualRow.end ? actualRow.start : actualRow.start+' \u2192 '+actualRow.end) : ''}</div>
+    <div style="width:${GANTT_RIGHT_COL}px; flex-shrink:0; font-size:10.5px; color:var(--ink-faint); text-align:right; position:sticky; right:0; background:var(--paper); z-index:4; padding-left:8px;">${actualRow && actualRow.start && actualRow.end ? (actualRow.start===actualRow.end ? actualRow.start : actualRow.start+' \u2192 '+actualRow.end) : ''}</div>
   </div>`;
 }
 function computeProcessGanttRows(p){
@@ -5167,9 +5166,10 @@ function buildScheduleTabHTML(p){
   const overallStart = known.length ? known.reduce((a,b) => a.start < b.start ? a : b).start : null;
   const overallEnd = known.length ? known.reduce((a,b) => a.end > b.end ? a : b).end : null;
   const spanDays = (overallStart && overallEnd) ? Math.max(1, (new Date(overallEnd) - new Date(overallStart)) / 86400000) : 1;
+  const timelineWidthPx = Math.max(600, Math.ceil(spanDays) * GANTT_PX_PER_DAY);
   const grid = buildMonthGridHTML(overallStart, overallEnd);
 
-  const rows = ganttRows.map(r => buildGanttRowHTML({n:r.n, name:r.name}, r.baselineRow, r.actualRow, overallStart, spanDays, r.pct)).join('');
+  const rows = ganttRows.map(r => buildGanttRowHTML({n:r.n, name:r.name}, r.baselineRow, r.actualRow, overallStart, spanDays, r.pct, timelineWidthPx)).join('');
 
   return `
     <div class="section-label-row"><div class="eyebrow">Preconstruction Schedule</div>
@@ -5178,16 +5178,20 @@ function buildScheduleTabHTML(p){
         <span class="pill pill-slate" style="cursor:pointer;" onclick="printScheduleTab('${p.id}')">🖨 Print</span>
       </div>
     </div>
-    <div class="hint" style="margin-bottom:14px;">This is the real schedule — driven directly by the same process every project runs through on the Overview tab, not a separate tracker. The <b>Baseline</b> (thin gray bar) is the original plan, locked in once and never silently changed. The <b>Actual</b> bar (thick, colored) reflects what's really happening — real completion dates once a phase is done, current forecast for what's ahead, automatically pushed out whenever a step finishes late. The darker fill inside each Actual bar shows real progress — how many of that phase's steps are actually checked off.</div>
+    <div class="hint" style="margin-bottom:14px;">This is the real schedule — driven directly by the same process every project runs through on the Overview tab, not a separate tracker. The <b>Baseline</b> (thin gray bar) is the original plan, locked in once and never silently changed. The <b>Actual</b> bar (thick, colored) reflects what's really happening — real completion dates once a phase is done, current forecast for what's ahead, automatically pushed out whenever a step finishes late. The darker fill inside each Actual bar shows real progress — how many of that phase's steps are actually checked off. Scroll sideways to see every individual day.</div>
     <div class="row" style="gap:16px; margin-bottom:12px; font-size:11px; color:var(--ink-faint);">
       <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:14px; height:6px; background:var(--ink-faint); opacity:0.5; border-radius:3px; display:inline-block;"></span> Baseline</span>
       <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:14px; height:10px; background:var(--taupe-dark); border-radius:3px; display:inline-block;"></span> Actual</span>
       <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:14px; height:10px; background:var(--jade); border-radius:3px; display:inline-block;"></span> Progress (steps checked off)</span>
     </div>
-    <div id="scheduleTabContent" class="panel"><div class="panel-body" style="padding:20px 20px 16px; position:relative;">
-      <div style="display:flex; padding-left:${GANTT_LEFT_COL+GANTT_GAP}px; padding-right:${GANTT_RIGHT_COL+GANTT_GAP}px; height:34px; position:relative;">${grid.axis}</div>
+    <div id="scheduleTabContent" class="panel" style="overflow-x:auto;"><div class="panel-body" style="padding:20px 20px 16px; position:relative; min-width:${GANTT_LEFT_COL+GANTT_GAP+timelineWidthPx+GANTT_GAP+GANTT_RIGHT_COL}px;">
+      <div style="display:flex; align-items:center; gap:${GANTT_GAP}px; height:34px; position:relative;">
+        <div style="width:${GANTT_LEFT_COL}px; flex-shrink:0;"></div>
+        <div style="position:relative; width:${timelineWidthPx}px; flex-shrink:0; height:100%;">${grid.axis}</div>
+        <div style="width:${GANTT_RIGHT_COL}px; flex-shrink:0;"></div>
+      </div>
       <div style="position:relative;">
-        <div style="position:absolute; left:${GANTT_LEFT_COL+GANTT_GAP}px; right:${GANTT_RIGHT_COL+GANTT_GAP}px; top:0; bottom:0; pointer-events:none;">${grid.gridlines}</div>
+        <div style="position:absolute; left:${GANTT_LEFT_COL+GANTT_GAP}px; width:${timelineWidthPx}px; top:0; bottom:0; pointer-events:none;">${grid.gridlines}</div>
         ${rows}
       </div>
     </div></div>
@@ -5741,22 +5745,25 @@ function buildClientProgressScheduleHTML(project){
   const overallStart = known.length ? known.reduce((a,b) => a.start < b.start ? a : b).start : null;
   const overallEnd = known.length ? known.reduce((a,b) => a.end > b.end ? a : b).end : null;
   const spanDays = (overallStart && overallEnd) ? Math.max(1, (new Date(overallEnd) - new Date(overallStart)) / 86400000) : 1;
+  const timelineWidthPx = Math.max(600, Math.ceil(spanDays) * GANTT_PX_PER_DAY);
   const grid = buildMonthGridHTML(overallStart, overallEnd);
   const rows = WORKFLOW_PHASE_DEFS.map(pd => {
     const bRow = baseline ? baseline.find(b => b.n === pd.n) : null;
     const aRow = actual.find(a => a.n === pd.n);
     const ph = project.phases.find(x => x.n === pd.n);
     const pct = ph && ph.milestones.length ? Math.round(ph.milestones.filter(m => m.status === 'done').length / ph.milestones.length * 100) : 0;
-    return buildGanttRowHTML(pd, bRow, aRow, overallStart, spanDays, pct);
+    return buildGanttRowHTML(pd, bRow, aRow, overallStart, spanDays, pct, timelineWidthPx);
   }).join('');
   return `
-    <div class="panel client-print-expand" style="margin-bottom:8px; overflow-x:auto;"><div class="panel-body" style="padding:20px 20px 16px; position:relative;">
-      <div style="min-width:620px;">
-        <div style="display:flex; padding-left:${GANTT_LEFT_COL+GANTT_GAP}px; padding-right:${GANTT_RIGHT_COL+GANTT_GAP}px; height:34px; position:relative;">${grid.axis}</div>
-        <div style="position:relative;">
-          <div style="position:absolute; left:${GANTT_LEFT_COL+GANTT_GAP}px; right:${GANTT_RIGHT_COL+GANTT_GAP}px; top:0; bottom:0; pointer-events:none;">${grid.gridlines}</div>
-          ${rows}
-        </div>
+    <div class="panel client-print-expand" style="margin-bottom:8px; overflow-x:auto;"><div class="panel-body" style="padding:20px 20px 16px; position:relative; min-width:${GANTT_LEFT_COL+GANTT_GAP+timelineWidthPx+GANTT_GAP+GANTT_RIGHT_COL}px;">
+      <div style="display:flex; align-items:center; gap:${GANTT_GAP}px; height:34px; position:relative;">
+        <div style="width:${GANTT_LEFT_COL}px; flex-shrink:0;"></div>
+        <div style="position:relative; width:${timelineWidthPx}px; flex-shrink:0; height:100%;">${grid.axis}</div>
+        <div style="width:${GANTT_RIGHT_COL}px; flex-shrink:0;"></div>
+      </div>
+      <div style="position:relative;">
+        <div style="position:absolute; left:${GANTT_LEFT_COL+GANTT_GAP}px; width:${timelineWidthPx}px; top:0; bottom:0; pointer-events:none;">${grid.gridlines}</div>
+        ${rows}
       </div>
     </div></div>
     <div style="font-size:11px; color:var(--muted-text); margin-bottom:26px; display:flex; gap:16px; flex-wrap:wrap;">
