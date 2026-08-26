@@ -3526,7 +3526,7 @@ function buildTaskRowHTML(oppId, t){
   const status = t.status || (t.done ? 'Done' : 'Not Started');
   const statusCls = status === 'Done' ? 'pill-jade' : status === 'Working On' ? 'pill-gold' : 'pill-slate';
   return `<div class="task-row-mini" style="cursor:pointer;" onclick="openTaskDetail('${oppId}','${t.id}')">
-    <select class="pill ${statusCls}" style="font-size:10px; border:none; flex-shrink:0; min-width:98px; cursor:pointer;" onclick="event.stopPropagation();" onchange="event.stopPropagation(); setTaskStatus('${oppId}','${t.id}', this.value)">
+    <select class="pill ${statusCls}" style="width:auto; padding:3px 8px 3px 9px; font-size:10px; border:none; flex-shrink:0;" onclick="event.stopPropagation();" onchange="event.stopPropagation(); setTaskStatus('${oppId}','${t.id}', this.value)">
       ${['Not Started','Working On','Done'].map(o => `<option ${o===status?'selected':''}>${o}</option>`).join('')}
     </select>
     <div style="flex:1;">
@@ -4866,6 +4866,86 @@ function setStepField(projectId, stepId, field, val){
   }
   saveAppState(); renderProjectDetail();
 }
+// ---- Manual schedule builder — lets every step across every phase (not just the current
+// one) get a real due date by hand, for projects where the typical-duration template isn't
+// good enough and the actual plan needs to be laid out step by step first. Editing a step
+// in a future phase works the same way as the current phase's Full Step List, just keyed to
+// an explicit phase number instead of assuming wf.currentStageN. ----
+function setStepFieldForPhase(projectId, phaseN, stepId, field, val){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const wf = ensureWorkflowModel(p);
+  const stage = wf.stages.find(s => s.n === phaseN);
+  const st = getStepState(stage, stepId);
+  st[field] = val || null;
+  saveAppState();
+}
+let MANUAL_SCHEDULE_OPEN = false;
+function toggleManualScheduleBuilder(){
+  MANUAL_SCHEDULE_OPEN = !MANUAL_SCHEDULE_OPEN;
+  renderProjectDetail();
+}
+// Takes whatever due dates have been typed in across every phase and step and locks them
+// in as the baseline — the same baselineDue/forecastDue/baselineFinish/forecastFinish
+// fields the auto-generated (template-based) baseline uses, so the Gantt and every
+// schedule-health number work identically either way. Steps left blank are simply skipped
+// rather than guessed at.
+function commitManualScheduleAsBaseline(projectId){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const wf = ensureWorkflowModel(p);
+  const missing = [];
+  let earliestDue = null;
+  PROCESS_PHASES.forEach(ph => {
+    const stage = wf.stages.find(s => s.n === ph.n);
+    ph.steps.forEach(def => {
+      const st = getStepState(stage, def.id);
+      if(!st.due) missing.push(`${ph.name} — ${def.title}`);
+      else if(!earliestDue || st.due < earliestDue) earliestDue = st.due;
+    });
+  });
+  if(!earliestDue){ alert('Enter at least one due date before locking in a baseline.'); return; }
+  if(missing.length && !confirm(`${missing.length} step${missing.length===1?'':'s'} still don't have a due date (starting with "${missing[0]}"). Lock in a baseline using just the dates that are filled in? You can fill in the rest and reset the baseline later.`)) return;
+  PROCESS_PHASES.forEach(ph => {
+    const stage = wf.stages.find(s => s.n === ph.n);
+    let lastDue = null;
+    ph.steps.forEach(def => {
+      const st = getStepState(stage, def.id);
+      if(st.due){ st.baselineDue = st.due; st.forecastDue = st.due; lastDue = st.due; }
+    });
+    if(lastDue){ stage.baselineFinish = lastDue; stage.forecastFinish = lastDue; }
+  });
+  wf.baselineSet = true;
+  wf.baselineStartDate = earliestDue;
+  wf.baselineSetAt = new Date().toISOString().slice(0,10);
+  wf.reconciliationRequired = false;
+  MANUAL_SCHEDULE_OPEN = false;
+  saveAppState(); renderProjectDetail(); renderProjectCardGrids();
+}
+function buildManualScheduleBuilderHTML(p){
+  const wf = ensureWorkflowModel(p);
+  const phaseBlocks = PROCESS_PHASES.map(ph => {
+    const stage = wf.stages.find(s => s.n === ph.n);
+    const stepRows = ph.steps.map((def, i) => {
+      const st = getStepState(stage, def.id);
+      return `<tr>
+        <td>${i+1}</td>
+        <td class="name-cell">${escapeHtmlLite(def.title)}</td>
+        <td style="font-size:11px; color:var(--ink-faint);">${escapeHtmlLite(def.role)}</td>
+        <td><select style="min-width:150px;" onchange="setStepFieldForPhase('${p.id}',${ph.n},'${def.id}','owner',this.value)">${teamMemberOptions(st.owner || ROLE_DEFAULT_ASSIGNEE[def.role])}</select></td>
+        <td><input type="date" style="min-width:135px;" value="${st.due||''}" onchange="setStepFieldForPhase('${p.id}',${ph.n},'${def.id}','due',this.value)"></td>
+      </tr>`;
+    }).join('');
+    return `<div class="section-label-row" style="margin-top:16px;"><div class="eyebrow">Phase ${ph.n} · ${escapeHtmlLite(ph.name)}</div></div>
+      <table><thead><tr><th>#</th><th>Step</th><th>Role</th><th>Owner</th><th>Due</th></tr></thead><tbody>${stepRows}</tbody></table>`;
+  }).join('');
+  return `<div class="section-label-row" style="margin-top:20px; cursor:pointer;" onclick="toggleManualScheduleBuilder()"><div class="eyebrow">${MANUAL_SCHEDULE_OPEN ? '▾' : '▸'} Build the Schedule Manually — Every Step, Phase 3 through 8</div></div>
+    ${MANUAL_SCHEDULE_OPEN ? `<div class="panel" style="margin-bottom:16px;"><div class="panel-body" style="padding:16px 20px;">
+      <div class="hint" style="margin-bottom:6px;">Set a real due date for every step below, then lock it in. Those dates become the baseline the Gantt chart and every schedule-health number are measured against from then on — this replaces the auto-generated template spacing with the actual plan.</div>
+      ${phaseBlocks}
+      <div class="row" style="margin-top:18px; justify-content:flex-end;">
+        <button class="btn btn-dark" onclick="commitManualScheduleAsBaseline('${p.id}')">Lock In These Dates as Baseline</button>
+      </div>
+    </div></div>` : ''}`;
+}
 function buildFreshPhases(){
   return WORKFLOW_PHASE_DEFS.map(p => ({
     n: p.n, name: p.name,
@@ -5200,11 +5280,12 @@ function buildScheduleTabHTML(p){
   return `
     <div class="section-label-row"><div class="eyebrow">Preconstruction Schedule</div>
       <div class="row no-print" style="gap:8px;">
-        <span class="pill pill-slate" style="cursor:pointer;" onclick="promptGenerateProcessBaseline('${p.id}')">${wf.baselineSet ? '↻ Reset Baseline Schedule' : '📌 Set Baseline Schedule'}</span>
+        <span class="pill pill-slate" style="cursor:pointer;" onclick="promptGenerateProcessBaseline('${p.id}')">${wf.baselineSet ? '↻ Reset Baseline Schedule' : '📌 Auto-Generate Baseline'}</span>
         <span class="pill pill-slate" style="cursor:pointer;" onclick="printScheduleTab('${p.id}')">🖨 Print</span>
       </div>
     </div>
     <div class="hint" style="margin-bottom:14px;">This is the real schedule — driven directly by the same process every project runs through on the Overview tab, not a separate tracker. The <b>Baseline</b> (thin gray bar) is the original plan, locked in once and never silently changed. The <b>Actual</b> bar (thick, colored) reflects what's really happening — real completion dates once a phase is done, current forecast for what's ahead, automatically pushed out whenever a step finishes late. The darker fill inside each Actual bar shows real progress — how many of that phase's steps are actually checked off. Scroll sideways to see every individual day.</div>
+    ${buildManualScheduleBuilderHTML(p)}
     <div class="row" style="gap:16px; margin-bottom:12px; font-size:11px; color:var(--ink-faint);">
       <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:14px; height:6px; background:var(--ink-faint); opacity:0.5; border-radius:3px; display:inline-block;"></span> Baseline</span>
       <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:14px; height:10px; background:var(--taupe-dark); border-radius:3px; display:inline-block;"></span> Actual</span>
