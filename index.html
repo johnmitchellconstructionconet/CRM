@@ -5922,6 +5922,116 @@ function buildKpiLogHTML(project){
 }
 // ---- Client-facing "daily log" — posted here by the team, visible to the client on their
 // read-only progress link (see renderClientProgressView / openClientProgressLinkModal). ----
+// ============================================================
+// CLARIFICATIONS — a per-project log of open questions/clarifications sent out during
+// design & scope, organized into rounds since these commonly go out in waves (1st Round,
+// 2nd Round, etc.) as plans and selections evolve. Lazily initialized like every other
+// per-project sub-feature; the first round is created automatically so there's always
+// somewhere to log the first item. ----
+let CLARIF_ACTIVE_ROUND = {}; // projectId -> active round id, session-only
+function ensureClarifications(p){
+  if(!p.clarifications) p.clarifications = { rounds: [] };
+  if(!p.clarifications.rounds.length){
+    p.clarifications.rounds.push({ id: 'r' + Date.now(), name: '1st Round', items: [] });
+  }
+  return p.clarifications;
+}
+function ordinalRoundName(n){
+  const suffix = (n % 10 === 1 && n % 100 !== 11) ? 'st' : (n % 10 === 2 && n % 100 !== 12) ? 'nd' : (n % 10 === 3 && n % 100 !== 13) ? 'rd' : 'th';
+  return `${n}${suffix} Round`;
+}
+function addClarifRound(projectId){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const c = ensureClarifications(p);
+  const round = { id: 'r' + Date.now(), name: ordinalRoundName(c.rounds.length + 1), items: [] };
+  c.rounds.push(round);
+  CLARIF_ACTIVE_ROUND[projectId] = round.id;
+  saveAppState(); renderProjectDetail();
+}
+function setClarifActiveRound(projectId, roundId){
+  CLARIF_ACTIVE_ROUND[projectId] = roundId;
+  renderProjectDetail();
+}
+function renameClarifRound(projectId, roundId, name){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const c = ensureClarifications(p);
+  const round = c.rounds.find(r => r.id === roundId); if(!round) return;
+  round.name = name.trim() || round.name;
+  saveAppState();
+}
+function deleteClarifRound(projectId, roundId){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const c = ensureClarifications(p);
+  if(c.rounds.length <= 1){ alert('At least one round has to stay — clear its items instead if you want to start over.'); return; }
+  if(!confirm('Delete this round and every item logged in it? This can\'t be undone.')) return;
+  c.rounds = c.rounds.filter(r => r.id !== roundId);
+  if(CLARIF_ACTIVE_ROUND[projectId] === roundId) delete CLARIF_ACTIVE_ROUND[projectId];
+  saveAppState(); renderProjectDetail();
+}
+function addClarifItem(projectId, roundId){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const c = ensureClarifications(p);
+  const round = c.rounds.find(r => r.id === roundId); if(!round) return;
+  round.items.push({ id: 'ci' + Date.now(), date: new Date().toISOString().slice(0,10), location:'', trade:'', note:'', markedBy:'', clientResponse:'', status:'Open' });
+  saveAppState(); renderProjectDetail();
+}
+function setClarifItemField(projectId, roundId, itemId, field, value){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const c = ensureClarifications(p);
+  const round = c.rounds.find(r => r.id === roundId); if(!round) return;
+  const item = round.items.find(i => i.id === itemId); if(!item) return;
+  item[field] = value;
+  if(field === 'clientResponse') item.status = value.trim() ? 'Answered' : 'Open';
+  saveAppState();
+}
+function deleteClarifItem(projectId, roundId, itemId){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const c = ensureClarifications(p);
+  const round = c.rounds.find(r => r.id === roundId); if(!round) return;
+  round.items = round.items.filter(i => i.id !== itemId);
+  saveAppState(); renderProjectDetail();
+}
+function buildClarificationsTabHTML(p){
+  const c = ensureClarifications(p);
+  const activeId = CLARIF_ACTIVE_ROUND[p.id] && c.rounds.find(r => r.id === CLARIF_ACTIVE_ROUND[p.id]) ? CLARIF_ACTIVE_ROUND[p.id] : c.rounds[c.rounds.length-1].id;
+  const round = c.rounds.find(r => r.id === activeId);
+  const openCount = round.items.filter(i => i.status === 'Open').length;
+  return `
+    <div class="hint" style="margin-bottom:14px;">Every clarification or question sent out during design & scope, in one place — organized by round since these usually go out in waves as plans and selections evolve.</div>
+    <div class="row" style="gap:8px; margin-bottom:16px; flex-wrap:wrap;">
+      ${c.rounds.map(r => {
+        const openInRound = r.items.filter(i => i.status === 'Open').length;
+        return `<span class="pill ${r.id===activeId?'pill-ink':'pill-slate'}" style="cursor:pointer; padding:6px 14px;" onclick="setClarifActiveRound('${p.id}','${r.id}')">${escapeHtmlLite(r.name)}${openInRound?` <b style="margin-left:4px;">${openInRound}</b>`:''}</span>`;
+      }).join('')}
+      <span class="pill pill-slate" style="cursor:pointer; padding:6px 14px;" onclick="addClarifRound('${p.id}')">+ Add Round</span>
+    </div>
+    <div class="section-label-row">
+      <div class="eyebrow" style="display:flex; align-items:center; gap:8px;">
+        <input value="${escapeHtmlLite(round.name)}" style="max-width:180px; font-weight:700; text-transform:none; letter-spacing:normal; padding:4px 8px; font-size:12.5px;" onchange="renameClarifRound('${p.id}','${round.id}',this.value)">
+        ${openCount ? `<span class="pill pill-gold">${openCount} open</span>` : `<span class="pill pill-jade">All answered</span>`}
+      </div>
+      <div class="row" style="gap:8px;">
+        ${c.rounds.length > 1 ? `<span class="pill pill-slate" style="cursor:pointer;" onclick="deleteClarifRound('${p.id}','${round.id}')">Delete This Round</span>` : ''}
+        <span class="pill pill-slate" style="cursor:pointer;" onclick="addClarifItem('${p.id}','${round.id}')">+ Add Item</span>
+      </div>
+    </div>
+    <div class="panel" style="margin-bottom:20px; overflow-x:auto;"><div class="panel-body" style="padding:0;">
+      <table style="min-width:900px;">
+        <thead><tr><th style="width:110px;">Date</th><th style="width:130px;">Location</th><th style="width:120px;">Trade</th><th>Notes / Question / Clarification</th><th style="width:140px;">Marked By</th><th>Client Response</th><th style="width:70px;"></th></tr></thead>
+        <tbody>
+          ${round.items.length ? round.items.map(item => `<tr>
+            <td><input type="date" style="min-width:120px;" value="${item.date||''}" onchange="setClarifItemField('${p.id}','${round.id}','${item.id}','date',this.value)"></td>
+            <td><input value="${escapeHtmlLite(item.location)}" placeholder="e.g. Kitchen" onchange="setClarifItemField('${p.id}','${round.id}','${item.id}','location',this.value)"></td>
+            <td><input value="${escapeHtmlLite(item.trade)}" placeholder="e.g. Electrical" onchange="setClarifItemField('${p.id}','${round.id}','${item.id}','trade',this.value)"></td>
+            <td><textarea style="width:100%; min-height:38px; padding:6px 8px; border:1px solid var(--border); border-radius:6px; font-family:'Inter',sans-serif; font-size:12.5px; resize:vertical;" onchange="setClarifItemField('${p.id}','${round.id}','${item.id}','note',this.value)">${escapeHtmlLite(item.note)}</textarea></td>
+            <td><select style="min-width:130px;" onchange="setClarifItemField('${p.id}','${round.id}','${item.id}','markedBy',this.value)">${teamMemberOptions(item.markedBy)}</select></td>
+            <td><textarea style="width:100%; min-height:38px; padding:6px 8px; border:1px solid var(--border); border-radius:6px; font-family:'Inter',sans-serif; font-size:12.5px; resize:vertical;" placeholder="Client's answer..." onchange="setClarifItemField('${p.id}','${round.id}','${item.id}','clientResponse',this.value)">${escapeHtmlLite(item.clientResponse)}</textarea></td>
+            <td style="text-align:center;"><span style="cursor:pointer; color:var(--rust); font-size:16px;" onclick="deleteClarifItem('${p.id}','${round.id}','${item.id}')">&times;</span></td>
+          </tr>`).join('') : `<tr><td colspan="7" class="empty-row">Nothing logged for ${escapeHtmlLite(round.name)} yet.</td></tr>`}
+        </tbody>
+      </table>
+    </div></div>`;
+}
 function buildClientLogPanelHTML(project){
   const logs = (project.clientLogs || []).slice().reverse();
   return `
@@ -6895,8 +7005,8 @@ function renderProjectDetail(){
   const host = document.getElementById('projectDetailHost');
   if(!p || !host) return;
   const currentPhaseDef = WORKFLOW_PHASE_DEFS.find(pd => pd.n === p.currentPhase);
-  const tabs = ['overview','scopes','estimate','plans','proposals','files','activity'];
-  const tabLabels = {overview:'Overview', scopes:'Scopes', estimate:'Estimate', plans:'Plans & Design', proposals:'Proposals & Contracts', files:'Files', activity:'Activity', clientview:'Client View'};
+  const tabs = ['overview','clarifications','scopes','estimate','plans','proposals','files','activity'];
+  const tabLabels = {overview:'Overview', clarifications:'Clarifications', scopes:'Scopes', estimate:'Estimate', plans:'Plans & Design', proposals:'Proposals & Contracts', files:'Files', activity:'Activity', clientview:'Client View'};
 
   let tabBody = '';
 // ---- Review & Send Log dashboard for the Overview tab — pulled from the Scope of Work
@@ -6978,6 +7088,8 @@ function buildActionBannerHTML(p){
     <div class="section-label-row" style="margin-top:8px;"><div class="eyebrow">Review &amp; Send Log</div><span class="pill pill-slate" style="cursor:pointer;" onclick="openCCSubNav('scopes','review')">Open in Scopes →</span></div>
     <div class="panel" style="margin-bottom:20px;"><div class="panel-body" style="padding:6px 20px;" id="reviewSendLogDashboard"><div class="empty-row">Loading…</div></div></div>
     ${buildClientLogPanelHTML(p)}`;
+  } else if(CC_TAB === 'clarifications'){
+    tabBody = buildClarificationsTabHTML(p);
   } else if(CC_TAB === 'scopes'){
     tabBody = `<div class="hint" style="margin-bottom:10px;">Full trade-by-trade Scope of Work for ${escapeHtmlLite(p.client)} — Company Settings' "Manage Scope Items" library is shared across every project; anything added there shows up here automatically.</div>
     <div id="sowContainer"></div>`;
