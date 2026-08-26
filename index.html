@@ -976,6 +976,9 @@ select{cursor:pointer;}
 .seq-lead-card.lt-warm::before{background:linear-gradient(90deg, var(--gold), #C9A96E);}
 .seq-lead-card.lt-cold::before{background:linear-gradient(90deg, var(--taupe), var(--border));}
 .seq-lead-card:hover{box-shadow:0 10px 24px rgba(30,27,24,0.11), 0 2px 6px rgba(30,27,24,0.06); transform:translateY(-2px);}
+.seq-lead-card-overdue{border-color:var(--rust);}
+.seq-lead-card-overdue::before{background:var(--rust);}
+.card-overdue-flag{background:var(--rust); color:#fff; font-size:10.5px; font-weight:700; padding:4px 10px; margin:-16px -17px 10px; letter-spacing:.02em;}
 .seq-lead-card .sl-name{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:15px; color:var(--ink); letter-spacing:-0.005em;}
 .seq-lead-card .sl-meta{font-size:11.5px; color:var(--ink-faint); margin-top:4px;}
 .seq-lead-card .sl-value{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13.5px; color:var(--taupe-dark); margin-top:5px;}
@@ -1240,15 +1243,7 @@ select{cursor:pointer;}
       <div class="page-header"><div><div class="eyebrow">Preconstruction</div><h1>Preconstruction</h1><div class="sub">Every project's exact position in the pipeline — one phase must finish before the next starts.</div></div>
         <button class="btn btn-dark" onclick="openAddProject()">+ Add Project</button>
       </div>
-      <div class="toolbar">
-        <div></div>
-        <div class="view-toggle">
-          <button class="active" onclick="setPreconView('table',this)">Table</button>
-          <button onclick="setPreconView('sequence',this)">Step-by-Step</button>
-        </div>
-      </div>
-      <div id="preconProjectTable"></div>
-      <div id="preconProjectGrid" style="display:none;"></div>
+      <div id="preconProjectGrid"></div>
     </div>
 
     <!-- ===== PROJECT COMMAND CENTER (single-project detail, shown via openProject()) ===== -->
@@ -4631,6 +4626,7 @@ function phaseDef(n){ return PROCESS_PHASES.find(ph => ph.n === n); }
 function generateProcessBaseline(projectId, startDate){
   const p = PROJECTS[projectId]; if(!p) return;
   const wf = ensureWorkflowModel(p);
+  wf.baselineStartDate = startDate;
   let cursor = startDate;
   PROCESS_PHASES.forEach(ph => {
     const stage = wf.stages.find(s => s.n === ph.n);
@@ -5056,36 +5052,57 @@ function buildGanttRowHTML(phaseDef, baselineRow, actualRow, overallStart, spanD
     <div style="width:${GANTT_RIGHT_COL}px; flex-shrink:0; font-size:10.5px; color:var(--ink-faint); text-align:right;">${actualRow && actualRow.start && actualRow.end ? (actualRow.start===actualRow.end ? actualRow.start : actualRow.start+' \u2192 '+actualRow.end) : ''}</div>
   </div>`;
 }
+function computeProcessGanttRows(p){
+  const wf = ensureWorkflowModel(p);
+  let baselineCursor = wf.baselineStartDate || null;
+  let actualCursor = wf.baselineStartDate || null;
+  return PROCESS_PHASES.map(ph => {
+    const stage = wf.stages.find(s => s.n === ph.n);
+    const totalSteps = ph.steps.length;
+    const doneSteps = ph.steps.filter(def => {
+      const st = stage.steps[def.id];
+      return st && (st.status === 'Complete' || st.status === 'N/A');
+    }).length;
+    const pct = totalSteps ? Math.round(doneSteps / totalSteps * 100) : 0;
+    let baselineRow = null;
+    if(wf.baselineSet && stage.baselineFinish && baselineCursor){
+      baselineRow = { start: baselineCursor, end: stage.baselineFinish };
+      baselineCursor = stage.baselineFinish;
+    }
+    let actualRow = null;
+    const actualEnd = stage.status === 'complete' ? (stage.actualFinish || stage.forecastFinish) : stage.forecastFinish;
+    if(wf.baselineSet && actualEnd && actualCursor){
+      actualRow = { start: actualCursor, end: actualEnd, status: stage.status === 'complete' ? 'done' : stage.status === 'current' ? 'active' : 'pending' };
+      actualCursor = actualEnd;
+    }
+    return { n: ph.n, name: ph.name, baselineRow, actualRow, pct };
+  });
+}
 function buildScheduleTabHTML(p){
-  const actual = computePhaseSchedule(p);
-  const baseline = computeBaselinePhaseSchedule(p);
-  const known = actual.filter(s => s.start && s.end).concat((baseline||[]).filter(s => s.start && s.end));
+  const wf = ensureWorkflowModel(p);
+  const ganttRows = computeProcessGanttRows(p);
+  const baselineRows = ganttRows.map(r => r.baselineRow).filter(Boolean);
+  const actualRows = ganttRows.map(r => r.actualRow).filter(Boolean);
+  const known = actualRows.concat(baselineRows);
   const overallStart = known.length ? known.reduce((a,b) => a.start < b.start ? a : b).start : null;
   const overallEnd = known.length ? known.reduce((a,b) => a.end > b.end ? a : b).end : null;
   const spanDays = (overallStart && overallEnd) ? Math.max(1, (new Date(overallEnd) - new Date(overallStart)) / 86400000) : 1;
   const grid = buildMonthGridHTML(overallStart, overallEnd);
 
-  const rows = WORKFLOW_PHASE_DEFS.map(pd => {
-    const bRow = baseline ? baseline.find(b => b.n === pd.n) : null;
-    const aRow = actual.find(a => a.n === pd.n);
-    const ph = p.phases.find(x => x.n === pd.n);
-    const pct = ph && ph.milestones.length ? Math.round(ph.milestones.filter(m => m.status === 'done').length / ph.milestones.length * 100) : 0;
-    return buildGanttRowHTML(pd, bRow, aRow, overallStart, spanDays, pct);
-  }).join('');
+  const rows = ganttRows.map(r => buildGanttRowHTML({n:r.n, name:r.name}, r.baselineRow, r.actualRow, overallStart, spanDays, r.pct)).join('');
 
   return `
     <div class="section-label-row"><div class="eyebrow">Preconstruction Schedule</div>
       <div class="row no-print" style="gap:8px;">
-        <span class="pill pill-slate" style="cursor:pointer;" onclick="promptGenerateSchedule('${p.id}')">🗓 Generate Standard Schedule</span>
-        <span class="pill pill-slate" style="cursor:pointer;" onclick="setBaseline('${p.id}')">${p.baselineSchedule ? '↻ Reset Baseline' : '📌 Set Baseline'}</span>
+        <span class="pill pill-slate" style="cursor:pointer;" onclick="promptGenerateProcessBaseline('${p.id}')">${wf.baselineSet ? '↻ Reset Baseline Schedule' : '📌 Set Baseline Schedule'}</span>
         <span class="pill pill-slate" style="cursor:pointer;" onclick="printScheduleTab('${p.id}')">🖨 Print</span>
       </div>
     </div>
-    <div class="hint" style="margin-bottom:14px;">Managed like a real build schedule: the <b>Baseline</b> (thin gray bar) is the original plan, locked in once and never silently changed. The <b>Actual</b> bar (thick, colored) reflects what's really happening — real completion dates once work is done, current targets for what's ahead. The darker fill inside each Actual bar shows real progress — how many of that phase's tasks are actually checked off.</div>
+    <div class="hint" style="margin-bottom:14px;">This is the real schedule — driven directly by the same process every project runs through on the Overview tab, not a separate tracker. The <b>Baseline</b> (thin gray bar) is the original plan, locked in once and never silently changed. The <b>Actual</b> bar (thick, colored) reflects what's really happening — real completion dates once a phase is done, current forecast for what's ahead, automatically pushed out whenever a step finishes late. The darker fill inside each Actual bar shows real progress — how many of that phase's steps are actually checked off.</div>
     <div class="row" style="gap:16px; margin-bottom:12px; font-size:11px; color:var(--ink-faint);">
       <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:14px; height:6px; background:var(--ink-faint); opacity:0.5; border-radius:3px; display:inline-block;"></span> Baseline</span>
       <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:14px; height:10px; background:var(--taupe-dark); border-radius:3px; display:inline-block;"></span> Actual</span>
-      <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:14px; height:10px; background:var(--jade); border-radius:3px; display:inline-block;"></span> Progress (tasks checked off)</span>
+      <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:14px; height:10px; background:var(--jade); border-radius:3px; display:inline-block;"></span> Progress (steps checked off)</span>
     </div>
     <div id="scheduleTabContent" class="panel"><div class="panel-body" style="padding:20px 20px 16px; position:relative;">
       <div style="display:flex; padding-left:${GANTT_LEFT_COL+GANTT_GAP}px; padding-right:${GANTT_RIGHT_COL+GANTT_GAP}px; height:22px; position:relative;">${grid.axis}</div>
@@ -5094,7 +5111,7 @@ function buildScheduleTabHTML(p){
         ${rows}
       </div>
     </div></div>
-    ${!baseline ? `<div class="hint" style="margin-top:12px;">No baseline set yet \u2014 click "Set Baseline" once real target dates are entered on the Overview tab's milestones, so there's something fixed to compare progress against.</div>` : ''}`;
+    ${!wf.baselineSet ? `<div class="hint" style="margin-top:12px;">No baseline set yet — click "Set Baseline Schedule" so there's something fixed to measure real progress against. This is the same baseline the Overview tab's schedule strip and every step's due date depend on — one schedule, not two.</div>` : ''}`;
 }
 function printScheduleTab(projectId){
   const p = PROJECTS[projectId];
@@ -5259,15 +5276,17 @@ function buildFullActionListHTML(p){
   const stage = wf.stages.find(s=>s.n===wf.currentStageN);
   const statusClass = { 'Not Ready':'pill-slate', 'Ready':'pill-ink', 'In Progress':'pill-gold', 'Waiting':'pill-gold', 'Blocked':'pill-rust', 'Complete':'pill-jade', 'N/A':'pill-slate' };
   return `<div class="section-label-row" style="margin-top:20px; cursor:pointer;" onclick="toggleFullActionList()"><div class="eyebrow">${CC_STAGE_OPEN ? '▾' : '▸'} Full Step List — Phase ${ph.n} · ${escapeHtmlLite(ph.name)}</div></div>
-    ${CC_STAGE_OPEN ? `<table><thead><tr><th>#</th><th>Step</th><th>Role</th><th>Status</th><th>Owner</th></tr></thead><tbody>
+    ${CC_STAGE_OPEN ? `<table><thead><tr><th>#</th><th>Step</th><th>Role</th><th>Status</th><th>Owner</th><th>Due</th></tr></thead><tbody>
       ${ph.steps.map((def, i) => {
         const a = getStepState(stage, def.id);
+        const dueVal = a.due || a.forecastDue || '';
         return `<tr>
           <td>${i+1}</td>
           <td class="name-cell">${escapeHtmlLite(def.title)}</td>
           <td style="font-size:11.5px; color:var(--ink-faint);">${escapeHtmlLite(def.role)}</td>
           <td><span class="pill ${statusClass[a.status]||'pill-ink'}">${a.status}</span></td>
-          <td>${escapeHtmlLite(a.owner || '—')}</td>
+          <td><select style="min-width:150px;" onchange="setStepField('${p.id}','${def.id}','owner',this.value)">${teamMemberOptions(a.owner || ROLE_DEFAULT_ASSIGNEE[def.role])}</select></td>
+          <td><input type="date" style="min-width:135px;" value="${dueVal}" onchange="setStepField('${p.id}','${def.id}','due',this.value)"></td>
         </tr>`;
       }).join('')}
     </tbody></table>` : ''}`;
@@ -6078,22 +6097,29 @@ function getProjectScheduleRisk(p){
   return { rank:1, label: health.varianceDays < 0 ? `${Math.abs(health.varianceDays)}d ahead` : 'On Schedule', cls:'pill-jade', days:health.varianceDays };
 }
 function buildPreconProjectCard(p){
-  const task = getActiveTaskForProject(p);
-  const needsAction = task && (!task.milestone.assignee || (task.days !== null && task.days > 10));
-  const waiting = isProjectWaiting(p);
-  const flag = needsAction ? '🔴' : waiting ? '🟡' : (p.currentPhase === null ? '✅' : task ? '🟢' : '');
   const risk = getProjectScheduleRisk(p);
-  return `<div class="seq-lead-card" onclick="openProject('${p.id}')">
+  const wf = ensureWorkflowModel(p);
+  const ph = phaseDef(wf.currentStageN);
+  const next = wf.baselineSet ? getNextAction(p) : null;
+  const overdueDays = (() => {
+    if(!next) return 0;
+    const dueDate = next.a.due || next.a.forecastDue;
+    if(!dueDate) return 0;
+    const days = Math.round((new Date(TODAY) - new Date(dueDate+'T00:00:00')) / 86400000);
+    return days > 0 ? days : 0;
+  })();
+  return `<div class="seq-lead-card ${overdueDays ? 'seq-lead-card-overdue' : ''}" onclick="openProject('${p.id}')">
+    ${overdueDays ? `<div class="card-overdue-flag">⚠ ${overdueDays} day${overdueDays===1?'':'s'} past due</div>` : ''}
     <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
-      <div class="sl-name">${flag ? flag + ' ' : ''}${p.name}</div>
+      <div class="sl-name">${p.name}</div>
       <span class="seq-avatar">${initials(p.owner)}</span>
     </div>
-    <div class="sl-meta">${p.projectType} · ${p.location}</div>
-    <div class="sl-value">${fmtMoneyOrDash(p.dealValue)}</div>
+    <div class="sl-meta">${escapeHtmlLite(p.client || '')}</div>
+    <div class="sl-meta" style="margin-top:-2px;">${p.currentPhase === null ? 'Ready for Production' : `Phase ${p.currentPhase}${ph ? ' · ' + escapeHtmlLite(ph.name) : ''}`}</div>
     <div class="sl-foot">
       <span class="pill ${risk.cls}" style="font-size:9px;">${risk.label}</span>
       <span class="pill pill-slate">${p.owner}</span>
-      ${task ? `<span style="font-size:11px; color:var(--ink-faint);">${escapeHtmlLite(task.milestone.name)}</span>` : ''}
+      ${next ? `<span style="font-size:11px; color:var(--ink-faint);">${escapeHtmlLite(next.def.title)}</span>` : ''}
     </div>
   </div>`;
 }
@@ -6471,8 +6497,8 @@ function renderProjectDetail(){
   const host = document.getElementById('projectDetailHost');
   if(!p || !host) return;
   const currentPhaseDef = WORKFLOW_PHASE_DEFS.find(pd => pd.n === p.currentPhase);
-  const tabs = ['overview','schedule','scopes','estimate','plans','proposals','files','activity'];
-  const tabLabels = {overview:'Overview', schedule:'Schedule', scopes:'Scopes', estimate:'Estimate', plans:'Plans & Design', proposals:'Proposals & Contracts', files:'Files', activity:'Activity', clientview:'Client View'};
+  const tabs = ['overview','scopes','estimate','plans','proposals','files','activity'];
+  const tabLabels = {overview:'Overview', scopes:'Scopes', estimate:'Estimate', plans:'Plans & Design', proposals:'Proposals & Contracts', files:'Files', activity:'Activity', clientview:'Client View'};
 
   let tabBody = '';
 // ---- Review & Send Log dashboard for the Overview tab — pulled from the Scope of Work
@@ -6548,13 +6574,12 @@ function buildActionBannerHTML(p){
     ${buildScheduleHealthStripHTML(p)}
     ${buildStageRailHTML(p)}
     ${buildNextActionHeroHTML(p)}
+    ${buildScheduleTabHTML(p)}
     ${wfBaselineCheck.baselineSet ? `${buildWaitingBlockedSummaryHTML(p)}${buildFullActionListHTML(p)}` : ''}
     ${buildPropertyHomeownerPanelHTML(p, srcOppId, `renderProjectDetail()`)}
     <div class="section-label-row" style="margin-top:8px;"><div class="eyebrow">Review &amp; Send Log</div><span class="pill pill-slate" style="cursor:pointer;" onclick="openCCSubNav('scopes','review')">Open in Scopes →</span></div>
     <div class="panel" style="margin-bottom:20px;"><div class="panel-body" style="padding:6px 20px;" id="reviewSendLogDashboard"><div class="empty-row">Loading…</div></div></div>
     ${buildClientLogPanelHTML(p)}`;
-  } else if(CC_TAB === 'schedule'){
-    tabBody = buildScheduleTabHTML(p);
   } else if(CC_TAB === 'scopes'){
     tabBody = `<div class="hint" style="margin-bottom:10px;">Full trade-by-trade Scope of Work for ${escapeHtmlLite(p.client)} — Company Settings' "Manage Scope Items" library is shared across every project; anything added there shows up here automatically.</div>
     <div id="sowContainer"></div>`;
@@ -16306,7 +16331,11 @@ function setSyncIndicator(text){
 // (e.g. right as the tab closes), never as the source of truth once Supabase is connected. ----
 async function saveAppState(){
   const snapshot = buildAppSnapshot();
-  try{ localStorage.setItem(APP_STATE_KEY, JSON.stringify(snapshot)); } catch(e){ console.warn('Local cache save failed:', e); }
+  const savedAtMs = Date.now();
+  try{
+    localStorage.setItem(APP_STATE_KEY, JSON.stringify(snapshot));
+    localStorage.setItem(APP_STATE_KEY + '_ts', String(savedAtMs));
+  } catch(e){ console.warn('Local cache save failed:', e); }
   if(!SUPABASE_CONFIGURED || !supabaseClient){
     setSyncIndicator('Saved locally ' + new Date().toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}) + ' — connect Supabase to sync with the team');
     return;
@@ -16317,7 +16346,13 @@ async function saveAppState(){
       setSyncIndicator('Saved locally only — sign in to sync with the team');
       return;
     }
-    const rows = Object.keys(snapshot).map(key => ({ key, value: snapshot[key], updated_at: new Date().toISOString() }));
+    // updated_at is stamped from the SAME savedAtMs used for the local cache, on purpose —
+    // loadAppState compares this against the local timestamp to decide which copy is
+    // actually newer, so a slow or failed cloud write can never silently overwrite a more
+    // recent local change (e.g. someone hitting refresh right after setting a baseline
+    // schedule, before this upsert has finished landing).
+    const updatedAtIso = new Date(savedAtMs).toISOString();
+    const rows = Object.keys(snapshot).map(key => ({ key, value: snapshot[key], updated_at: updatedAtIso }));
     const { error } = await supabaseClient.from('app_state').upsert(rows);
     if(error){
       console.warn('Supabase sync failed, data is still safe locally:', error);
@@ -16332,7 +16367,10 @@ async function saveAppState(){
 }
 // ---- Loads from Supabase first (the real, shared source once configured and signed in),
 // falls back to this browser's local cache, falls back to the built-in demo data on a
-// completely first-ever run. ----
+// completely first-ever run. Before trusting Supabase, compares its newest updated_at
+// against this browser's own last-save timestamp — if the local copy is actually newer
+// (the cloud write from a recent change hadn't landed yet), the local copy wins instead of
+// being silently overwritten by stale cloud data. ----
 async function loadAppState(){
   if(SUPABASE_CONFIGURED && supabaseClient){
     try{
@@ -16340,8 +16378,20 @@ async function loadAppState(){
       if(sessionData && sessionData.session){
         const { data, error } = await supabaseClient.from('app_state').select('key,value');
         if(!error && data && data.length){
+          const cloudNewestMs = data.reduce((max, r) => Math.max(max, r.updated_at ? new Date(r.updated_at).getTime() : 0), 0);
+          const localTsRaw = (() => { try{ return localStorage.getItem(APP_STATE_KEY + '_ts'); } catch(e){ return null; } })();
+          const localMs = localTsRaw ? parseInt(localTsRaw, 10) : 0;
+          if(localMs > cloudNewestMs){
+            // This browser's own local save is newer than anything in the cloud — the cloud
+            // write from that change likely hadn't landed yet. Keep the local copy and push
+            // it back up so the stale cloud row gets corrected instead of winning next time.
+            try{
+              const raw = localStorage.getItem(APP_STATE_KEY);
+              if(raw){ applyAppSnapshot(JSON.parse(raw)); setSyncIndicator('Loaded local — a newer change than the cloud copy'); saveAppState(); return 'local-newer'; }
+            } catch(e){ console.warn('Local cache read failed during freshness check:', e); }
+          }
           applyAppSnapshot(Object.fromEntries(data.map(r => [r.key, r.value])));
-          try{ localStorage.setItem(APP_STATE_KEY, JSON.stringify(buildAppSnapshot())); } catch(e){}
+          try{ localStorage.setItem(APP_STATE_KEY, JSON.stringify(buildAppSnapshot())); localStorage.setItem(APP_STATE_KEY + '_ts', String(cloudNewestMs || Date.now())); } catch(e){}
           setSyncIndicator('Loaded from Supabase');
           return 'supabase';
         }
@@ -16392,7 +16442,7 @@ function resetToDemoData(){
 // Autosave on an interval and on the way out — covers every mutation everywhere in the
 // app without needing a save call hand-added to every single edit function.
 setInterval(saveAppState, 4000);
-window.addEventListener('beforeunload', () => { try{ localStorage.setItem(APP_STATE_KEY, JSON.stringify(buildAppSnapshot())); }catch(e){} });
+window.addEventListener('beforeunload', () => { try{ localStorage.setItem(APP_STATE_KEY, JSON.stringify(buildAppSnapshot())); localStorage.setItem(APP_STATE_KEY + '_ts', String(Date.now())); }catch(e){} });
 document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden') saveAppState(); });
 
 const CLIENT_VIEW_PROJECT_ID = new URLSearchParams(location.search).get('client_project');
