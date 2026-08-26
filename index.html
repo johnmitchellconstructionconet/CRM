@@ -3518,11 +3518,14 @@ function deleteOppAttachment(oppId, attId){
 // Clicking anywhere but the checkbox opens the full task (assignee, due date, files). ----
 function buildTaskRowHTML(oppId, t){
   const fileCount = (t.attachments || []).length;
-  return `<div class="task-row-mini" style="cursor:pointer;" onclick="openTaskDetail('${oppId}','${t.id}')">
+  const est = OPP_ESTIMATES[oppId];
+  const dep = t.dependsOn ? (est && est.tasks.find(x => x.id === t.dependsOn)) : null;
+  const blocked = dep && !dep.done;
+  return `<div class="task-row-mini" style="cursor:pointer; ${blocked ? 'opacity:0.7;' : ''}" onclick="openTaskDetail('${oppId}','${t.id}')">
     <span class="task-check ${t.done?'done':''}" onclick="event.stopPropagation(); toggleProjectTaskDone('${oppId}','${t.id}')">${t.done ? '✓' : ''}</span>
     <div style="flex:1;">
       <div style="font-size:13px; ${t.done ? 'color:var(--ink-faint); text-decoration:line-through;' : 'font-weight:500;'}">${escapeHtmlLite(t.title)}</div>
-      <div class="sub-txt">${escapeHtmlLite(t.assignee||'Unassigned')}${t.due ? ' \u00b7 Due ' + t.due : ''}${fileCount ? ' \u00b7 📎 ' + fileCount : ''}</div>
+      <div class="sub-txt">${escapeHtmlLite(t.assignee||'Unassigned')}${t.due ? ' \u00b7 Due ' + t.due : ''}${fileCount ? ' \u00b7 📎 ' + fileCount : ''}${dep ? ` \u00b7 ${blocked ? '⏳ Blocked on' : '↳ Depends on'} "${escapeHtmlLite(dep.title)}"` : ''}</div>
     </div>
   </div>`;
 }
@@ -3547,6 +3550,8 @@ function openTaskDetail(oppId, taskId){
         <div><label class="est-lbl">Assigned To</label><select id="taskDetailAssignee">${teamMemberOptions(t.assignee)}</select></div>
         <div><label class="est-lbl">Due Date</label><input type="date" id="taskDetailDue" value="${t.due || ''}"></div>
       </div>
+      <label class="est-lbl" style="margin-top:10px; display:block;">Depends On (optional)</label>
+      <select id="taskDetailDependsOn">${buildTaskDependsOnOptions(est, t.id, t.dependsOn)}</select>
       <label style="margin-top:12px; display:flex; align-items:center; gap:8px; cursor:pointer;">
         <input type="checkbox" id="taskDetailDone" ${t.done ? 'checked' : ''} style="width:16px; height:16px;">
         <span style="font-size:13px;">Marked complete</span>
@@ -3591,6 +3596,7 @@ function saveTaskDetail(oppId, taskId){
   t.title = overlay.querySelector('#taskDetailTitle').value.trim() || t.title;
   t.assignee = overlay.querySelector('#taskDetailAssignee').value || 'Unassigned';
   t.due = overlay.querySelector('#taskDetailDue').value || null;
+  t.dependsOn = overlay.querySelector('#taskDetailDependsOn').value || null;
   t.done = overlay.querySelector('#taskDetailDone').checked;
   overlay.remove();
   saveAppState();
@@ -3616,6 +3622,7 @@ function toggleProjectTaskDone(oppId, taskId){
 }
 function addProjectTask(oppId){
   document.getElementById('addTaskOverlay')?.remove();
+  const est = OPP_ESTIMATES[oppId];
   const overlay = document.createElement('div');
   overlay.id = 'addTaskOverlay';
   overlay.style.cssText = 'position:fixed; inset:0; z-index:400; display:flex; align-items:center; justify-content:center; background:rgba(20,18,14,.55); padding:20px;';
@@ -3628,6 +3635,8 @@ function addProjectTask(oppId){
         <div><label class="est-lbl">Assigned To</label><select id="taskAssigneeInput">${teamMemberOptions('')}</select></div>
         <div><label class="est-lbl">Due Date</label><input type="date" id="taskDueInput"></div>
       </div>
+      <label class="est-lbl" style="margin-top:10px; display:block;">Depends On (optional)</label>
+      <select id="taskDependsOnInput">${buildTaskDependsOnOptions(est, null)}</select>
       <div class="row" style="margin-top:16px; justify-content:flex-end; gap:8px;">
         <button class="btn" id="cancelAddTask">Cancel</button>
         <button class="btn btn-primary" id="submitAddTask">Add Task</button>
@@ -3639,20 +3648,28 @@ function addProjectTask(oppId){
   overlay.querySelector('#submitAddTask').onclick = () => {
     const title = overlay.querySelector('#taskTitleInput').value.trim();
     if(!title){ alert('Give the task a title.'); return; }
-    const est = OPP_ESTIMATES[oppId];
     if(!est){ overlay.remove(); return; }
     est.tasks.push({
       id: 't' + Date.now(),
       title,
       assignee: overlay.querySelector('#taskAssigneeInput').value || 'Unassigned',
       due: overlay.querySelector('#taskDueInput').value || null,
-      done: false
+      dependsOn: overlay.querySelector('#taskDependsOnInput').value || null,
+      done: false,
+      attachments: []
     });
     overlay.remove();
     saveAppState();
     if(CURRENT_PROJECT_ID) renderProjectDetail();
     if(CURRENT_OPP_ID && document.getElementById('oppOverlay')?.style.display === 'flex') openOpportunity(CURRENT_OPP_ID);
   };
+}
+// Builds the "Depends On" dropdown options for a task — every OTHER task on the same
+// project, so a task can be marked as blocked on a teammate's task without duplicating
+// that relationship anywhere else. A task can't depend on itself.
+function buildTaskDependsOnOptions(est, excludeTaskId, selected){
+  const opts = (est && est.tasks || []).filter(t => t.id !== excludeTaskId).map(t => `<option value="${t.id}" ${t.id===selected?'selected':''}>${escapeHtmlLite(t.title)}</option>`).join('');
+  return `<option value="" ${!selected?'selected':''}>None</option>${opts}`;
 }
 function openAddProjectMeetingNote(oppId){
   openQuickOverlay(`
@@ -5058,11 +5075,28 @@ function buildMonthGridHTML(overallStart, overallEnd){
   }
   const axis = months.map(m => {
     const offsetPct = Math.max(0, (m - start) / 86400000 / totalDays * 100);
-    return `<span style="position:absolute; left:${offsetPct}%; font-size:10px; font-weight:700; letter-spacing:0.02em; text-transform:uppercase; color:var(--ink-faint); font-family:'Montserrat',sans-serif;">${m.toLocaleDateString(undefined,{month:'short',year:'2-digit'})}</span>`;
+    return `<span style="position:absolute; left:${offsetPct}%; top:0; font-size:10px; font-weight:700; letter-spacing:0.02em; text-transform:uppercase; color:var(--ink-faint); font-family:'Montserrat',sans-serif;">${m.toLocaleDateString(undefined,{month:'short',year:'2-digit'})}</span>`;
+  }).join('');
+  // Day-level ticks — spaced by week if the span is long enough that daily ticks would just
+  // overlap into an unreadable smear, so the axis stays a real reference at any zoom level
+  // instead of only ever telling you the month.
+  const tickEveryDays = totalDays > 220 ? 14 : totalDays > 100 ? 7 : totalDays > 45 ? 3 : 1;
+  const dayTicks = [];
+  let dcursor = new Date(start);
+  while(dcursor <= end){
+    dayTicks.push(new Date(dcursor));
+    dcursor = new Date(dcursor); dcursor.setDate(dcursor.getDate() + tickEveryDays);
+  }
+  const dayAxis = dayTicks.map(d => {
+    const offsetPct = Math.max(0, (d - start) / 86400000 / totalDays * 100);
+    return `<span style="position:absolute; left:${offsetPct}%; top:15px; font-size:9px; color:var(--ink-faint); opacity:0.75; font-family:'Montserrat',sans-serif; white-space:nowrap;">${d.toLocaleDateString(undefined,{month:'numeric',day:'numeric'})}</span>`;
   }).join('');
   const gridlines = months.map(m => {
     const offsetPct = Math.max(0, (m - start) / 86400000 / totalDays * 100);
     return `<div style="position:absolute; left:${offsetPct}%; top:0; bottom:0; width:1px; background:var(--border-soft);"></div>`;
+  }).join('') + dayTicks.map(d => {
+    const offsetPct = Math.max(0, (d - start) / 86400000 / totalDays * 100);
+    return `<div style="position:absolute; left:${offsetPct}%; top:0; bottom:0; width:1px; background:var(--border-soft); opacity:0.35;"></div>`;
   }).join('');
   const today = new Date(TODAY);
   let todayLine = '';
@@ -5070,7 +5104,7 @@ function buildMonthGridHTML(overallStart, overallEnd){
     const offsetPct = (today - start) / 86400000 / totalDays * 100;
     todayLine = `<div style="position:absolute; left:${offsetPct}%; top:-22px; bottom:0; width:2px; background:var(--rust); z-index:2;"><span style="position:absolute; top:-16px; left:50%; transform:translateX(-50%); font-size:9px; font-weight:700; color:var(--rust); white-space:nowrap; font-family:'Montserrat',sans-serif;">TODAY</span></div>`;
   }
-  return { axis, gridlines: gridlines + todayLine };
+  return { axis: axis + dayAxis, gridlines: gridlines + todayLine };
 }
 function buildGanttRowHTML(phaseDef, baselineRow, actualRow, overallStart, spanDays, progressPct){
   const track = (row, color, height, opacity) => {
@@ -5151,7 +5185,7 @@ function buildScheduleTabHTML(p){
       <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:14px; height:10px; background:var(--jade); border-radius:3px; display:inline-block;"></span> Progress (steps checked off)</span>
     </div>
     <div id="scheduleTabContent" class="panel"><div class="panel-body" style="padding:20px 20px 16px; position:relative;">
-      <div style="display:flex; padding-left:${GANTT_LEFT_COL+GANTT_GAP}px; padding-right:${GANTT_RIGHT_COL+GANTT_GAP}px; height:22px; position:relative;">${grid.axis}</div>
+      <div style="display:flex; padding-left:${GANTT_LEFT_COL+GANTT_GAP}px; padding-right:${GANTT_RIGHT_COL+GANTT_GAP}px; height:34px; position:relative;">${grid.axis}</div>
       <div style="position:relative;">
         <div style="position:absolute; left:${GANTT_LEFT_COL+GANTT_GAP}px; right:${GANTT_RIGHT_COL+GANTT_GAP}px; top:0; bottom:0; pointer-events:none;">${grid.gridlines}</div>
         ${rows}
@@ -5182,7 +5216,7 @@ function printScheduleTab(projectId){
 // ---- Stage Chart — the spine of the new Preconstruction Command view. Replaces the old
 // phase stepper on the Overview tab (see master prompt: "do not stack a new dashboard on
 // top of the old workflow"). Clicking a stage opens its workspace inline below. ----
-let CC_STAGE_OPEN = false; // whether the full step list for this phase is expanded (progressive disclosure)
+let CC_STAGE_OPEN = true; // Full Step List starts expanded by default — the step-by-step detail needs to be visible alongside the Gantt, not hidden behind a click
 function toggleFullActionList(){
   CC_STAGE_OPEN = !CC_STAGE_OPEN;
   renderProjectDetail();
@@ -5718,7 +5752,7 @@ function buildClientProgressScheduleHTML(project){
   return `
     <div class="panel client-print-expand" style="margin-bottom:8px; overflow-x:auto;"><div class="panel-body" style="padding:20px 20px 16px; position:relative;">
       <div style="min-width:620px;">
-        <div style="display:flex; padding-left:${GANTT_LEFT_COL+GANTT_GAP}px; padding-right:${GANTT_RIGHT_COL+GANTT_GAP}px; height:22px; position:relative;">${grid.axis}</div>
+        <div style="display:flex; padding-left:${GANTT_LEFT_COL+GANTT_GAP}px; padding-right:${GANTT_RIGHT_COL+GANTT_GAP}px; height:34px; position:relative;">${grid.axis}</div>
         <div style="position:relative;">
           <div style="position:absolute; left:${GANTT_LEFT_COL+GANTT_GAP}px; right:${GANTT_RIGHT_COL+GANTT_GAP}px; top:0; bottom:0; pointer-events:none;">${grid.gridlines}</div>
           ${rows}
@@ -6640,6 +6674,7 @@ function buildActionBannerHTML(p){
     ${buildScheduleTabHTML(p)}
     ${wfBaselineCheck.baselineSet ? `${buildWaitingBlockedSummaryHTML(p)}${buildFullActionListHTML(p)}` : ''}
     ${buildPropertyHomeownerPanelHTML(p, srcOppId, `renderProjectDetail()`)}
+    ${buildProjectTasksPanelHTML(p)}
     <div class="section-label-row" style="margin-top:8px;"><div class="eyebrow">Review &amp; Send Log</div><span class="pill pill-slate" style="cursor:pointer;" onclick="openCCSubNav('scopes','review')">Open in Scopes →</span></div>
     <div class="panel" style="margin-bottom:20px;"><div class="panel-body" style="padding:6px 20px;" id="reviewSendLogDashboard"><div class="empty-row">Loading…</div></div></div>
     ${buildClientLogPanelHTML(p)}`;
