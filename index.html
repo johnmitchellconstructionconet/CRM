@@ -1071,30 +1071,22 @@ select{cursor:pointer;}
       </div>
 
       <div class="nav-section">
-        <div class="nav-section-label">Sales</div>
-        <div class="nav-item" data-page="pipeline">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 5h18l-3 7v7l-6 2v-9L3 5z"/></svg>
-          Sales Pipeline
-        </div>
-        <div class="nav-item" data-page="contacts">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20c0-3.5 3-6 6.5-6s6.5 2.5 6.5 6"/><circle cx="17.5" cy="8.5" r="2.6"/><path d="M15.5 14.2c2.9.3 5 2.5 5 5.8"/></svg>
-          Prospects &amp; Clients
-        </div>
+        <div class="nav-section-label">Preconstruction</div>
         <div class="nav-item" data-page="followups">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
-          Activities &amp; Follow-Ups
+          Follow-Ups
         </div>
-        <div class="nav-item" data-page="relationships">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 8.5a3 3 0 1 0-3-3"/><path d="M7 15.5a3 3 0 1 0 3 3"/><path d="M8.5 12.5l7-6M8.5 12.5l7 6"/></svg>
-          Relationship Pipeline
+        <div class="nav-item" data-page="precon-dash">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/></svg>
+          Preconstruction
         </div>
       </div>
 
       <div class="nav-section">
-        <div class="nav-section-label">Preconstruction</div>
-        <div class="nav-item" data-page="precon-dash">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/></svg>
-          Preconstruction
+        <div class="nav-section-label">Relationships</div>
+        <div class="nav-item" data-page="relationships">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 8.5a3 3 0 1 0-3-3"/><path d="M7 15.5a3 3 0 1 0 3 3"/><path d="M8.5 12.5l7-6M8.5 12.5l7 6"/></svg>
+          Relationship Pipeline
         </div>
       </div>
 
@@ -1133,7 +1125,7 @@ select{cursor:pointer;}
     <div class="topbar">
       <div class="search-wrap">
         <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4.5-4.5"/></svg>
-        <input id="globalSearch" placeholder="Search contacts, opportunities, projects, partners…" oninput="runGlobalSearch(this.value)">
+        <input id="globalSearch" placeholder="Search projects, partners…" oninput="runGlobalSearch(this.value)">
         <div id="searchResults" style="display:none; position:absolute; top:44px; left:0; right:0; background:#fff; border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow); z-index:20; overflow:hidden;"></div>
       </div>
       <div class="topbar-spacer"></div>
@@ -1148,7 +1140,6 @@ select{cursor:pointer;}
           <h1>Welcome back, John</h1>
           <div class="sub">A clean baseline across the whole business — tell me what you want built out here next.</div>
         </div>
-        <button class="btn btn-outline" onclick="printSalesReport()">🖨 Print Sales Report</button>
       </div>
 
       <div class="section-label-row"><div class="eyebrow">Preconstruction — Where Every Job Stands</div></div>
@@ -1164,7 +1155,7 @@ select{cursor:pointer;}
     <!-- ===== TASK CENTER ===== -->
     <div class="page" id="page-taskcenter">
       <div class="page-header">
-        <div><div class="eyebrow">System</div><h1>Task Center</h1><div class="sub">Every task assigned across Sales and Preconstruction, in one place — defaults to what's on your plate.</div></div>
+        <div><div class="eyebrow">System</div><h1>Task Center</h1><div class="sub">Every task assigned across Preconstruction, in one place — defaults to what's on your plate.</div></div>
       </div>
       <div class="row" style="gap:10px; margin-bottom:16px; flex-wrap:wrap; align-items:center;">
         <select id="tcAssigneeFilter" onchange="renderTaskCenter()" style="width:auto; min-width:170px;"></select>
@@ -1173,61 +1164,15 @@ select{cursor:pointer;}
           <option value="overdue">Overdue Only</option>
           <option value="all">All (incl. Done)</option>
         </select>
-        <select id="tcContextFilter" onchange="renderTaskCenter()" style="width:auto;">
-          <option value="all">Sales + Preconstruction</option>
-          <option value="opp">Sales Only</option>
-          <option value="project">Preconstruction Only</option>
-        </select>
       </div>
       <table>
-        <thead><tr><th>Task</th><th>Project / Lead</th><th>Assigned To</th><th>Due Date</th><th>Files</th><th>Status</th></tr></thead>
+        <thead><tr><th>Task</th><th>Project</th><th>Assigned To</th><th>Due Date</th><th>Files</th><th>Status</th></tr></thead>
         <tbody id="taskCenterBody"></tbody>
       </table>
     </div>
-    <!-- ===== SALES PIPELINE ===== -->
-    <div class="page" id="page-pipeline">
-      <div class="page-header"><div><div class="eyebrow">Sales</div><h1>Sales Pipeline</h1><div class="sub">Lead → Qualification → Consultation → Preliminary Estimate → Preconstruction Agreement Signed</div></div>
-        <div class="row" style="gap:8px;">
-          <button class="btn btn-outline" onclick="openWebsiteFormPreview()">🌐 Website Lead Form</button>
-          <button class="btn btn-dark" onclick="openAddProspect()">+ Add Prospect</button>
-        </div>
-      </div>
-      <div class="toolbar">
-        <div class="filter-row">
-          <div class="filter-chip">Salesperson: All ▾</div>
-          <div class="filter-chip">Lead Source: All ▾</div>
-        </div>
-        <div class="view-toggle">
-          <button onclick="setPipelineView('kanban',this)">Kanban</button>
-          <button class="active" onclick="setPipelineView('table',this)">Table</button>
-          <button onclick="setPipelineView('sequence',this)">Step-by-Step</button>
-        </div>
-      </div>
-      <div id="pipeline-kanban" style="display:none;"><div class="kanban" id="salesKanban"></div></div>
-      <div id="pipeline-table"></div>
-      <div id="pipeline-sequence" style="display:none;"></div>
-      <div class="section-label-row"><div class="eyebrow">✅ Sold — In Preconstruction</div></div>
-      <div class="hint" style="margin-bottom:12px;">Signed and converted — these live in Preconstruction now, not the active pipeline. Click through to the real project.</div>
-      <div id="soldGrid" style="margin-bottom:24px;"></div>
-      <div class="section-label-row"><div class="eyebrow">Continued Follow-Up — Parked, Not Forgotten</div><span class="pill pill-slate" style="cursor:pointer;" onclick="goPage('followups')">📋 View All in Activities &amp; Follow-Ups →</span></div>
-      <div class="hint" style="margin-bottom:12px;">Not ready to move forward right now, but every one of these still has a real follow-up date that needs honoring — and every one already shows up on Activities &amp; Follow-Ups too, since it's the same underlying record.</div>
-      <div id="parkedFollowUpGrid" style="margin-bottom:24px;"></div>
-      <div class="section-label-row"><div class="eyebrow">Lost Leads</div></div>
-      <div class="hint" style="margin-bottom:12px;">Every lead ever marked lost in this system, with the real reason on record — click any row to see the full profile and notes. Older leads lost before this system tracked reasons individually only show up as a historical count, not fabricated detail.</div>
-      <div id="lostLeadsGrid" style="margin-bottom:24px;"></div>
-    </div>
-
-    <!-- ===== CONTACTS ===== -->
-    <div class="page" id="page-contacts">
-      <div class="page-header"><div><div class="eyebrow">Sales</div><h1>Prospects &amp; Clients</h1><div class="sub">Every person's contact record, whatever their status — active prospects, signed clients, even leads that went cold or that we've lost. If we've ever talked to them, they're here. Referral partners and other business relationships live in Relationship Pipeline instead.</div></div>
-        <button class="btn btn-dark" onclick="openAddProspect()">+ New Prospect</button>
-      </div>
-      <div id="prospectsClientsBody"></div>
-    </div>
-
-    <!-- ===== ACTIVITIES & FOLLOW-UPS ===== -->
+    <!-- ===== FOLLOW-UPS ===== -->
     <div class="page" id="page-followups">
-      <div class="page-header"><div><div class="eyebrow">Sales &amp; Preconstruction</div><h1>Activities &amp; Follow-Ups</h1><div class="sub">Every scheduled follow-up system-wide — Sales and Preconstruction both feed this, since it's the same underlying record. Real data, not a snapshot.</div></div></div>
+      <div class="page-header"><div><div class="eyebrow">Preconstruction</div><h1>Follow-Ups</h1><div class="sub">Every scheduled follow-up across active Preconstruction projects, in one place. Real data, not a snapshot.</div></div></div>
       <div class="tabs" id="followupTabs">
         <div class="tab active" data-fu="overdue">Overdue</div>
         <div class="tab" data-fu="today">Due Today</div>
@@ -1235,7 +1180,7 @@ select{cursor:pointer;}
         <div class="tab" data-fu="all">All</div>
       </div>
       <table>
-        <thead><tr><th>Lead</th><th>Follow-Up</th><th>Stage</th><th>Assigned To</th><th>Due</th></tr></thead>
+        <thead><tr><th>Project</th><th>Follow-Up</th><th>Phase</th><th>Assigned To</th><th>Due</th></tr></thead>
         <tbody id="followupsBody"></tbody>
       </table>
     </div>
@@ -1263,19 +1208,14 @@ select{cursor:pointer;}
 
     <!-- ===== RELATIONSHIP PIPELINE ===== -->
     <div class="page" id="page-relationships">
-      <div class="page-header"><div><div class="eyebrow">Relationships</div><h1>Relationship Pipeline</h1><div class="sub">Separate from the sales pipeline — tracks who sends us business, not who's buying from us. Referrals are some of our highest-converting, highest-value leads, so this gets tracked properly.</div></div>
+      <div class="page-header"><div><div class="eyebrow">Relationships</div><h1>Relationship Pipeline</h1><div class="sub">Tracks who sends us business, not who's buying from us. Referrals are some of our highest-converting, highest-value leads, so this gets tracked properly.</div></div>
         <button class="btn btn-dark" id="relPageAddBtn" onclick="openAddPartner()">+ Add Partner</button>
-      </div>
-      <div class="view-toggle" style="margin-bottom:18px;">
-        <button class="active" onclick="setRelPageView('partners', this)">Partners</button>
-        <button onclick="setRelPageView('prospects', this)">New Contacts</button>
       </div>
       <div id="dripCampaignPanel" style="margin-bottom:18px;"></div>
       <div id="relPartnersView">
         <div class="stat-grid" style="grid-template-columns:repeat(4,1fr);" id="relStatGrid"></div>
         <div id="relPartnersGroups"></div>
       </div>
-      <div id="relProspectsView" style="display:none;"></div>
     </div>
 
     <!-- ===== SYSTEM SHELLS ===== -->
@@ -1313,7 +1253,7 @@ select{cursor:pointer;}
 
     <!-- ===== COMPANY SETTINGS: standard document templates ===== -->
     <div class="page" id="page-company-settings">
-      <div class="page-header"><div><div class="eyebrow">System</div><h1>Company Settings</h1><div class="sub">Standard document templates — upload once here, and they automatically attach into the Files panel on every opportunity once that stage of the process is actually done.</div></div></div>
+      <div class="page-header"><div><div class="eyebrow">System</div><h1>Company Settings</h1><div class="sub">Standard document templates — upload once here, and they automatically attach into the Files panel on every project once that phase of the process is actually done.</div></div></div>
       <div class="section-label-row"><div class="eyebrow">Branding</div></div>
       <div class="panel" style="margin-bottom:20px;"><div class="panel-body" style="padding:16px 20px;">
         <div class="field-grid">
@@ -1654,48 +1594,7 @@ function downloadTemplate(key){
   a.download = t.fileName;
   a.click();
 }
-let OPPORTUNITIES = [
-  {id:'young', name:'Lorayne Young', stage:'Attempted to Contact', owner:null, leadTemp:'Warm', projectType:'Custom Home', dealValue:null, feeAmount:null, rating:null, nextFollowUpDate:null, nextFollowUpNote:null, leadSource:'Referral', budgetRange:'$500k-$900k', referralPartner:null, address:null, phone:'870-217-8603', email:'lorayneyoung688@gmail.com', description:'Forever home.', nextActivityDate:null, nextActivityTask:null, stageEnteredDate:'2026-06-28', files:{}, createdDate:'2026-06-28'},
-  {id:'schortgen', name:'Donald Schortgen', stage:'Attempted to Contact', owner:'Bre Mitchell', leadTemp:'Warm', projectType:'Custom Home', dealValue:null, feeAmount:null, rating:3, nextFollowUpDate:'2026-07-24', nextFollowUpNote:'Initial phone call', leadSource:'Google', budgetRange:'$500k-$900k', referralPartner:null, address:null, phone:'281-507-9292', email:'dschortgen@gmail.com', description:'Wants to rebuild the custom home they had in Magnolia, TX — one story, wheelchair-accessible for his wife. 3,000-3,500 SF, board and batten with stone facade. May still have original plans.', nextActivityDate:'2026-07-24', nextActivityTask:'Initial phone call', stageEnteredDate:'2026-07-18', files:{}, createdDate:'2026-07-18'},
-  {id:'sutherland', name:'Richard Sutherland', stage:'Attempted to Contact', owner:'Bre Mitchell', leadTemp:'Warm', projectType:'Custom Home', dealValue:null, feeAmount:null, rating:null, nextFollowUpDate:'2026-08-12', nextFollowUpNote:null, leadSource:'Google', budgetRange:'$500k-$900k', referralPartner:null, address:null, phone:'650-503-4639', email:'Richard.suther0983@outlook.com', description:'General inquiry — requesting quote information, availability, and lead times.', nextActivityDate:'2026-08-12', nextActivityTask:'First discovery call', stageEnteredDate:'2026-08-03', files:{}, createdDate:'2026-08-03'},
-  {id:'burks', name:'Hayden Burks', stage:'Contact Made', owner:'Bre Mitchell', leadTemp:'Warm', projectType:'Custom Home', dealValue:null, feeAmount:null, rating:4, nextFollowUpDate:null, nextFollowUpNote:null, leadSource:'Google', budgetRange:'$500k-$900k', referralPartner:null, address:null, phone:'417-880-1907', email:'hayden2727@gmail.com', description:'One-story farmhouse-style home, ~2,400 SF, average-to-nice finishes. No land yet. Wants general price-per-SF guidance.', nextActivityDate:null, nextActivityTask:'Schedule discovery call', stageEnteredDate:'2026-07-15', files:{}, createdDate:'2026-07-15'},
-  {id:'tucker', name:'Christopher Tucker', stage:'Contact Made', owner:'Bre Mitchell', leadTemp:'Warm', projectType:'Custom Home', dealValue:null, feeAmount:null, rating:4, nextFollowUpDate:'2026-08-14', nextFollowUpNote:null, leadSource:'Google', budgetRange:'$2M+', referralPartner:null, address:null, phone:null, email:'healthwealth264@gmail.com', description:'Referred by niece Katherine — looking for a reliable builder for a new property.', nextActivityDate:'2026-08-14', nextActivityTask:'Discovery call', stageEnteredDate:'2026-07-31', files:{}, createdDate:'2026-07-31'},
-  {id:'horn', name:'Michael Horn', stage:'Discovery Call Scheduled', owner:'Bre Mitchell', leadTemp:'Warm', projectType:'Custom Home', dealValue:800000, feeAmount:null, rating:4, nextFollowUpDate:'2026-08-05', nextFollowUpNote:'Office Visit', leadSource:'Google', budgetRange:'$500k-$900k', referralPartner:null, address:null, phone:'904-903-6348', email:'mikehorn1963@gmail.com', description:'Retiring to SE Missouri, 5-50 acres. One-level home, 2,000-2,500 SF + 2,000 SF attached garage. Wants to tour projects at various build phases.', nextActivityDate:'2026-08-05', nextActivityTask:'Discovery call', stageEnteredDate:'2026-07-30', files:{}, createdDate:'2026-07-30'},
-  {id:'clement', name:'Ryan & Whitney Clement', stage:'Site Visit or Office Consultation Scheduled', owner:'Bre Mitchell', leadTemp:'Warm', projectType:'Custom Home', dealValue:1111213.04, feeAmount:22224.26, rating:4, nextFollowUpDate:'2026-07-24', nextFollowUpNote:'Office Consultation', leadSource:'Google', budgetRange:null, referralPartner:null, address:'Saddlebrooke, MO', phone:'417-531-1924', email:'whit413@gmail.com', description:'Custom home in Saddlebrooke on 40 acres.', nextActivityDate:'2026-07-24', nextActivityTask:'Office consultation', stageEnteredDate:'2026-07-24', files:{}, createdDate:'2026-07-24'},
-  {id:'slotto', name:'James Slotto', stage:'Preliminary Estimate Presented to Client', owner:'John Mitchell', leadTemp:'Warm', projectType:'Addition', dealValue:254182.61, feeAmount:20334.60, rating:3, nextFollowUpDate:'2026-08-13', nextFollowUpNote:'Follow up on preliminary', leadSource:'Google', budgetRange:'$100k-$200k', referralPartner:null, address:'4035 E Brookdale Terrace, Springfield, MO', phone:'763-234-7149', email:'james.slotto@gmail.com', description:'Detached workshop / pool house / man cave, fully finished to blend with the existing house.', nextActivityDate:'2026-08-13', nextActivityTask:'Follow up on preliminary', stageEnteredDate:'2026-06-03', files:{}, createdDate:'2026-06-03'},
-  {id:'nygard', name:'BonnieSue Nygard', stage:'Preliminary Estimate Presented to Client', owner:'John Mitchell', leadTemp:'Warm', projectType:'Custom Home', dealValue:1200000, feeAmount:24000, rating:5, nextFollowUpDate:'2026-07-30', nextFollowUpNote:'Follow up on signature for preliminary', leadSource:'Referral', budgetRange:null, referralPartner:'Ashley', address:'Bradleyville, MO', phone:'623-221-0957', email:'nygardbonniesue@gmail.com', description:'7-9,000 SF home.', nextActivityDate:'2026-07-30', nextActivityTask:'Follow up on signature for preliminary', stageEnteredDate:'2026-05-01', files:{discoveryForm:'Nygard - Get to know you form.pdf', preliminaryEstimate:'UPDATED Nygard Preliminary 06222026.pdf'}, createdDate:'2026-05-01'},
-  {id:'mceuen', name:'Matt McEuen', stage:'Preliminary Estimate Presented to Client', owner:'Bre Mitchell', leadTemp:'Hot', projectType:'Custom Home', dealValue:907069, feeAmount:18141.38, rating:4, nextFollowUpDate:'2026-07-17', nextFollowUpNote:'Follow up on Preliminary', leadSource:'Google', budgetRange:null, referralPartner:null, address:'Branson, MO', phone:'314-761-6255', email:'mnmceuen@sbcglobal.net', description:'4-5 bed/bath home.', nextActivityDate:'2026-07-17', nextActivityTask:'Follow up on Preliminary', stageEnteredDate:'2026-05-22', files:{}, createdDate:'2026-05-22'},
-  {id:'woods', name:'Carrisann Woods', stage:'Preliminary Estimate Presented to Client', owner:'John Mitchell', leadTemp:'Hot', projectType:'Renovation', dealValue:397500, feeAmount:15900, rating:5, nextFollowUpDate:'2026-07-14', nextFollowUpNote:'Site Visit', leadSource:null, budgetRange:null, referralPartner:null, address:'231 Grand Summit Point, Branson, MO', phone:'417-860-9931', email:'carrisann@gmail.com', description:'Home remodel in Branson, MO.', nextActivityDate:'2026-07-14', nextActivityTask:'Site visit', stageEnteredDate:'2026-06-25', files:{}, createdDate:'2026-06-25'},
-  {id:'eminhizer', name:'Alyssa Eminhizer', stage:'Preliminary Estimate Presented to Client', owner:null, leadTemp:'Hot', projectType:'Custom Home', dealValue:1313065.76, feeAmount:26261.32, rating:2, nextFollowUpDate:'2026-07-30', nextFollowUpNote:null, leadSource:'Social Media', budgetRange:'$1M-$1.5M', referralPartner:null, address:'Fordland, MO', phone:'626-622-4773', email:'alyssaeminhizer4@gmail.com', description:'Custom walkout basement home, 4 bed / 3 bath. Have existing plans that need revisions.', nextActivityDate:'2026-07-30', nextActivityTask:'Follow up on revisions', stageEnteredDate:'2026-07-13', files:{}, createdDate:'2026-07-13'},
-  // "Parked" doesn't mean forgotten — these are real leads on a longer follow-up cadence,
-  // still with real dates that need to be honored, not just a collapsed count with nothing behind it.
-  {id:'putnam', name:'Dalton Putnam', stage:'Continued Follow-Up', followUpBucket:'3-month', owner:'Bre Mitchell', leadTemp:'Cold', projectType:'Custom Home', dealValue:null, feeAmount:null, rating:null, nextFollowUpDate:'2026-08-20', nextFollowUpNote:'3-month check-in call', leadSource:'Google', budgetRange:null, referralPartner:null, address:null, phone:null, email:null, description:'Not ready to move forward yet — asked to check back in a few months.', nextActivityDate:null, nextActivityTask:null, stageEnteredDate:'2026-05-20', files:{}, createdDate:'2026-05-20'},
-  {id:'furin', name:'Joe & Sheri Furin', stage:'Continued Follow-Up', followUpBucket:'3-month', owner:'Bre Mitchell', leadTemp:'Cold', projectType:'Custom Home', dealValue:null, feeAmount:null, rating:null, nextFollowUpDate:'2026-08-11', nextFollowUpNote:'3-month check-in call', leadSource:'Referral', budgetRange:null, referralPartner:null, address:null, phone:null, email:null, description:'Budget wasn\'t aligned yet at time of first contact — revisit in a few months.', nextActivityDate:null, nextActivityTask:null, stageEnteredDate:'2026-05-11', files:{}, createdDate:'2026-05-11'},
-  {id:'laplant', name:'Greyson LaPlant', stage:'Continued Follow-Up', followUpBucket:'6-month', owner:'John Mitchell', leadTemp:'Cold', projectType:'Renovation', dealValue:null, feeAmount:null, rating:null, nextFollowUpDate:'2026-11-15', nextFollowUpNote:'6-month check-in call', leadSource:'Google', budgetRange:null, referralPartner:null, address:null, phone:null, email:null, description:null, nextActivityDate:null, nextActivityTask:null, stageEnteredDate:'2026-05-15', files:{}, createdDate:'2026-05-15'},
-  {id:'adler', name:'Allison Adler', stage:'Continued Follow-Up', followUpBucket:'6-month', owner:'John Mitchell', leadTemp:'Cold', projectType:'Custom Home', dealValue:null, feeAmount:null, rating:null, nextFollowUpDate:'2026-11-02', nextFollowUpNote:'6-month check-in call', leadSource:'Referral', budgetRange:null, referralPartner:null, address:null, phone:null, email:null, description:null, nextActivityDate:null, nextActivityTask:null, stageEnteredDate:'2026-05-02', files:{}, createdDate:'2026-05-02'},
-  {id:'mcmillen', name:'Jeff McMillen', stage:'Continued Follow-Up', followUpBucket:'6-month', owner:'Bre Mitchell', leadTemp:'Cold', projectType:'Addition', dealValue:null, feeAmount:null, rating:null, nextFollowUpDate:'2026-10-28', nextFollowUpNote:'6-month check-in call', leadSource:'Google', budgetRange:null, referralPartner:null, address:null, phone:null, email:null, description:null, nextActivityDate:null, nextActivityTask:null, stageEnteredDate:'2026-04-28', files:{}, createdDate:'2026-04-28'},
-  {id:'whitman', name:'Darren Whitman', stage:'Continued Follow-Up', followUpBucket:'6-month', owner:'John Mitchell', leadTemp:'Cold', projectType:'Custom Home', dealValue:null, feeAmount:null, rating:null, nextFollowUpDate:'2026-08-13', nextFollowUpNote:'6-month check-in call', leadSource:'Social Media', budgetRange:null, referralPartner:null, address:null, phone:null, email:null, description:null, nextActivityDate:null, nextActivityTask:null, stageEnteredDate:'2026-02-13', files:{}, createdDate:'2026-02-13'},
-  {id:'skeens', name:'Ryan Skeens', stage:'Continued Follow-Up', followUpBucket:'6-month', owner:'Bre Mitchell', leadTemp:'Cold', projectType:'Renovation', dealValue:null, feeAmount:null, rating:null, nextFollowUpDate:'2026-09-30', nextFollowUpNote:'6-month check-in call', leadSource:'Google', budgetRange:null, referralPartner:null, address:null, phone:null, email:null, description:null, nextActivityDate:null, nextActivityTask:null, stageEnteredDate:'2026-03-30', files:{}, createdDate:'2026-03-30'},
-  {id:'myers', name:'Amy Myers', stage:'Continued Follow-Up', followUpBucket:'6-month', owner:'John Mitchell', leadTemp:'Cold', projectType:'Custom Home', dealValue:null, feeAmount:null, rating:null, nextFollowUpDate:'2026-09-18', nextFollowUpNote:'6-month check-in call', leadSource:'Referral', budgetRange:null, referralPartner:null, address:null, phone:null, email:null, description:null, nextActivityDate:null, nextActivityTask:null, stageEnteredDate:'2026-03-18', files:{}, createdDate:'2026-03-18'},
-  {id:'bruton', name:'Lance Bruton', stage:'Continued Follow-Up', followUpBucket:'6-month', owner:'Bre Mitchell', leadTemp:'Cold', projectType:'Addition + Renovation', dealValue:null, feeAmount:null, rating:null, nextFollowUpDate:'2026-08-09', nextFollowUpNote:'6-month check-in call', leadSource:'Google', budgetRange:null, referralPartner:null, address:null, phone:null, email:null, description:null, nextActivityDate:null, nextActivityTask:null, stageEnteredDate:'2026-02-09', files:{}, createdDate:'2026-02-09'},
-  {id:'eatmon', name:'Jared Eatmon', stage:'Continued Follow-Up', followUpBucket:'6-month', owner:'John Mitchell', leadTemp:'Cold', projectType:'Custom Home', dealValue:null, feeAmount:null, rating:null, nextFollowUpDate:'2026-08-25', nextFollowUpNote:'6-month check-in call', leadSource:'Referral', budgetRange:null, referralPartner:null, address:null, phone:null, email:null, description:null, nextActivityDate:null, nextActivityTask:null, stageEnteredDate:'2026-02-25', files:{}, createdDate:'2026-02-25'},
-// ---- Real backing opportunity records for the 9 originally-seeded projects ----
-// These predate the Sales->Precon conversion flow, so they never had a real
-// opportunity linked to them. Contact info wasn't in the original Monday data for
-// these, so those fields stay honestly blank/editable rather than fabricated —
-// but the deal value, fee, and project type are the same real numbers already
-// used throughout the rest of the portal for these clients.
-  {id:'smith', name:'The Smiths', stage:'Preconstruction Agreement Signed', owner:'John Mitchell', leadTemp:null, projectType:'Custom Home', dealValue:1450000, feeAmount:29000, rating:null, nextFollowUpDate:null, nextFollowUpNote:null, leadSource:null, budgetRange:null, referralPartner:null, address:null, phone:null, email:null, description:null, nextActivityDate:null, nextActivityTask:null, stageEnteredDate:null, files:{}, createdDate:null},
-  {id:'lawrence', name:'Chris Lawrence', stage:'Preconstruction Agreement Signed', owner:'John Mitchell', leadTemp:null, projectType:'Renovation', dealValue:844500, feeAmount:16890, rating:null, nextFollowUpDate:null, nextFollowUpNote:null, leadSource:null, budgetRange:null, referralPartner:null, address:null, phone:null, email:null, description:null, nextActivityDate:null, nextActivityTask:null, stageEnteredDate:null, files:{}, createdDate:null},
-  {id:'bell', name:'Craig & Lydia Bell', stage:'Preconstruction Agreement Signed', owner:'John Mitchell', leadTemp:null, projectType:'Addition + Renovation', dealValue:819230.33, feeAmount:24576.91, rating:null, nextFollowUpDate:null, nextFollowUpNote:null, leadSource:null, budgetRange:null, referralPartner:null, address:null, phone:null, email:null, description:null, nextActivityDate:null, nextActivityTask:null, stageEnteredDate:null, files:{}, createdDate:null},
-  {id:'pulaski', name:'Jonathan Pulaski', stage:'Preconstruction Agreement Signed', owner:'Bre Mitchell', leadTemp:null, projectType:'Addition + Renovation', dealValue:115324, feeAmount:9225.92, rating:null, nextFollowUpDate:null, nextFollowUpNote:null, leadSource:null, budgetRange:null, referralPartner:null, address:null, phone:null, email:null, description:null, nextActivityDate:null, nextActivityTask:null, stageEnteredDate:null, files:{}, createdDate:null},
-  {id:'peters', name:'Mike & Gwen Peters', stage:'Preconstruction Agreement Signed', owner:'John Mitchell', leadTemp:null, projectType:'Addition + Renovation', dealValue:268267, feeAmount:13413.35, rating:null, nextFollowUpDate:null, nextFollowUpNote:null, leadSource:null, budgetRange:null, referralPartner:null, address:null, phone:null, email:null, description:null, nextActivityDate:null, nextActivityTask:null, stageEnteredDate:null, files:{}, createdDate:null},
-  {id:'britton', name:'Jan Britton', stage:'Preconstruction Agreement Signed', owner:'John Mitchell', leadTemp:null, projectType:'Renovation', dealValue:292208, feeAmount:20454.2, rating:null, nextFollowUpDate:null, nextFollowUpNote:null, leadSource:null, budgetRange:null, referralPartner:null, address:null, phone:null, email:null, description:null, nextActivityDate:null, nextActivityTask:null, stageEnteredDate:null, files:{}, createdDate:null},
-  {id:'wood', name:'Mitchell Wood', stage:'Preconstruction Agreement Signed', owner:'John Mitchell', leadTemp:null, projectType:'Renovation', dealValue:185000, feeAmount:7400, rating:null, nextFollowUpDate:null, nextFollowUpNote:null, leadSource:null, budgetRange:null, referralPartner:null, address:null, phone:null, email:null, description:null, nextActivityDate:null, nextActivityTask:null, stageEnteredDate:null, files:{}, createdDate:null},
-  {id:'tmitchell', name:'Teresa Mitchell', stage:'Preconstruction Agreement Signed', owner:'John Mitchell', leadTemp:null, projectType:'Renovation', dealValue:210000, feeAmount:8400, rating:null, nextFollowUpDate:null, nextFollowUpNote:null, leadSource:null, budgetRange:null, referralPartner:null, address:null, phone:null, email:null, description:null, nextActivityDate:null, nextActivityTask:null, stageEnteredDate:null, files:{}, createdDate:null},
-  {id:'boehner', name:'Matt Boehner', stage:'Preconstruction Agreement Signed', owner:'Bre Mitchell', leadTemp:null, projectType:'Renovation', dealValue:321175.63, feeAmount:9375, rating:null, nextFollowUpDate:null, nextFollowUpNote:null, leadSource:null, budgetRange:null, referralPartner:null, address:null, phone:null, email:null, description:null, nextActivityDate:null, nextActivityTask:null, stageEnteredDate:null, files:{}, createdDate:null},
-
-];
+let OPPORTUNITIES = []; // Sales pipeline removed 2026-08 — Preconstruction-only going forward
 const STAGE_ORDER = [
   'Need to Contact','Attempted to Contact','Contact Made','Discovery Call Scheduled',
   'Discovery / Initial Meeting','Site Visit or Office Consultation Scheduled',
@@ -1748,19 +1647,16 @@ function renderTaskCenter(){
   populateTaskCenterAssigneeFilter();
   const assigneeEl = document.getElementById('tcAssigneeFilter');
   const statusEl = document.getElementById('tcStatusFilter');
-  const contextEl = document.getElementById('tcContextFilter');
   const body = document.getElementById('taskCenterBody');
   if(!body || !assigneeEl) return;
   const assigneeFilter = assigneeEl.value;
   const statusFilter = statusEl.value;
-  const contextFilter = contextEl.value;
   const rows = [];
   Object.keys(OPP_ESTIMATES).forEach(estId => {
     const est = OPP_ESTIMATES[estId];
     if(!est || !est.tasks || !est.tasks.length) return;
     const ctx = getTaskContextInfo(estId);
     if(!ctx) return;
-    if(contextFilter !== 'all' && ctx.kind !== contextFilter) return;
     est.tasks.forEach(t => {
       const who = t.assignee || 'Unassigned';
       if(assigneeFilter !== 'all' && who !== assigneeFilter) return;
@@ -1780,7 +1676,7 @@ function renderTaskCenter(){
   });
   body.innerHTML = rows.length ? rows.map(({t, ctx, overdue, who}) => `<tr style="cursor:pointer; ${overdue ? 'background:#FBEFEA;' : ''}" onclick="${ctx.action}">
     <td class="name-cell" style="${t.done ? 'color:var(--ink-faint); text-decoration:line-through;' : ''}">${escapeHtmlLite(t.title)}</td>
-    <td>${escapeHtmlLite(ctx.name)} <span class="pill pill-slate" style="margin-left:4px; font-size:9px;">${ctx.kind === 'project' ? 'Precon' : 'Sales'}</span></td>
+    <td>${escapeHtmlLite(ctx.name)}</td>
     <td>${escapeHtmlLite(who)}</td>
     <td style="${overdue ? 'color:var(--rust); font-weight:700;' : ''}">${t.due || '—'}${overdue ? ' ⚠' : ''}</td>
     <td>${(t.attachments||[]).length ? '📎 ' + t.attachments.length : '—'}</td>
@@ -3109,78 +3005,6 @@ function openLogActivity(type, context){
     </div>
   `);
 }
-function promptNextFollowUp(oppId){
-  const opp = getOpp(oppId);
-  if(!opp) return;
-  openQuickOverlay(`
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-      <h3 style="font-family:'Space Grotesk',sans-serif; font-size:18px;">What's the next follow-up?</h3>
-      <span style="cursor:pointer; color:var(--ink-faint); font-size:20px;" onclick="skipNextFollowUp()">&times;</span>
-    </div>
-    <div class="hint" style="margin-bottom:14px;">${escapeHtmlLite(opp.name)} — set this now so it doesn't go stale.</div>
-    <label class="est-lbl">Next Follow-Up Date</label>
-    <input id="nfDate" type="date" value="${opp.nextFollowUpDate || ''}">
-    <label class="est-lbl" style="margin-top:12px;">What's the follow-up?</label>
-    <input id="nfNote" placeholder="e.g. Call to confirm site visit" value="${escapeHtmlLite(opp.nextFollowUpNote || '')}">
-    <label class="est-lbl" style="margin-top:12px;">Assigned To</label>
-    <select id="nfAssignee">${teamMemberOptions(opp.nextFollowUpAssignee || opp.owner)}</select>
-    <div class="row" style="margin-top:18px; justify-content:flex-end; gap:8px;">
-      <button class="btn btn-outline" onclick="skipNextFollowUp()">Skip for now</button>
-      <button class="btn btn-dark" onclick="submitNextFollowUp('${oppId}')">Save</button>
-    </div>
-  `);
-}
-function submitNextFollowUp(oppId){
-  const opp = getOpp(oppId);
-  if(!opp) return;
-  opp.nextFollowUpDate = document.getElementById('nfDate').value || null;
-  opp.nextFollowUpNote = document.getElementById('nfNote').value.trim() || null;
-  opp.nextFollowUpAssignee = document.getElementById('nfAssignee').value.trim() || null;
-  closeQuickOverlay();
-  renderSalesKanban(); renderSalesTable();
-  if(document.getElementById('pipeline-sequence').style.display !== 'none') renderSalesSequence();
-  renderFollowUpsPage();
-  const oppOverlay = document.getElementById('oppOverlay');
-  if(oppOverlay && oppOverlay.style.display === 'flex') oppOverlay.innerHTML = buildOppDetailHTML(opp);
-  const projectPage = document.getElementById('page-project-detail');
-  if(projectPage && projectPage.classList.contains('active')) renderProjectDetail();
-}
-function skipNextFollowUp(){
-  closeQuickOverlay();
-}
-// ---- Complete a follow-up with notes, then immediately schedule the next one. Works
-// identically whether triggered from a Sales opportunity or a Preconstruction project,
-// since both read/write the exact same underlying follow-up fields.
-function completeFollowUp(oppId){
-  const opp = getOpp(oppId);
-  if(!opp) return;
-  openQuickOverlay(`
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-      <h3 style="font-family:'Space Grotesk',sans-serif; font-size:18px;">Complete Follow-Up</h3>
-      <span style="cursor:pointer; color:var(--ink-faint); font-size:20px;" onclick="closeQuickOverlay()">&times;</span>
-    </div>
-    <div class="hint" style="margin-bottom:14px;">${escapeHtmlLite(opp.name)} — ${escapeHtmlLite(opp.nextFollowUpNote || 'Follow up')}${opp.nextFollowUpDate ? ' · ' + opp.nextFollowUpDate : ''}</div>
-    <label class="est-lbl">What happened?</label>
-    <textarea id="cfNotes" style="width:100%; min-height:100px; padding:10px 12px; border:1px solid var(--border); border-radius:8px; font-family:'Inter',sans-serif; font-size:13.5px;" placeholder="What was discussed or decided on this follow-up..."></textarea>
-    <div class="row" style="margin-top:18px; justify-content:flex-end; gap:8px;">
-      <button class="btn btn-outline" onclick="closeQuickOverlay()">Cancel</button>
-      <button class="btn btn-dark" onclick="submitCompleteFollowUp('${oppId}')">Complete &amp; Schedule Next</button>
-    </div>
-  `);
-}
-function submitCompleteFollowUp(oppId){
-  const opp = getOpp(oppId);
-  if(!opp) return;
-  const notes = document.getElementById('cfNotes').value.trim();
-  if(!notes){ alert('Please add a note on what happened before completing this follow-up.'); return; }
-  const est = getOrCreateOppEstimate(opp);
-  est.meetingNotes.push({id:'mn'+Date.now(), type:'Follow-Up Completed', date: new Date().toISOString().slice(0,10), note: notes, attachmentName:null, attachmentDataUrl:null});
-  opp.nextFollowUpDate = null;
-  opp.nextFollowUpNote = null;
-  opp.nextFollowUpAssignee = null;
-  closeQuickOverlay();
-  promptNextFollowUp(oppId);
-}
 function submitLogActivity(){
   const type = document.getElementById('qaType').value;
   const text = document.getElementById('qaText').value.trim();
@@ -3198,6 +3022,23 @@ function submitLogActivity(){
   } else if(ctx.kind === 'partner'){
     openPartnerDetail(ctx.id);
   }
+}
+// ---- Legacy Sales follow-up prompts. The Sales pipeline itself is gone (see removal
+// note near OPPORTUNITIES), but sendComposeEmail() and submitLogActivity() above are
+// shared with standalone Preconstruction projects and unconditionally call these when
+// CURRENT_OPP_ID is set. Since OPPORTUNITIES is now permanently empty, getOpp() always
+// returns undefined here, so these safely no-op — kept only so those shared callers
+// don't throw. Do not wire these back into any live UI. ----
+function promptNextFollowUp(oppId){
+  const opp = getOpp(oppId);
+  if(!opp) return;
+}
+function skipNextFollowUp(){
+  closeQuickOverlay();
+}
+function completeFollowUp(oppId){
+  const opp = getOpp(oppId);
+  if(!opp) return;
 }
 function buildEstimateWorkspaceHTML(opp){
   const e = ESTIMATE;
@@ -3328,23 +3169,6 @@ function closeEstimateWorkspace(){
   }
 }
 
-function openOpportunity(id){
-  const opp = getOpp(id);
-  if(!opp) return;
-  CURRENT_OPP_ID = id;
-  ESTIMATE = getOrCreateOppEstimate(opp);
-  let overlay = document.getElementById('oppOverlay');
-  if(!overlay){
-    overlay = document.createElement('div');
-    overlay.id = 'oppOverlay';
-    overlay.style.cssText = 'position:fixed; inset:0; background:rgba(30,27,24,.55); display:flex; align-items:center; justify-content:center; z-index:150; padding:24px;';
-    document.body.appendChild(overlay);
-  }
-  overlay.innerHTML = buildOppDetailHTML(opp);
-  overlay.style.display = 'flex';
-  renderEstimateTable();
-  attachAddressAutocomplete('addr_' + id);
-}
 function closeOpportunity(){
   const overlay = document.getElementById('oppOverlay');
   if(overlay) overlay.style.display = 'none';
@@ -3377,6 +3201,7 @@ function buildProjectContactPanelHTML(p){
       </div>
       <div class="field-grid" style="margin-top:10px;">
         <div><label>Days in This Phase</label><input value="${dip !== null ? dip : '—'}" disabled style="background:var(--border-soft); color:var(--ink-soft);"></div>
+        <div><label>Referral Source</label><select onchange="setProjectField('${p.id}','referralPartner',this.value); renderProjectDetail()">${referralPartnerOptions(p.referralPartner)}</select></div>
       </div>
       <div class="row" style="margin-top:14px; gap:8px;">
         <button class="btn btn-outline" onclick="openScheduleMenu(this, 'Follow up with ${escapeHtmlLite(p.client||p.name||'')}', '${p.nextFollowUpDate || new Date().toISOString().slice(0,10)}', '09:00', '${escapeHtmlLite(p.nextFollowUpNote||'')}', '${escapeHtmlLite(p.email||'')}')">📅 Schedule</button>
@@ -3815,74 +3640,6 @@ function buildStageStepperHTML(opp){
   if(isSold) return `<div class="stage-stepper"><div class="stage-step" style="flex:1; background:var(--jade); color:#fff; font-weight:700;">✅ Sold — In Preconstruction</div></div>`;
   return `<div class="stage-stepper">${steps}</div>`;
 }
-function changeOppStage(id, newStage){
-  const opp = getOpp(id);
-  if(!opp) return;
-  opp.stage = newStage;
-  const est = OPP_ESTIMATES[id];
-  if(est) est.stage = newStage;
-  logActivity('Note', `Stage changed to "${newStage}"`, 'You');
-  renderSalesKanban(); renderSalesTable();
-  if(document.getElementById('pipeline-sequence').style.display !== 'none') renderSalesSequence();
-  const oppOverlay = document.getElementById('oppOverlay');
-  if(oppOverlay) oppOverlay.innerHTML = buildOppDetailHTML(opp);
-  if(newStage !== 'Lost Lead' && newStage !== 'Sold') promptNextFollowUp(id);
-}
-function markSold(id){
-  changeOppStage(id, 'Sold');
-}
-function markLost(id){
-  const opp = getOpp(id);
-  if(!opp) return;
-  const overlay = document.createElement('div');
-  overlay.id = 'markLostOverlay';
-  overlay.style.cssText = 'position:fixed; inset:0; z-index:400; display:flex; align-items:center; justify-content:center; background:rgba(20,18,14,.55); padding:20px;';
-  const reasons = ['Went with a competitor','Budget / price','Timeline didn\'t work','Went cold / stopped responding','Project cancelled or put on hold','Financing fell through','Other'];
-  overlay.innerHTML = `
-    <div class="modal-card" style="width:460px; background:#fff; border-radius:14px; padding:20px; box-shadow:0 20px 50px rgba(0,0,0,.25);">
-      <div class="panel-title" style="margin-bottom:2px;">Mark Lead as Lost</div>
-      <div style="font-size:11.5px; color:var(--muted-text); margin-bottom:14px;">${escapeHtmlLite(opp.name)} — this gets saved permanently on their record.</div>
-      <div class="sidebar-label" style="padding:0 0 4px;">What happened?</div>
-      <select id="lostReasonSelect" class="collab-input">
-        ${reasons.map(r => `<option value="${r}">${r}</option>`).join('')}
-      </select>
-      <div id="lostCompetitorRow" style="display:none; margin-top:8px;">
-        <div class="sidebar-label" style="padding:0 0 4px;">Who'd they go with? (if known)</div>
-        <input type="text" id="lostCompetitorInput" class="collab-input" placeholder="e.g. Acme Builders">
-      </div>
-      <div class="sidebar-label" style="padding:8px 0 4px;">Anything else worth noting?</div>
-      <textarea id="lostNotesInput" class="collab-input" style="min-height:70px; resize:vertical;" placeholder="Optional — details that might help next time"></textarea>
-      <div class="row" style="margin-top:16px; justify-content:flex-end; gap:8px;">
-        <button class="btn" id="cancelMarkLost">Cancel</button>
-        <button class="btn btn-primary" id="submitMarkLost">Mark Lost</button>
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-  overlay.onclick = (e) => { if(e.target === overlay) overlay.remove(); };
-  overlay.querySelector('#cancelMarkLost').onclick = () => overlay.remove();
-  overlay.querySelector('#lostReasonSelect').onchange = (e) => {
-    overlay.querySelector('#lostCompetitorRow').style.display = e.target.value === 'Went with a competitor' ? 'block' : 'none';
-  };
-  overlay.querySelector('#submitMarkLost').onclick = () => {
-    const reasonCat = overlay.querySelector('#lostReasonSelect').value;
-    const competitor = overlay.querySelector('#lostCompetitorInput').value.trim();
-    const notes = overlay.querySelector('#lostNotesInput').value.trim();
-    let reason = reasonCat;
-    if(reasonCat === 'Went with a competitor' && competitor) reason += ' — ' + competitor;
-    if(notes) reason += (reason ? '. ' : '') + notes;
-    opp.lostReason = reason || null;
-    opp.lostDate = new Date().toISOString().slice(0,10);
-    overlay.remove();
-    changeOppStage(id, 'Lost Lead');
-  };
-}
-function advanceToNextStage(id){
-  const opp = getOpp(id);
-  if(!opp) return;
-  const idx = stageIndex(opp.stage);
-  if(idx < 0 || idx >= STAGE_ORDER.length - 1) return;
-  changeOppStage(id, STAGE_ORDER[idx + 1]);
-}
 function sparklineHTML(seed){
   // deterministic pseudo-activity pattern per lead, purely visual
   const bars = [3,5,2,7,4,6,3,8,5,2].map((v,i) => ((v + (seed % (i+3))) % 9) + 1);
@@ -3895,212 +3652,6 @@ function disclosureSection(id, title, bodyHtml){
       <span>${title}</span><span class="disclosure-arrow">▾</span>
     </div>
     <div class="disclosure-body">${bodyHtml}</div>
-  </div>`;
-}
-function buildOppDetailHTML(opp){
-  const e = ESTIMATE;
-  const activitiesHtml = (e.activities.length ? e.activities.slice().reverse().map(a => {
-    if(a.type === 'Email'){
-      return `<div class="email-card"><div class="email-card-head"><span class="ec-from">${escapeHtmlLite(a.who || 'You')}</span><span class="ec-time">${a.when}</span></div><div class="ec-subject">${escapeHtmlLite(a.text)}</div></div>`;
-    }
-    return `<div class="list-row"><div><div class="main-txt">${activityIcon(a.type)} ${escapeHtmlLite(a.text)}</div><div class="sub-txt">${a.type} \u00b7 ${a.who || 'You'}</div></div><div class="right-txt">${a.when}</div></div>`;
-  }).join('') : `<div class="empty-row">No activity logged yet.</div>`);
-
-  const showEstimate = estimateShouldShow(opp.stage);
-  const canSign = opp.stage === 'Preconstruction Agreement Signed';
-  const days = daysInStage(opp);
-
-  const stageBlock = `
-    <div class="stage-header-row">
-      <div class="row" style="gap:8px;">
-        <select class="status-select pill ${STAGE_PILL_CLASS[opp.stage] || 'pill-ink'}" onchange="changeOppStage('${opp.id}', this.value)" style="background:transparent; -webkit-appearance:none;">
-          ${STAGE_ORDER.map(s => `<option value="${s}" ${s===opp.stage?'selected':''}>${s}</option>`).join('')}
-          <option value="Preconstruction Agreement Signed" ${opp.stage==='Preconstruction Agreement Signed'?'selected':''}>Preconstruction Agreement Signed (Sold)</option>
-          <option value="Continued Follow-Up" ${opp.stage==='Continued Follow-Up'?'selected':''}>Continued Follow-Up</option>
-          <option value="Lost Lead" ${opp.stage==='Lost Lead'?'selected':''}>Lost Lead</option>
-        </select>
-        ${stageIndex(opp.stage) >= 0 && stageIndex(opp.stage) < STAGE_ORDER.length-1 ? `<button class="btn btn-outline btn-sm" onclick="advanceToNextStage('${opp.id}')">Advance \u2192</button>` : ''}
-      </div>
-      <div class="stage-quick-actions">
-        <button class="btn btn-sm btn-sold" onclick="markSold('${opp.id}')">Sold</button>
-        <button class="btn btn-sm btn-lost" onclick="markLost('${opp.id}')">Lost</button>
-      </div>
-    </div>
-    ${buildStageStepperHTML(opp)}
-  `;
-
-  const contactPanel = `
-    <div class="section-label-row"><div class="eyebrow">Contact &amp; Property</div></div>
-    <div class="panel" style="margin-bottom:14px;"><div class="panel-body" style="padding:16px 20px;">
-      <div class="field-grid">
-        <div><label>Phone</label><input value="${escapeHtmlLite(opp.phone || '')}" onchange="setOppField('${opp.id}','phone',this.value)"></div>
-        <div><label>Email</label><input type="email" value="${escapeHtmlLite(opp.email || '')}" onchange="setOppField('${opp.id}','email',this.value)"></div>
-        <div><label>Property Address</label><input id="addr_${opp.id}" value="${escapeHtmlLite(opp.address || '')}" onchange="setOppField('${opp.id}','address',this.value)" autocomplete="off"></div>
-        <div><label>Next Activity Date</label><input type="date" value="${opp.nextActivityDate || ''}" onchange="setOppField('${opp.id}','nextActivityDate',this.value)"></div>
-        <div><label>Next Activity Task</label><input value="${escapeHtmlLite(opp.nextActivityTask || '')}" onchange="setOppField('${opp.id}','nextActivityTask',this.value)"></div>
-        <div><label>Days in Stage</label><div style="font-size:13.5px; font-weight:600; padding:8px 10px; ${days !== null && days > 30 ? 'color:var(--rust);' : ''}">${days !== null ? days : '—'}</div></div>
-        <div><label>Created</label><div style="font-size:13.5px; font-weight:600; padding:8px 10px;">${opp.createdDate || '—'}</div></div>
-      </div>
-      <div class="row" style="gap:8px; margin-top:12px; padding-top:12px; border-top:1px solid var(--border-soft);">
-        <button class="btn btn-outline" onclick="openScheduleMenu(this, 'Follow up with ${escapeHtmlLite(opp.name||'')}', '${opp.nextFollowUpDate || new Date().toISOString().slice(0,10)}', '09:00', '${escapeHtmlLite(opp.nextFollowUpNote||'')}')">📅 Schedule</button>
-      </div>
-    </div></div>`;
-  const meetingsPanel = buildMeetingsPanelHTML(opp);
-
-  const snapshotPanel = `
-    <div class="section-label-row"><div class="eyebrow">Project Snapshot</div></div>
-    <div class="panel" style="margin-bottom:14px;"><div class="panel-body" style="padding:16px 20px;">
-      <div class="field-grid">
-        <div><label>Budget Range</label><input value="${escapeHtmlLite(opp.budgetRange || '')}" placeholder="e.g. $500k-$900k" onchange="setOppField('${opp.id}','budgetRange',this.value)"></div>
-        <div><label>Deal Value</label><div class="dollar-input-wrap"><span class="dollar-prefix">$</span><input type="number" value="${opp.dealValue || ''}" placeholder="0" onchange="setOppFieldNum('${opp.id}','dealValue',this.value)"></div></div>
-        <div><label>Precon Fee</label><div class="dollar-input-wrap"><span class="dollar-prefix">$</span><input type="number" value="${opp.feeAmount || ''}" placeholder="0" onchange="setOppFieldNum('${opp.id}','feeAmount',this.value)"></div></div>
-        <div><label>Lead Source</label><input value="${escapeHtmlLite(opp.leadSource || '')}" onchange="setOppField('${opp.id}','leadSource',this.value)"></div>
-        <div><label>Referral Partner</label><select onchange="setOppField('${opp.id}','referralPartner',this.value)">${referralPartnerOptions(opp.referralPartner)}</select></div>
-        <div><label>Lead Rating</label><div class="star-picker">${[1,2,3,4,5].map(n => `<span class="star ${opp.rating >= n ? 'on' : ''}" onclick="setOppRating('${opp.id}', ${n})">★</span>`).join('')}</div></div>
-      </div>
-      <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border-soft); display:flex; align-items:flex-start; gap:20px;">
-        <div style="flex:1;">
-          <label class="est-lbl">Notes</label>
-          <textarea style="width:100%; min-height:70px; margin-top:4px; padding:8px 10px; border:1px solid var(--border); border-radius:7px; font-family:'Inter',sans-serif; font-size:13px; resize:vertical;" onchange="setOppField('${opp.id}','description',this.value)">${escapeHtmlLite(opp.description || '')}</textarea>
-        </div>
-        <div style="width:150px; flex-shrink:0;">
-          <label class="est-lbl">Activity</label>
-          <div class="mini-sparkline" style="margin-top:4px;">${sparklineHTML(opp.name.length)}</div>
-        </div>
-      </div>
-    </div></div>`;
-
-  const clientProfilePanel = buildClientProfilePanelHTML(opp.id, opp.name, `refreshOppDetail('${opp.id}')`);
-
-  const followUpOverdue = opp.nextFollowUpDate && new Date(opp.nextFollowUpDate+'T00:00:00') < TODAY;
-  const followUpPanel = `
-    <div class="section-label-row"><div class="eyebrow">Next Follow-Up</div></div>
-    <div class="panel" style="margin-bottom:20px; ${followUpOverdue ? 'border-color:var(--rust);' : ''}"><div class="panel-body" style="padding:16px 20px;">
-      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
-        <div style="flex:1;">
-          <div style="font-weight:600; font-size:14px;">${opp.nextFollowUpNote || 'Follow up'}</div>
-          <div class="sub-txt" style="margin-top:2px;">${opp.nextFollowUpDate ? opp.nextFollowUpDate : 'No date set'}</div>
-        </div>
-        ${followUpOverdue ? '<span class="pill pill-rust">Overdue</span>' : opp.nextFollowUpDate ? '<span class="pill pill-slate">Scheduled</span>' : '<span class="pill pill-ink">Not Set</span>'}
-      </div>
-      <div style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border-soft); display:grid; grid-template-columns:1fr 1fr; gap:14px;">
-        <div><label class="est-lbl">Assigned To</label><select onchange="setOppField('${opp.id}','nextFollowUpAssignee',this.value)">${teamMemberOptions(opp.nextFollowUpAssignee || opp.owner)}</select></div>
-        <div><label class="est-lbl">Date</label><input type="date" value="${opp.nextFollowUpDate || ''}" onchange="setOppField('${opp.id}','nextFollowUpDate',this.value)"></div>
-      </div>
-      ${opp.nextFollowUpDate ? `<div class="row" style="margin-top:14px; justify-content:flex-end; gap:8px;"><button class="btn btn-outline" onclick="openScheduleMenu(this, '${escapeHtmlLite(opp.nextFollowUpNote||"Follow up")}', '${opp.nextFollowUpDate}', '09:00', '', '${escapeHtmlLite(opp.email||"")}')">📅 Schedule</button><span class="pill pill-jade" style="cursor:pointer;" onclick="completeFollowUp('${opp.id}')">✓ Mark Complete &amp; Schedule Next</span></div>` : ''}
-    </div></div>`;
-
-  const filesPanel = buildFilesPanelHTML(opp, e);
-
-  const tasksPanel = `
-    <div class="section-label-row"><div class="eyebrow">Tasks</div><span class="pill pill-slate" style="cursor:pointer;" onclick="addProjectTask('${opp.id}')">+ Add Task</span></div>
-    <div class="panel" style="margin-bottom:20px;"><div class="panel-body" style="padding:6px 20px;">
-      ${e.tasks.map(t => buildTaskRowHTML(opp.id, t)).join('')}
-    </div></div>`;
-
-  const meetingNotesPanel = `
-    <div class="section-label-row"><div class="eyebrow">Meeting Notes</div><span class="pill pill-slate" style="cursor:pointer;" onclick="openAddMeetingNote('${opp.id}')">+ Add Note</span></div>
-    <div class="panel" style="margin-bottom:20px;"><div class="panel-body" style="padding:14px 18px;">
-      ${e.meetingNotes.length ? e.meetingNotes.slice().reverse().map(n => buildMeetingNoteCardHTML(n, `deleteMeetingNote('${opp.id}','${n.id}')`)).join('') : '<div class="empty-row">No meeting notes yet — add one from the initial meeting, a site visit, or any precon discussion.</div>'}
-    </div></div>`;
-
-  let phaseOrEstimateBlock = '';
-  if(!showEstimate){
-    const blurb = PHASE_BLURB[opp.stage] || {desc:'', next:''};
-    phaseOrEstimateBlock = `
-    <div class="section-label-row"><div class="eyebrow">Current Phase</div></div>
-    <div class="panel" style="margin-bottom:20px; border-color:var(--gold);">
-      <div class="panel-body" style="padding:20px 22px;">
-        <span class="pill pill-gold" style="margin-bottom:10px; display:inline-block;">${opp.stage}</span>
-        <div style="font-size:14px; color:var(--ink-soft); margin-top:8px;">${blurb.desc}</div>
-        <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border-soft);">
-          <div class="est-lbl">Next Step</div>
-          <div style="font-weight:600; font-size:14.5px; margin-top:4px;">${blurb.next}</div>
-        </div>
-        <div class="hint" style="margin-top:14px;">No preliminary estimate yet — that section only opens up once a preliminary has actually been sent, so this stays clean until there's something real to show.</div>
-      </div>
-    </div>`;
-  } else {
-    const total = estimateGrandTotalFor(e);
-    const docStatus = e.doc.status;
-    const statusLine = docStatus === 'Signed'
-      ? `<span class="pill pill-jade">Signed ${e.doc.signedAt ? '— ' + e.doc.signedAt : ''}</span>`
-      : docStatus === 'Sent'
-      ? `<span class="pill pill-slate">Sent — awaiting signature</span>`
-      : `<span class="pill pill-ink">Not sent yet</span>`;
-    phaseOrEstimateBlock = `
-    <div class="section-label-row"><div class="eyebrow">Preliminary Estimate &amp; Preconstruction Agreement</div></div>
-    <div class="panel" style="margin-bottom:20px;">
-      <div class="panel-body" style="padding:18px 20px;">
-        <div class="row" style="justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;">
-          <div>
-            <div style="font-family:'Space Grotesk',sans-serif; font-size:22px; font-weight:700;">${fmtMoneyOrDash(total)}</div>
-            <div class="sub-txt" style="margin-top:2px;">${e.date ? 'Last set ' + e.date : 'Not yet dated'}</div>
-          </div>
-          <div style="text-align:right;">
-            <div style="margin-bottom:8px;">${statusLine}</div>
-            <button class="btn btn-dark" onclick="openEstimateWorkspace('${opp.id}')">Open Preliminary Estimate &amp; Proposal →</button>
-          </div>
-        </div>
-        <div class="hint" style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border-soft);">
-          ${canSign
-            ? `This lead has moved into Preconstruction. <a href="#" onclick="closeOpportunity(); goPage('precon-dash'); return false;" style="color:var(--taupe-dark); font-weight:600;">Go to Project →</a>`
-            : docStatus === 'Signed'
-            ? `Signed — a Project workspace should exist. <a href="#" onclick="closeOpportunity(); goPage('precon-dash'); return false;" style="color:var(--taupe-dark); font-weight:600;">Go to Projects →</a>`
-            : `You'll send the proposal for signature via a link from the estimate workspace above — once it's signed, this moves to Preconstruction automatically. No manual "mark as sent/signed" step needed.`
-          }
-        </div>
-      </div>
-    </div>`;
-  }
-
-  return `<div style="background:#fff; border-radius:14px; max-width:980px; width:100%; max-height:92vh; overflow:auto; padding:26px 34px 30px;">
-    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;">
-      <div>
-        <div class="eyebrow">Sales Opportunity</div>
-        <h2 style="font-family:'Space Grotesk',sans-serif; font-size:24px; margin-top:4px;">${opp.name}</h2>
-        <div class="row" style="margin-top:6px; gap:8px;">
-          <span class="pill ${LEAD_TEMP_CLASS[opp.leadTemp] || 'pill-ink'}">${opp.leadTemp || 'Unrated'}</span>
-          <span class="pill pill-slate">${opp.projectType}</span>
-          <span class="pill pill-ink">${opp.owner || 'Unassigned'}</span>
-        </div>
-      </div>
-      <span style="cursor:pointer; color:var(--ink-faint); font-size:22px; line-height:1;" onclick="closeOpportunity()">&times;</span>
-    </div>
-
-    ${stageBlock}
-
-    <div class="two-col" style="margin-top:20px; grid-template-columns:1.4fr 1fr; align-items:start; gap:20px;">
-      <div>
-        ${contactPanel}
-        ${meetingsPanel}
-        ${clientProfilePanel}
-        ${snapshotPanel}
-        ${followUpPanel}
-        ${phaseOrEstimateBlock}
-      </div>
-      <div>
-        ${filesPanel}
-        ${tasksPanel}
-        ${meetingNotesPanel}
-      </div>
-    </div>
-
-    <div class="section-label-row"><div class="eyebrow">Activity &amp; Email</div><span class="pill pill-slate" title="Outgoing email opens your own mail client.">How this works ⓘ</span></div>
-    <div class="panel" style="margin-bottom:12px;">
-      <div class="panel-body" style="padding:14px 18px;">
-        <div class="row" style="gap:8px; margin-bottom:12px; flex-wrap:wrap;">
-          <button class="btn btn-outline btn-sm" onclick="openComposeEmail()">✉ Compose Email</button>
-          <button class="btn btn-outline btn-sm" onclick="openLogActivity(\'Call\')">📞 Log Call</button>
-          <button class="btn btn-outline btn-sm" onclick="openLogActivity(\'Text\')">💬 Log Text</button>
-          <button class="btn btn-outline btn-sm" onclick="openLogActivity(\'Meeting\')">📅 Log Meeting</button>
-          <button class="btn btn-outline btn-sm" onclick="openLogActivity(\'Event\')">📆 Log Event</button>
-          <button class="btn btn-outline btn-sm" onclick="openLogActivity(\'Note\')">📝 Log Note</button>
-          <button class="btn btn-outline btn-sm" onclick="openLogActivity(\'Email\')">↩ Log Incoming Email</button>
-        </div>
-        <div id="oppActivityList">${activitiesHtml}</div>
-      </div>
-    </div>
   </div>`;
 }
 
@@ -4157,11 +3708,11 @@ document.addEventListener('click', function(e){
 // group per status, real rows underneath. Reused across Sales, Preconstruction, Contacts,
 // and Relationship Pipeline for a consistent board look. ----
 const MBOARD_COLLAPSED = {}; // persists collapse state across re-renders, keyed by a stable group id
-// ---- Bulk select & mass delete — shared across Sales Pipeline, Relationship Pipeline, and
-// Prospects & Clients. Each kind tracks its own selected-id set so selecting on one list
-// doesn't bleed into another. ----
-const BULK_SELECTED = { opp: new Set(), partner: new Set(), newcontact: new Set(), project: new Set() };
-const BULK_LABELS = { opp: 'lead', partner: 'relationship', newcontact: 'contact', project: 'project' };
+// ---- Bulk select & mass delete — shared across Preconstruction and Relationship Pipeline.
+// Each kind tracks its own selected-id set so selecting on one list doesn't bleed into
+// another. ----
+const BULK_SELECTED = { partner: new Set(), project: new Set() };
+const BULK_LABELS = { partner: 'relationship', project: 'project' };
 function bulkCheckboxHTML(kind, id){
   const checked = BULK_SELECTED[kind].has(id) ? 'checked' : '';
   return `<input type="checkbox" class="bulk-cb" ${checked} onclick="event.stopPropagation(); toggleBulkSelect('${kind}','${id}', this.checked)">`;
@@ -4173,7 +3724,7 @@ function toggleBulkSelect(kind, id, checked){
 }
 function toggleBulkSelectAll(kind, ids, checked){
   ids.forEach(id => { if(checked) BULK_SELECTED[kind].add(id); else BULK_SELECTED[kind].delete(id); });
-  const rerender = { opp: renderSalesTable, partner: renderRelationshipPartners, newcontact: renderProspectContacts, project: renderPreconProjectTable }[kind];
+  const rerender = { partner: renderRelationshipPartners, project: renderPreconProjectTable }[kind];
   if(rerender) rerender();
 }
 function renderBulkActionBar(kind){
@@ -4188,7 +3739,7 @@ function renderBulkActionBar(kind){
 }
 function clearBulkSelect(kind){
   BULK_SELECTED[kind].clear();
-  const rerender = { opp: renderSalesTable, partner: renderRelationshipPartners, newcontact: renderProspectContacts, project: renderPreconProjectTable }[kind];
+  const rerender = { partner: renderRelationshipPartners, project: renderPreconProjectTable }[kind];
   if(rerender) rerender();
 }
 function bulkDeleteSelected(kind){
@@ -4197,19 +3748,10 @@ function bulkDeleteSelected(kind){
   const label = BULK_LABELS[kind] + (ids.length === 1 ? '' : 's');
   const extraWarning = kind === 'project' ? ' This removes the full project — phases, documents, everything.' : '';
   if(!confirm(`Delete ${ids.length} ${label}?${extraWarning} This can't be undone.`)) return;
-  if(kind === 'opp'){
-    OPPORTUNITIES = OPPORTUNITIES.filter(o => !ids.includes(o.id));
-    ids.forEach(id => delete OPP_ESTIMATES[id]);
-    BULK_SELECTED.opp.clear();
-    renderSalesTable(); renderSalesKanban(); renderFollowUpsPage(); renderProspectsClientsTable();
-  } else if(kind === 'partner'){
+  if(kind === 'partner'){
     RELATIONSHIP_PARTNERS = RELATIONSHIP_PARTNERS.filter(p => !ids.includes(p.id));
     BULK_SELECTED.partner.clear();
     renderRelationshipPartners();
-  } else if(kind === 'newcontact'){
-    PROSPECT_CONTACTS = PROSPECT_CONTACTS.filter(c => !ids.includes(c.id));
-    BULK_SELECTED.newcontact.clear();
-    renderProspectContacts();
   } else if(kind === 'project'){
     ids.forEach(id => delete PROJECTS[id]);
     BULK_SELECTED.project.clear();
@@ -4383,7 +3925,7 @@ function openScheduleMenu(anchorEl, title, dateStr, timeStr, details, attendeeEm
 // ---- Generalized so the same meetings module works for both Sales opportunities and
 // Relationship partners — kind is 'opp' or 'partner'. A scheduled meeting on a New Relations
 // Identified partner is what clears that partner's "needs action" flag on the dashboard. ----
-function meetingEntity(id, kind){ return kind === 'partner' ? RELATIONSHIP_PARTNERS.find(p => p.id === id) : kind === 'project' ? PROJECTS[id] : kind === 'newcontact' ? PROSPECT_CONTACTS.find(c => c.id === id) : getOpp(id); }
+function meetingEntity(id, kind){ return kind === 'partner' ? RELATIONSHIP_PARTNERS.find(p => p.id === id) : kind === 'project' ? PROJECTS[id] : getOpp(id); }
 // ---- Resolves the client's email for calendar invites, regardless of which kind of
 // record the meeting/follow-up lives on. Projects don't carry their own email field —
 // they inherit it from the linked Sales opportunity when one exists. ----
@@ -4478,12 +4020,6 @@ function openAddMeetingModal(id, kind){
       if(document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboardAtAGlance();
     } else if(kind === 'project'){
       renderProjectDetail();
-    } else if(kind === 'newcontact'){
-      openProspectDetail(id);
-      renderProspectContacts();
-      if(document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboardAtAGlance();
-    } else if(document.getElementById('oppOverlay')?.style.display !== 'none'){
-      openOpportunity(id);
     }
   };
 }
@@ -4499,12 +4035,6 @@ function deleteMeeting(id, meetingId, kind){
     if(document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboardAtAGlance();
   } else if(kind === 'project'){
     renderProjectDetail();
-  } else if(kind === 'newcontact'){
-    openProspectDetail(id);
-    renderProspectContacts();
-    if(document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboardAtAGlance();
-  } else {
-    openOpportunity(id);
   }
 }
 // ---- Sends the client a reminder email for a specific meeting. This is a one-click send,
@@ -4551,11 +4081,10 @@ function renderMeetingReminderQueue(){
 // the app (new-lead notifications, agreement-signed → Preconstruction). Custom rules a
 // person creates here are stored and shown the same way, with a working delete. ----
 const BUILTIN_AUTOMATIONS = [
-  {name:'New lead notification', trigger:'Opportunity created', action:'Notify Sales Manager'},
-  {name:'Agreement signed → start Preconstruction', trigger:'Stage = Preconstruction Agreement Signed', action:'Create project, notify team'},
+  {name:'Follow-up overdue reminder', trigger:'Follow-up overdue', action:'Notify assigned team member'},
 ];
 let CUSTOM_AUTOMATIONS = [];
-const AUTOMATION_TRIGGERS = ['Opportunity created', 'Stage changed', 'Follow-up overdue', 'New Relationship Identified', 'Project reaches a phase'];
+const AUTOMATION_TRIGGERS = ['Follow-up overdue', 'New Relationship Identified', 'Project reaches a phase'];
 const AUTOMATION_ACTIONS = ['Notify a team member', 'Add to Automations reminder queue'];
 function renderAutomationsTable(){
   const host = document.getElementById('automationsTableBody');
@@ -4714,89 +4243,6 @@ function buildPartnerActivityPanelHTML(p){
       ${activities.length ? activities.map(a => `<div class="list-row"><div><div class="main-txt">${activityIcon(a.type)} ${escapeHtmlLite(a.text)}</div><div class="sub-txt">${a.type} · ${escapeHtmlLite(a.who || CURRENT_LOGGED_IN_USER)}</div></div><div class="right-txt">${a.when}</div></div>`).join('') : `<div class="empty-row">No activity logged yet.</div>`}
     </div></div>`;
 }
-function renderSalesKanban(){
-  const el = document.getElementById('salesKanban');
-  if(!el) return;
-  el.innerHTML = STAGE_ORDER.map(stage => {
-    const opps = OPPORTUNITIES.filter(o => o.stage === stage);
-    const cards = opps.map(o => {
-      const followUp = o.nextFollowUpDate ? new Date(o.nextFollowUpDate+'T00:00:00') : null;
-      const overdue = followUp && followUp < new Date('2026-08-12');
-      return `<div class="kcard" style="cursor:pointer;" onclick="openOpportunity('${o.id}')">
-        <div class="kname">${o.name}</div>
-        <div class="kmeta">${o.projectType}${o.dealValue ? ' · ' + fmtMoneyOrDash(o.dealValue) : ''}</div>
-        <div class="kmeta" style="margin-top:6px; display:flex; justify-content:space-between; align-items:center;">
-          <span class="k-owner-chip">${initials(o.owner)}</span>
-          <span class="pill ${LEAD_TEMP_CLASS[o.leadTemp] || 'pill-ink'}" style="font-size:9px;">${o.leadTemp || '—'}</span>
-        </div>
-        ${o.nextFollowUpDate ? `<div class="kmeta k-next-action" style="${overdue ? 'color:var(--rust); font-weight:600;' : ''}">Follow up: ${o.nextFollowUpDate}${overdue ? ' (overdue)' : ''}</div>` : ''}
-      </div>`;
-    }).join('');
-    return `<div class="kcol"><div class="kcol-head"><span class="t">${stage}</span><span class="c">${opps.length}</span></div>${cards}</div>`;
-  }).join('');
-  renderParkedLeads();
-  renderLostLeads();
-  renderSoldSection();
-}
-function renderSoldSection(){
-  const grid = document.getElementById('soldGrid');
-  if(!grid) return;
-  const sold = OPPORTUNITIES.filter(o => o.stage === 'Preconstruction Agreement Signed');
-  const rows = sold.map(o => {
-    const proj = Object.values(PROJECTS).find(p => p.convertedFrom === o.id);
-    return `<tr style="cursor:pointer;" onclick="${proj ? `openProject('${proj.id}')` : `openOpportunity('${o.id}')`}">
-      <td class="name-cell">${o.name}</td>
-      <td>${o.projectType}</td>
-      <td>${fmtMoneyOrDash(o.dealValue)}</td>
-      <td>${o.owner || '—'}</td>
-      <td>${proj ? 'View project →' : 'No linked project'}</td>
-    </tr>`;
-  });
-  const groups = [{ label: '✅ Sold — In Preconstruction', color: '#3D6249', rows }];
-  grid.innerHTML = buildMondayTableHTML(groups, ['Lead','Project Type','Deal Value','Owner',''], ['26%','18%','18%','18%','20%'], 'sold');
-}
-function renderParkedLeads(){
-  const container = document.getElementById('parkedFollowUpGrid');
-  if(!container) return;
-  const parked = OPPORTUNITIES.filter(o => o.stage === 'Continued Follow-Up');
-  const buckets = [
-    { key:'3-month', label:'3-Month Check-In', color:'#8B7A5E' },
-    { key:'6-month', label:'6-Month Check-In', color:'#B08D57' },
-    { key:'12-month', label:'Yearly Check-In', color:'#C9A868' },
-  ];
-  const buildRow = (o) => {
-    const followUp = o.nextFollowUpDate ? new Date(o.nextFollowUpDate+'T00:00:00') : null;
-    const overdue = followUp && followUp < TODAY;
-    return `<tr style="cursor:pointer;" onclick="openOpportunity('${o.id}')">
-      <td class="name-cell">${o.name}</td>
-      <td>${o.projectType}</td>
-      <td><span class="seq-temp-pill ${ltClass(o.leadTemp)}">${o.leadTemp || 'Cold'}</span></td>
-      <td>${o.owner || '—'}</td>
-      <td style="${overdue ? 'color:var(--rust); font-weight:600;' : ''}">${overdue ? '⚠ Overdue' : (o.nextFollowUpDate || '—')}</td>
-    </tr>`;
-  };
-  const groups = buckets.map(b => ({
-    label: b.label, color: b.color, hideIfEmpty: true,
-    rows: parked.filter(o => o.followUpBucket === b.key).sort((a,b) => new Date(a.nextFollowUpDate) - new Date(b.nextFollowUpDate)).map(buildRow)
-  }));
-  const unbucketed = parked.filter(o => !buckets.some(b => b.key === o.followUpBucket));
-  if(unbucketed.length) groups.push({ label: 'Other', color: '#9A9384', hideIfEmpty: true, rows: unbucketed.map(buildRow) });
-  container.innerHTML = buildMondayTableHTML(groups, ['Lead','Project Type','Lead Temp','Owner','Follow-Up Date'], ['26%','18%','16%','16%','24%'], 'parked');
-}
-function renderLostLeads(){
-  const container = document.getElementById('lostLeadsGrid');
-  if(!container) return;
-  const lost = OPPORTUNITIES.filter(o => o.stage === 'Lost Lead');
-  const rows = lost.map(o => `<tr style="cursor:pointer;" onclick="openOpportunity('${o.id}')">
-      <td class="name-cell">${o.name}</td>
-      <td>${o.projectType}</td>
-      <td>${fmtMoneyOrDash(o.dealValue)}</td>
-      <td class="muted">${o.lostDate || '—'}</td>
-      <td>${o.lostReason ? escapeHtmlLite(o.lostReason) : '<span style="color:var(--ink-faint); font-style:italic;">No reason on record</span>'}</td>
-    </tr>`);
-  const groups = [{ label: `Lost Leads (${rows.length} on file)`, color: '#9C6357', rows }];
-  container.innerHTML = buildMondayTableHTML(groups, ['Lead','Project Type','Deal Value','Date Lost','Reason'], ['18%','14%','14%','14%','40%'], 'lost');
-}
 function initials(name){
   return (name||'?').split(' ').map(p=>p[0]).join('').slice(0,2).toUpperCase();
 }
@@ -4811,35 +4257,6 @@ const SALES_STAGE_COLORS = {
   'Preliminary Estimate Presented to Client': '#8C7852',
   'Preconstruction Agreement Sent': '#5C7A63',
 };
-function renderSalesTable(){
-  const body = document.getElementById('pipeline-table');
-  if(!body) return;
-  const groups = STAGE_ORDER.map(stage => ({
-    label: stage, color: SALES_STAGE_COLORS[stage] || '#9A9384', hideIfEmpty: true,
-    rowIds: OPPORTUNITIES.filter(o => o.stage === stage).map(o => o.id),
-    rows: OPPORTUNITIES.filter(o => o.stage === stage).map(o => {
-      const oOverdue = o.nextFollowUpDate && new Date(o.nextFollowUpDate+'T00:00:00') < TODAY;
-      return `<tr style="cursor:pointer; ${oOverdue ? 'background:#FBEFEA;' : ''}" onclick="openOpportunity('${o.id}')">
-      <td onclick="event.stopPropagation();" style="width:28px;">${bulkCheckboxHTML('opp', o.id)}</td>
-      <td class="name-cell">${o.name}</td>
-      <td>${o.projectType}</td>
-      <td>${fmtMoneyOrDash(o.dealValue)}</td>
-      <td>${o.owner || '—'}</td>
-      <td><span class="pill ${LEAD_TEMP_CLASS[o.leadTemp] || 'pill-ink'}">${o.leadTemp || '—'}</span></td>
-      <td class="muted" style="${oOverdue ? 'color:var(--rust); font-weight:600;' : ''}">${o.nextFollowUpDate || '—'}${oOverdue ? ' ⚠' : ''}</td>
-      <td onclick="event.stopPropagation();"><select class="rel-status-select ${STAGE_PILL_CLASS[o.stage] || 'pill-ink'}" style="max-width:150px;" onchange="changeOppStage('${o.id}', this.value)">
-        ${STAGE_ORDER.map(s => `<option value="${s}" ${s===o.stage?'selected':''}>${s}</option>`).join('')}
-        <option value="Preconstruction Agreement Signed" ${o.stage==='Preconstruction Agreement Signed'?'selected':''}>Preconstruction Agreement Signed (Sold)</option>
-        <option value="Continued Follow-Up" ${o.stage==='Continued Follow-Up'?'selected':''}>Continued Follow-Up</option>
-        <option value="Lost Lead" ${o.stage==='Lost Lead'?'selected':''}>Lost Lead</option>
-      </select></td>
-    </tr>`;
-    })
-  }));
-  const bulkBar = `<div class="bulk-action-bar" id="bulkBar_opp"></div>`;
-  body.innerHTML = bulkBar + buildMondayTableHTML(groups, ['','Lead','Project Type','Deal Value','Owner','Lead Temp','Next Follow-Up','Change Status'], ['4%','20%','13%','12%','12%','10%','13%','13%'], 'sales', 'opp');
-  renderBulkActionBar('opp');
-}
 
 /* ---- Preconstruction Projects: 8-phase workflow engine ---- */
 /* Phases 1-2 (Lead & Qualification, Site Consultation & Prelim Budget) happen in Sales,
@@ -5996,9 +5413,7 @@ function renderDashboardAtAGlance(){
   renderDashboardPreconStatus();
   const grid = document.getElementById('dashAtAGlanceGrid');
   if(!grid) return;
-  const activeLeads = OPPORTUNITIES.filter(o => STAGE_ORDER.includes(o.stage)).length;
-  const overdueFollowUps = OPPORTUNITIES.filter(o => o.nextFollowUpDate && new Date(o.nextFollowUpDate+'T00:00:00') < TODAY).length;
-  const soldThisMonth = OPPORTUNITIES.filter(o => o.stage === 'Preconstruction Agreement Signed').length;
+  const overdueFollowUps = Object.values(PROJECTS).filter(p => p.nextFollowUpDate && new Date(p.nextFollowUpDate+'T00:00:00') < TODAY).length;
   const activeProjects = Object.values(PROJECTS).filter(p => p.currentPhase !== null).length;
   const needsAction = Object.values(PROJECTS).filter(p => {
     const t = getActiveTaskForProject(p);
@@ -6008,19 +5423,13 @@ function renderDashboardAtAGlance(){
   // A newly identified relationship needs action until a call/coffee/meeting is on the books —
   // scheduling one (and pushing it to the calendar from there) is what clears this.
   const newRelsNeedingAction = RELATIONSHIP_PARTNERS.filter(p => p.stage === 'New Relations Identified' && !(p.meetings && p.meetings.length)).length;
-  // A prospected contact needs outreach until a call/coffee/meeting is on the books, same
-  // pattern as newly identified relationships — once onboarded or ruled out, it's settled.
-  const newContactsNeedingOutreach = PROSPECT_CONTACTS.filter(c => !['Onboarded','Not a Fit'].includes(c.status) && !(c.meetings && c.meetings.length)).length;
 
   const cards = [
-    { num: activeLeads, lbl: 'Active Sales Leads', dest: "goPage('pipeline')", cls:'' },
     { num: overdueFollowUps, lbl: 'Overdue Follow-Ups', dest: "goPage('followups')", cls: overdueFollowUps ? 'warn' : '' },
-    { num: soldThisMonth, lbl: 'Sold — In Preconstruction', dest: "goPage('pipeline')", cls:'good' },
     { num: activeProjects, lbl: 'Active Precon Projects', dest: "goPage('precon-dash')", cls:'' },
     { num: needsAction, lbl: 'Precon Needs Action', dest: "goPage('precon-dash')", cls: needsAction ? 'warn' : '' },
     { num: readyForProduction, lbl: 'Ready for Production', dest: "goPage('precon-dash')", cls:'good' },
     { num: newRelsNeedingAction, lbl: 'New Relationships Needing Action', dest: "goPage('relationships')", cls: newRelsNeedingAction ? 'warn' : 'good' },
-    { num: newContactsNeedingOutreach, lbl: 'New Contacts Needing Outreach', dest: "goPage('relationships')", cls: newContactsNeedingOutreach ? 'warn' : 'good' },
   ];
   grid.innerHTML = cards.map(c => `<div class="stat-card" style="cursor:pointer;" onclick="${c.dest}"><div class="num" ${c.cls==='warn'?'style="color:var(--rust);"':''}>${c.num}</div><div class="lbl">${c.lbl}</div><div class="delta ${c.cls}">Click to view</div></div>`).join('');
 }
@@ -6028,7 +5437,6 @@ function renderDashboardFinancials(){
   const grid = document.getElementById('dashFinancialGrid');
   if(grid){
     const metrics = [
-      { num: fmtMoney(computeOpenPipelineValue()), lbl: 'Open Pipeline Value', delta: OPPORTUNITIES.length + ' active leads — click to view', dest:"goPage('pipeline')" },
       { num: fmtMoney(computePreConFeeSoldVolume()), lbl: 'Precon Fee Sold Volume', delta: 'Across ' + Object.keys(PROJECTS).length + ' signed projects — click to view', cls:'good', dest:"goPage('precon-dash')" },
       { num: fmtMoney(computeJobSoldVolume()), lbl: 'Job Sold Volume', delta: 'Construction contracts signed — click to view', cls:'good', dest:"goPage('precon-dash')" },
       { num: computeAvgDaysInPrecon(), lbl: 'Average Days in Precon', delta: 'Across all active projects — click to view', dest:"goPage('precon-dash')" },
@@ -6045,28 +5453,6 @@ function renderDashboardFinancials(){
     const data = projectTypeDistributionData();
     typeHost.innerHTML = `${buildPieChartSVG(data)}<div>${buildLegendHTML(data)}</div>`;
   }
-}
-function printSalesReport(){
-  const grid = document.getElementById('dashFinancialGrid');
-  const stageHost = document.getElementById('stageChartHost');
-  const typeHost = document.getElementById('typeChartHost');
-  const printArea = document.getElementById('printArea');
-  printArea.innerHTML = `
-    <div style="padding:40px; font-family:'Inter',sans-serif; color:var(--ink);">
-      <div style="display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:24px;">
-        <div style="font-family:'Space Grotesk',sans-serif; font-size:24px; font-weight:700;">Sales Report — Mitchell Construction &amp; Design</div>
-        <div style="font-size:12px; color:var(--ink-faint);">${new Date().toLocaleString(undefined,{month:'long',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}</div>
-      </div>
-      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:30px;">${grid ? grid.innerHTML : ''}</div>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;">
-        <div><div style="font-family:'Space Grotesk',sans-serif; font-weight:700; margin-bottom:10px;">Deals Stage Distribution</div><div style="display:flex; gap:20px; align-items:center;">${stageHost ? stageHost.innerHTML : ''}</div></div>
-        <div><div style="font-family:'Space Grotesk',sans-serif; font-weight:700; margin-bottom:10px;">Pipeline Diversity — Project Type</div><div style="display:flex; gap:20px; align-items:center;">${typeHost ? typeHost.innerHTML : ''}</div></div>
-      </div>
-    </div>
-  `;
-  printArea.style.display = 'block';
-  window.print();
-  setTimeout(() => { printArea.style.display = 'none'; printArea.innerHTML = ''; }, 500);
 }
 function getActiveTaskForProject(p){
   if(p.currentPhase === null) return null;
@@ -6720,14 +6106,6 @@ function goPage(id){
 }
 navItems.forEach(item => item.addEventListener('click', () => goPage(item.dataset.page)));
 
-function setPipelineView(view, btn){
-  document.querySelectorAll('#page-pipeline .view-toggle button').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('pipeline-kanban').style.display = view === 'kanban' ? 'block' : 'none';
-  document.getElementById('pipeline-table').style.display = view === 'table' ? 'block' : 'none';
-  document.getElementById('pipeline-sequence').style.display = view === 'sequence' ? 'block' : 'none';
-  if(view === 'sequence') renderSalesSequence();
-}
 // ---- Relationship Partner categories — the commonly-used set, each with a color so they're
 // visually scannable at a glance. John can add more from the partner detail dropdown. ----
 let PARTNER_CATEGORIES = [
@@ -6855,16 +6233,16 @@ function renderLocationsTable(){
   const body = document.getElementById('locationsTableBody');
   if(!body) return;
   const rows = COMPANY_LOCATIONS.map(loc => {
-    const activeOpps = OPPORTUNITIES.filter(o => (o.location || 'Springfield (HQ)') === loc.name && STAGE_ORDER.includes(o.stage)).length;
+    const activeProjects = Object.values(PROJECTS).filter(p => (p.location || 'Springfield (HQ)') === loc.name && p.currentPhase !== null).length;
     return `<tr>
       <td class="name-cell">${escapeHtmlLite(loc.name)}</td>
       <td><span class="pill ${loc.status==='Active'?'pill-jade':'pill-ink'}">${escapeHtmlLite(loc.status)}</span></td>
-      <td>${activeOpps || '—'}</td>
+      <td>${activeProjects || '—'}</td>
       <td>${loc.id !== 'springfield' ? `<span style="cursor:pointer; color:var(--rust); font-size:14px;" onclick="deleteLocation('${loc.id}')">&times;</span>` : ''}</td>
     </tr>`;
   }).join('');
   body.innerHTML = `<table>
-    <thead><tr><th>Location</th><th>Status</th><th>Active Opportunities</th><th></th></tr></thead>
+    <thead><tr><th>Location</th><th>Status</th><th>Active Projects</th><th></th></tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
 }
@@ -6873,7 +6251,6 @@ function openAddLocation(){
   if(!name || !name.trim()) return;
   COMPANY_LOCATIONS.push({id:'loc'+Date.now(), name: name.trim(), status:'Active'});
   renderLocationsTable();
-  if(document.getElementById('prospectLocationFilter')) renderProspectContacts();
 }
 function deleteLocation(id){
   if(!confirm('Remove this location?')) return;
@@ -6889,183 +6266,6 @@ let RELATIONSHIP_PARTNERS = [
   {id:'whitfield', name:'Dana Whitfield', category:'Past Client', stage:'Keeping in Contact', referralsSentAllTime:3, closedDealsAllTime:2, closedRevenueAllTime:1300000, lastContact:'2026-08-10', notes:'Past client who keeps sending neighbors our way.'},
   {id:'ozark', name:'First Ozark Bank', category:'Lender', stage:'Building Relationship', referralsSentAllTime:7, closedDealsAllTime:4, closedRevenueAllTime:2900000, lastContact:'2026-08-01', notes:''},
 ];
-// ==================== NEW CONTACTS (PROSPECTING) ====================
-// For head-hunting new referral partners — separate from RELATIONSHIP_PARTNERS, which is
-// for relationships you already have. Scoped per location since new branches (Table Rock
-// Lake, Lake of the Ozarks, etc) each need their own prospecting list.
-let PROSPECT_CONTACTS = [
-  {id:'pc1', name:'Ridgeline Realty Group', category:'Realtor', location:'Springfield (HQ)', company:'Ridgeline Realty', howFound:'Referred by Jason Thompson', status:'Reached Out', notes:'', createdAt:'2026-08-01'},
-  {id:'pc2', name:'Table Rock Title Co.', category:'Insurance', location:'Springfield (HQ)', company:'Table Rock Title', howFound:'Met at HBA event', status:'Identified', notes:'', createdAt:'2026-08-10'},
-];
-const PROSPECT_STATUSES = ['Identified','Reached Out','In Conversation','Onboarded','Not a Fit'];
-const PROSPECT_STATUS_CLASS = {'Identified':'pill-ink','Reached Out':'pill-gold','In Conversation':'pill-slate','Onboarded':'pill-jade','Not a Fit':'pill-rust'};
-let PROSPECT_LOCATION_FILTER = 'all';
-function renderProspectContacts(){
-  const host = document.getElementById('relProspectsView');
-  if(!host) return;
-  const filtered = PROSPECT_LOCATION_FILTER === 'all' ? PROSPECT_CONTACTS : PROSPECT_CONTACTS.filter(c => c.location === PROSPECT_LOCATION_FILTER);
-  const groups = COMPANY_LOCATIONS.filter(loc => PROSPECT_LOCATION_FILTER === 'all' || loc.name === PROSPECT_LOCATION_FILTER).map(loc => ({
-    label: loc.name, color: '#63707A',
-    rowIds: filtered.filter(c => c.location === loc.name).map(c => c.id),
-    rows: filtered.filter(c => c.location === loc.name).map(buildProspectRow)
-  }));
-  const unassigned = filtered.filter(c => !COMPANY_LOCATIONS.find(l => l.name === c.location));
-  if(unassigned.length) groups.push({label:'Unassigned Location', color:'#8C7852', rowIds: unassigned.map(c => c.id), rows: unassigned.map(buildProspectRow)});
-  host.innerHTML = `
-    <div class="hint" style="margin-bottom:14px;">Head-hunting new referral partners — people and companies you're actively trying to bring into the fold, not relationships you already have. Convert to a real Partner once the relationship is real.</div>
-    <div class="row" style="gap:10px; margin-bottom:16px; align-items:center;">
-      <label style="font-size:12px; font-weight:600; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.03em;">Location</label>
-      <select onchange="PROSPECT_LOCATION_FILTER=this.value; renderProspectContacts();" style="width:auto;">
-        <option value="all" ${PROSPECT_LOCATION_FILTER==='all'?'selected':''}>All Locations</option>
-        ${COMPANY_LOCATIONS.map(l => `<option value="${escapeHtmlLite(l.name)}" ${PROSPECT_LOCATION_FILTER===l.name?'selected':''}>${escapeHtmlLite(l.name)}</option>`).join('')}
-      </select>
-    </div>
-    <div class="bulk-action-bar" id="bulkBar_newcontact"></div>
-    ${buildMondayTableHTML(groups, ['','Name','Category','Company','How Found','Status',''], ['4%','18%','13%','16%','21%','15%','8%'], 'prospects', 'newcontact')}
-  `;
-  renderBulkActionBar('newcontact');
-}
-function buildProspectRow(c){
-  const needsOutreach = !['Onboarded','Not a Fit'].includes(c.status) && !(c.meetings && c.meetings.length);
-  return `<tr style="${needsOutreach ? 'background:#FBEFEA;' : ''}">
-    <td onclick="event.stopPropagation();" style="width:28px;">${bulkCheckboxHTML('newcontact', c.id)}</td>
-    <td class="name-cell" style="cursor:pointer;" onclick="openProspectDetail('${c.id}')">${needsOutreach ? '⚠ ' : ''}${escapeHtmlLite(c.name)}</td>
-    <td><span class="pill" style="background:${partnerCategoryColor(c.category)}22; color:${partnerCategoryColor(c.category)}; font-weight:600;">${escapeHtmlLite(c.category)}</span></td>
-    <td>${escapeHtmlLite(c.company || '—')}</td>
-    <td class="muted">${escapeHtmlLite(c.howFound || '—')}</td>
-    <td onclick="event.stopPropagation();"><select class="rel-status-select ${PROSPECT_STATUS_CLASS[c.status]}" onchange="setProspectStatus('${c.id}', this.value)">
-      ${PROSPECT_STATUSES.map(s => `<option value="${s}" ${s===c.status?'selected':''}>${s}</option>`).join('')}
-    </select></td>
-    <td onclick="event.stopPropagation();"><span style="cursor:pointer; color:var(--rust); font-size:15px;" onclick="deleteProspectContact('${c.id}')" title="Delete">&times;</span></td>
-  </tr>`;
-}
-function setRelPageView(view, btn){
-  document.querySelectorAll('#page-relationships .view-toggle button').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('relPartnersView').style.display = view === 'partners' ? 'block' : 'none';
-  document.getElementById('relProspectsView').style.display = view === 'prospects' ? 'block' : 'none';
-  document.getElementById('relPageAddBtn').setAttribute('onclick', view === 'partners' ? 'openAddPartner()' : 'openAddNewContact()');
-  document.getElementById('relPageAddBtn').textContent = view === 'partners' ? '+ Add Partner' : '+ Add New Contact';
-  if(view === 'prospects') renderProspectContacts();
-}
-function setProspectStatus(id, status){
-  const c = PROSPECT_CONTACTS.find(x => x.id === id);
-  if(c) c.status = status;
-  renderProspectContacts();
-}
-function deleteProspectContact(id){
-  if(!confirm('Delete this contact?')) return;
-  PROSPECT_CONTACTS = PROSPECT_CONTACTS.filter(c => c.id !== id);
-  renderProspectContacts();
-}
-function openAddNewContact(){
-  const overlay = document.createElement('div');
-  overlay.id = 'addProspectOverlay';
-  overlay.style.cssText = 'position:fixed; inset:0; z-index:400; display:flex; align-items:center; justify-content:center; background:rgba(20,18,14,.55); padding:20px;';
-  overlay.innerHTML = `
-    <div class="modal-card" style="width:460px; background:#fff; border-radius:14px; padding:20px; box-shadow:0 20px 50px rgba(0,0,0,.25);">
-      <div class="panel-title" style="margin-bottom:2px;">New Contact</div>
-      <div style="font-size:11.5px; color:var(--muted-text); margin-bottom:14px;">Someone you're trying to bring on as a referral partner.</div>
-      <div class="sidebar-label" style="padding:0 0 4px;">Name</div>
-      <input type="text" id="npcNameInput" class="collab-input" placeholder="e.g. Ridgeline Realty Group">
-      <div class="sidebar-label" style="padding:8px 0 4px;">Category</div>
-      <select id="npcCategoryInput" class="collab-input">
-        ${PARTNER_CATEGORIES.map(c => `<option value="${escapeHtmlLite(c.name)}">${escapeHtmlLite(c.name)}</option>`).join('')}
-      </select>
-      <div class="sidebar-label" style="padding:8px 0 4px;">Location</div>
-      <select id="npcLocationInput" class="collab-input">
-        ${COMPANY_LOCATIONS.map(l => `<option value="${escapeHtmlLite(l.name)}">${escapeHtmlLite(l.name)}</option>`).join('')}
-      </select>
-      <div class="sidebar-label" style="padding:8px 0 4px;">Company (optional)</div>
-      <input type="text" id="npcCompanyInput" class="collab-input">
-      <div class="sidebar-label" style="padding:8px 0 4px;">How did you find them?</div>
-      <input type="text" id="npcHowFoundInput" class="collab-input" placeholder="e.g. Met at HBA event, referred by...">
-      <div class="row" style="margin-top:16px; justify-content:flex-end; gap:8px;">
-        <button class="btn" id="npcCancelBtn">Cancel</button>
-        <button class="btn btn-primary" id="npcSubmitBtn">Add Contact</button>
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-  overlay.onclick = (e) => { if(e.target === overlay) overlay.remove(); };
-  overlay.querySelector('#npcCancelBtn').onclick = () => overlay.remove();
-  overlay.querySelector('#npcSubmitBtn').onclick = () => {
-    const name = overlay.querySelector('#npcNameInput').value.trim();
-    if(!name){ alert('Name is required.'); return; }
-    PROSPECT_CONTACTS.push({
-      id: 'pc' + Date.now(),
-      name,
-      category: overlay.querySelector('#npcCategoryInput').value,
-      location: overlay.querySelector('#npcLocationInput').value,
-      company: overlay.querySelector('#npcCompanyInput').value.trim(),
-      howFound: overlay.querySelector('#npcHowFoundInput').value.trim(),
-      status: 'Identified',
-      notes: '',
-      createdAt: new Date().toISOString().slice(0,10)
-    });
-    overlay.remove();
-    renderProspectContacts();
-  };
-}
-function openProspectDetail(id){
-  const c = PROSPECT_CONTACTS.find(x => x.id === id);
-  if(!c) return;
-  const overlay = document.createElement('div');
-  overlay.id = 'prospectDetailOverlay';
-  overlay.style.cssText = 'position:fixed; inset:0; z-index:400; display:flex; align-items:center; justify-content:center; background:rgba(20,18,14,.55); padding:20px;';
-  overlay.innerHTML = `
-    <div class="modal-card" style="width:540px; background:#fff; border-radius:14px; padding:20px; box-shadow:0 20px 50px rgba(0,0,0,.25); max-height:85vh; overflow-y:auto;">
-      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-        <div>
-          <div class="eyebrow">New Contact</div>
-          <div class="panel-title" style="font-size:18px; margin-top:2px;">${escapeHtmlLite(c.name)}</div>
-        </div>
-        <span style="cursor:pointer; font-size:20px; color:var(--ink-faint);" onclick="document.getElementById('prospectDetailOverlay').remove()">&times;</span>
-      </div>
-      <div class="row" style="gap:8px; margin:10px 0 16px;">
-        <span class="pill" style="background:${partnerCategoryColor(c.category)}22; color:${partnerCategoryColor(c.category)}; font-weight:600;">${escapeHtmlLite(c.category)}</span>
-        <span class="pill ${PROSPECT_STATUS_CLASS[c.status]}">${escapeHtmlLite(c.status)}</span>
-      </div>
-      ${!(c.meetings && c.meetings.length) ? `<div class="panel" style="margin-bottom:14px; border-color:var(--rust); border-width:2px;"><div class="panel-body" style="padding:12px 16px;">
-        <div style="font-weight:700; color:var(--rust); font-size:12.5px;">⚠ Needs Outreach</div>
-        <div class="sub-txt" style="margin-top:2px;">Schedule a call, coffee, or meeting below — once it's on the calendar, this clears from the dashboard. Decide after you talk whether they become a real Partner.</div>
-      </div></div>` : ''}
-      <div class="sidebar-label" style="padding:0 0 4px;">Location</div>
-      <div style="font-size:13px; margin-bottom:10px;">${escapeHtmlLite(c.location)}</div>
-      <div class="sidebar-label" style="padding:0 0 4px;">Company</div>
-      <div style="font-size:13px; margin-bottom:10px;">${escapeHtmlLite(c.company || '—')}</div>
-      <div class="sidebar-label" style="padding:0 0 4px;">How Found</div>
-      <div style="font-size:13px; margin-bottom:14px;">${escapeHtmlLite(c.howFound || '—')}</div>
-      ${buildMeetingsPanelHTML(c, 'newcontact')}
-      <div class="sidebar-label" style="padding:0 0 4px;">LinkedIn URL</div>
-      <input type="text" class="collab-input" style="margin-bottom:14px;" value="${escapeHtmlLite(c.linkedinUrl || '')}" onchange="setProspectField('${c.id}','linkedinUrl',this.value)" placeholder="Paste their LinkedIn profile link">
-      <div class="sidebar-label" style="padding:0 0 4px;">Notes</div>
-      <div style="font-size:11px; color:var(--muted-text); margin-bottom:6px;">Whatever you dig up on them — background, mutual connections, why they'd be a good fit, anything worth remembering.</div>
-      <textarea class="collab-input" style="min-height:220px; resize:vertical;" onchange="setProspectField('${c.id}','notes',this.value)" placeholder="What you found, next steps...">${escapeHtmlLite(c.notes || '')}</textarea>
-      <div class="row" style="margin-top:16px; justify-content:flex-end; gap:8px;">
-        <button class="btn btn-outline" onclick="convertProspectToPartner('${c.id}')">Convert to Partner →</button>
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-  overlay.onclick = (e) => { if(e.target === overlay) overlay.remove(); };
-}
-function setProspectField(id, field, val){
-  const c = PROSPECT_CONTACTS.find(x => x.id === id);
-  if(c) c[field] = val;
-}
-function convertProspectToPartner(id){
-  const c = PROSPECT_CONTACTS.find(x => x.id === id);
-  if(!c) return;
-  if(!confirm(`Add "${c.name}" as a real Relationship Partner? They'll move over to the Partners list.`)) return;
-  RELATIONSHIP_PARTNERS.push({
-    id: 'p' + Date.now(), name: c.name, category: c.category, stage: 'New Relations Identified',
-    referralsSentAllTime: 0, closedDealsAllTime: 0, closedRevenueAllTime: 0, lastContact: new Date().toISOString().slice(0,10),
-    notes: c.notes || ''
-  });
-  PROSPECT_CONTACTS = PROSPECT_CONTACTS.filter(x => x.id !== id);
-  document.getElementById('prospectDetailOverlay')?.remove();
-  setRelPageView('partners', document.querySelector('#page-relationships .view-toggle button'));
-  renderRelationshipPartners();
-}
 const REL_STAGE_CLASS = {'New Relations Identified':'pill-ink','Building Relationship':'pill-gold','Keeping in Contact':'pill-jade'};
 const REL_STAGE_GROUPS = [
   {key:'New Relations Identified', label:'New Relations Identified', hint:'Just identified — no real relationship built yet.'},
@@ -7086,14 +6286,15 @@ function activeReferralsFor(partnerName){
 // Preconstruction project; its revenue comes from that project's opportunity dealValue. The
 // three legacy *AllTime fields on each partner now hold only a one-time historical baseline
 // (deals from before this system existed) and are added on top of what's tracked live. ----
+// ---- Referral tracking, rewired for a Preconstruction-only world: the Sales pipeline
+// used to be what recorded which partner sent a lead. Now a Project's own referralPartner
+// field is the only live signal, so "referrals sent" and "closed deals" are the same count
+// here — a referral that never becomes a project has nowhere to be logged going forward.
+// Anything from before this system stays in the partner's manual all-time baseline fields. ----
 function computeReferralStats(partnerName){
-  const deals = OPPORTUNITIES.filter(o => o.referralPartner === partnerName);
-  let closedDeals = 0, closedRevenue = 0;
-  deals.forEach(o => {
-    const linkedProject = Object.values(PROJECTS).find(pr => pr.convertedFrom === o.id);
-    if(linkedProject){ closedDeals++; closedRevenue += (o.dealValue || 0); }
-  });
-  return { referralsSent: deals.length, closedDeals, closedRevenue };
+  const projects = Object.values(PROJECTS).filter(p => p.referralPartner === partnerName);
+  const closedRevenue = projects.reduce((sum,p) => sum + (p.dealValue || 0), 0);
+  return { referralsSent: projects.length, closedDeals: projects.length, closedRevenue };
 }
 function combinedReferralStats(p){
   const live = computeReferralStats(p.name);
@@ -7165,7 +6366,7 @@ function openAddProject(){
       <h3 style="font-family:'Space Grotesk',sans-serif; font-size:18px;">Add Project</h3>
       <span style="cursor:pointer; color:var(--ink-faint); font-size:20px;" onclick="closeQuickOverlay()">&times;</span>
     </div>
-    <div class="hint" style="margin-bottom:14px;">For a project that isn't coming from a Sales conversion — e.g. one already underway before this system existed.</div>
+    <div class="hint" style="margin-bottom:14px;">Every new project starts here.</div>
     <label class="est-lbl">Project Name</label>
     <input id="apjName" placeholder="e.g. Anderson Residence">
     <label class="est-lbl" style="margin-top:12px;">Client Name</label>
@@ -7176,6 +6377,8 @@ function openAddProject(){
     <select id="apjType"><option>Custom Home</option><option>Renovation</option><option>Addition</option><option>Addition + Renovation</option></select>
     <label class="est-lbl" style="margin-top:12px;">Owner</label>
     <input id="apjOwner" placeholder="e.g. John Mitchell" value="John Mitchell">
+    <label class="est-lbl" style="margin-top:12px;">Referral Source</label>
+    <select id="apjReferralPartner">${referralPartnerOptions(null)}</select>
     <div class="row" style="margin-top:18px; justify-content:flex-end; gap:8px;">
       <button class="btn btn-outline" onclick="closeQuickOverlay()">Cancel</button>
       <button class="btn btn-dark" onclick="submitAddProject()">Add Project</button>
@@ -7191,6 +6394,7 @@ function submitAddProject(){
     location: document.getElementById('apjLocation').value.trim() || 'Springfield',
     projectType: document.getElementById('apjType').value,
     owner: document.getElementById('apjOwner').value.trim() || 'John Mitchell',
+    referralPartner: document.getElementById('apjReferralPartner').value || null,
     estimator: 'Estimator', currentPhase: 3, dealValue: null, feeAmount: null,
     preconStartDate: new Date().toISOString().slice(0,10), phaseEnteredDate: new Date().toISOString().slice(0,10),
     nextAction: { title: 'Kick off preconstruction', assigned: 'Unassigned', blocking: 'None', due: '—' },
@@ -7236,7 +6440,7 @@ function deletePartner(id){
 function openPartnerDetail(id, scrollToReferrals){
   const p = RELATIONSHIP_PARTNERS.find(x => x.id === id);
   if(!p) return;
-  const activeDeals = OPPORTUNITIES.filter(o => o.referralPartner === p.name);
+  const activeDeals = Object.values(PROJECTS).filter(pr => pr.referralPartner === p.name);
   const stats = combinedReferralStats(p);
   const avgDeal = stats.closedDeals ? stats.closedRevenue / stats.closedDeals : 0;
   const conv = stats.referralsSent ? Math.round(stats.closedDeals / stats.referralsSent * 100) : 0;
@@ -7296,12 +6500,10 @@ function openPartnerDetail(id, scrollToReferrals){
     ${buildPartnerFollowUpPanelHTML(p)}
     ${buildPartnerFollowUpHistoryHTML(p)}
     ${buildPartnerActivityPanelHTML(p)}
-    ${activeDeals.length ? `<label class="est-lbl">Referred Leads &amp; Projects (all-time)</label>
+    ${activeDeals.length ? `<label class="est-lbl">Referred Projects (all-time)</label>
       <div class="panel" id="referredDealsList" style="margin-bottom:16px;"><div class="panel-body" style="padding:8px 14px;">
-        ${activeDeals.map(o => {
-          const linkedProject = Object.values(PROJECTS).find(pr => pr.convertedFrom === o.id);
-          if(linkedProject) return `<div class="list-row" style="cursor:pointer;" onclick="closeQuickOverlay(); openProject('${linkedProject.id}')"><span class="main-txt">${escapeHtmlLite(o.name)}</span><span class="pill pill-jade">In Preconstruction — Phase ${linkedProject.currentPhase ?? '✓'}</span></div>`;
-          return `<div class="list-row" style="cursor:pointer;" onclick="closeQuickOverlay(); openOpportunity('${o.id}')"><span class="main-txt">${escapeHtmlLite(o.name)}</span><span class="pill ${STAGE_PILL_CLASS[o.stage]||'pill-ink'}">${escapeHtmlLite(o.stage)}</span></div>`;
+        ${activeDeals.map(pr => {
+          return `<div class="list-row" style="cursor:pointer;" onclick="closeQuickOverlay(); openProject('${pr.id}')"><span class="main-txt">${escapeHtmlLite(pr.client||pr.name)}</span><span class="pill pill-jade">In Preconstruction — Phase ${pr.currentPhase ?? '✓'}</span></div>`;
         }).join('')}
       </div></div>` : ''}
     <div class="row" style="margin-top:18px; justify-content:flex-end;">
@@ -7528,12 +6730,12 @@ let FOLLOWUP_FILTER = 'overdue';
 function renderFollowUpsPage(){
   const body = document.getElementById('followupsBody');
   if(!body) return;
-  const withFollowUp = OPPORTUNITIES.filter(o => o.nextFollowUpDate);
-  const bucketed = withFollowUp.map(o => {
-    const due = new Date(o.nextFollowUpDate+'T00:00:00');
+  const withFollowUp = Object.values(PROJECTS).filter(p => p.nextFollowUpDate);
+  const bucketed = withFollowUp.map(p => {
+    const due = new Date(p.nextFollowUpDate+'T00:00:00');
     const days = Math.round((due - TODAY) / 86400000);
     const bucket = days < 0 ? 'overdue' : days === 0 ? 'today' : 'upcoming';
-    return { o, days, bucket };
+    return { p, days, bucket };
   }).sort((a,b) => a.days - b.days);
   const filtered = FOLLOWUP_FILTER === 'all' ? bucketed : bucketed.filter(x => x.bucket === FOLLOWUP_FILTER);
   document.querySelectorAll('#followupTabs .tab').forEach(t => {
@@ -7541,107 +6743,18 @@ function renderFollowUpsPage(){
     const count = key === 'all' ? bucketed.length : bucketed.filter(x=>x.bucket===key).length;
     t.textContent = t.textContent.replace(/\s*\(\d+\)$/, '') + ` (${count})`;
   });
-  body.innerHTML = filtered.length ? filtered.map(({o,days}) => {
+  body.innerHTML = filtered.length ? filtered.map(({p,days}) => {
     const dueLabel = days < 0 ? `${Math.abs(days)}d overdue` : days === 0 ? 'Today' : `In ${days}d`;
-    const linkedProject = Object.values(PROJECTS).find(pr => pr.convertedFrom === o.id);
-    const openAction = linkedProject ? `openProject('${linkedProject.id}')` : `openOpportunity('${o.id}')`;
-    return `<tr style="cursor:pointer; ${days < 0 ? 'background:#FBEFEA;' : ''}" onclick="${openAction}">
-      <td class="name-cell">${o.name}${linkedProject ? ' <span class="pill pill-jade" style="font-size:9px;">In Precon</span>' : ''}</td>
-      <td>${escapeHtmlLite(o.nextFollowUpNote || 'Follow up')}</td>
-      <td><span class="pill ${STAGE_PILL_CLASS[o.stage] || 'pill-ink'}">${o.stage}</span></td>
-      <td>${escapeHtmlLite(o.nextFollowUpAssignee || o.owner || 'Unassigned')}</td>
-      <td style="${days < 0 ? 'color:var(--rust); font-weight:600;' : ''}">${dueLabel} · ${o.nextFollowUpDate}</td>
+    const phaseDef = WORKFLOW_PHASE_DEFS.find(pd => pd.n === p.currentPhase);
+    const phaseLabel = p.currentPhase !== null ? `Phase ${p.currentPhase}${phaseDef ? ' · ' + escapeHtmlLite(phaseDef.name) : ''}` : 'Complete';
+    return `<tr style="cursor:pointer; ${days < 0 ? 'background:#FBEFEA;' : ''}" onclick="openProject('${p.id}')">
+      <td class="name-cell">${escapeHtmlLite(p.name)}</td>
+      <td>${escapeHtmlLite(p.nextFollowUpNote || 'Follow up')}</td>
+      <td><span class="pill pill-slate">${phaseLabel}</span></td>
+      <td>${escapeHtmlLite(p.nextFollowUpAssignee || p.owner || 'Unassigned')}</td>
+      <td style="${days < 0 ? 'color:var(--rust); font-weight:600;' : ''}">${dueLabel} · ${p.nextFollowUpDate}</td>
     </tr>`;
   }).join('') : `<tr><td colspan="5" class="empty-row">Nothing in this view.</td></tr>`;
-}
-function renderProspectsClientsTable(){
-  const body = document.getElementById('prospectsClientsBody');
-  if(!body) return;
-  const prospectRows = OPPORTUNITIES.map(o => ({
-    id: o.id, kind: 'opp', name: o.name, type: o.projectType, phone: o.phone, email: o.email, stage: o.stage,
-    onClick: `openOpportunity('${o.id}')`,
-    del: `<span style="cursor:pointer; color:var(--rust); font-size:15px;" onclick="event.stopPropagation(); deleteProspect('${o.id}')" title="Delete prospect">&times;</span>`
-  }));
-  const clientRows = Object.values(PROJECTS).map(p => ({
-    id: p.id, kind: 'project', name: p.client, type: p.projectType, phone: '—', email: '—', stage: 'In Preconstruction',
-    onClick: `openProject('${p.id}')`, del: ''
-  }));
-  const all = [...prospectRows, ...clientRows].sort((a,b) => (a.name||'').localeCompare(b.name||''));
-  const thStyle = 'text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-faint); font-weight:700;';
-  const allIdsByKind = JSON.stringify(all.map(r => [r.kind, r.id]));
-  const allSelected = all.length && all.every(r => BULK_SELECTED[r.kind].has(r.id));
-  const rowsHtml = all.map(r => `<tr style="cursor:pointer;" onclick="${r.onClick}">
-    <td onclick="event.stopPropagation();" style="width:28px;"><input type="checkbox" class="bulk-cb" ${BULK_SELECTED[r.kind].has(r.id)?'checked':''} onclick="pcToggleSelect('${r.kind}','${r.id}', this.checked)"></td>
-    <td class="name-cell">${escapeHtmlLite(r.name || '')}</td>
-    <td>${escapeHtmlLite(r.type || '')}</td>
-    <td>${escapeHtmlLite(r.phone || '—')}</td>
-    <td>${escapeHtmlLite(r.email || '—')}</td>
-    <td><span class="pill ${STAGE_PILL_CLASS[r.stage] || 'pill-jade'}">${escapeHtmlLite(r.stage)}</span></td>
-    <td>${r.del}</td>
-  </tr>`).join('');
-  body.innerHTML = `<div class="bulk-action-bar" id="bulkBar_pc"></div>
-  <table style="table-layout:fixed; width:100%;">
-    <thead><tr>
-      <th style="width:4%;"><input type="checkbox" class="bulk-cb" ${allSelected ? 'checked' : ''} onclick='pcToggleSelectAll(${allIdsByKind}, this.checked)'></th>
-      <th style="${thStyle} width:21%;">Name</th>
-      <th style="${thStyle} width:14%;">Project Type</th>
-      <th style="${thStyle} width:15%;">Phone</th>
-      <th style="${thStyle} width:21%;">Email</th>
-      <th style="${thStyle} width:19%;">Status</th>
-      <th style="width:6%;"></th>
-    </tr></thead>
-    <tbody>${rowsHtml || `<tr><td colspan="7" style="padding:14px 16px; color:var(--ink-faint); font-style:italic;">No contacts yet.</td></tr>`}</tbody>
-  </table>`;
-  renderPcBulkBar();
-}
-// ---- Prospects & Clients mixes two different record kinds (Sales opportunities and
-// converted Preconstruction projects) in one flat list, so its bulk-select spans both
-// underlying BULK_SELECTED sets at once with a single combined action bar. ----
-function pcToggleSelect(kind, id, checked){
-  if(checked) BULK_SELECTED[kind].add(id); else BULK_SELECTED[kind].delete(id);
-  renderPcBulkBar();
-}
-function pcToggleSelectAll(idsByKind, checked){
-  idsByKind.forEach(([kind, id]) => { if(checked) BULK_SELECTED[kind].add(id); else BULK_SELECTED[kind].delete(id); });
-  renderProspectsClientsTable();
-}
-function renderPcBulkBar(){
-  const host = document.getElementById('bulkBar_pc');
-  if(!host) return;
-  const oppIds = Array.from(BULK_SELECTED.opp).filter(id => OPPORTUNITIES.find(o => o.id === id));
-  const projIds = Array.from(BULK_SELECTED.project).filter(id => PROJECTS[id]);
-  const n = oppIds.length + projIds.length;
-  host.style.display = n ? 'flex' : 'none';
-  host.innerHTML = n ? `<span style="font-weight:600;">${n} contact${n===1?'':'s'} selected</span>
-    <button class="btn btn-outline btn-sm" onclick="pcClearSelect()">Clear</button>
-    <button class="btn btn-sm" style="background:var(--rust); color:#fff; border-color:var(--rust);" onclick="pcBulkDelete()">🗑 Delete Selected</button>` : '';
-}
-function pcClearSelect(){
-  BULK_SELECTED.opp.clear();
-  BULK_SELECTED.project.clear();
-  renderProspectsClientsTable();
-}
-function pcBulkDelete(){
-  const oppIds = Array.from(BULK_SELECTED.opp).filter(id => OPPORTUNITIES.find(o => o.id === id));
-  const projIds = Array.from(BULK_SELECTED.project).filter(id => PROJECTS[id]);
-  const total = oppIds.length + projIds.length;
-  if(!total) return;
-  const parts = [];
-  if(oppIds.length) parts.push(`${oppIds.length} prospect${oppIds.length===1?'':'s'}`);
-  if(projIds.length) parts.push(`${projIds.length} client project${projIds.length===1?'':'s'} (full project — phases, documents, everything)`);
-  if(!confirm(`Delete ${parts.join(' and ')}? This can't be undone.`)) return;
-  if(oppIds.length){
-    OPPORTUNITIES = OPPORTUNITIES.filter(o => !oppIds.includes(o.id));
-    oppIds.forEach(id => delete OPP_ESTIMATES[id]);
-  }
-  projIds.forEach(id => delete PROJECTS[id]);
-  BULK_SELECTED.opp.clear();
-  BULK_SELECTED.project.clear();
-  renderProspectsClientsTable();
-  renderSalesTable(); renderSalesKanban(); renderFollowUpsPage();
-  renderProjectCardGrids();
-  if(document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboardAtAGlance();
-  saveAppState();
 }
 // ---- Real address autocomplete as you type — uses OpenStreetMap's free Nominatim
 // geocoding service, which needs no API key (unlike Google Places). It's a public,
@@ -7719,131 +6832,8 @@ function attachAddressAutocomplete(inputId){
   window.addEventListener('resize', positionDropdown);
   input.addEventListener('blur', () => setTimeout(closeDropdown, 200));
 }
-function openAddProspect(){
-  openQuickOverlay(`
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-      <h3 style="font-family:'Space Grotesk',sans-serif; font-size:18px;">New Prospect</h3>
-      <span style="cursor:pointer; color:var(--ink-faint); font-size:20px;" onclick="closeQuickOverlay()">&times;</span>
-    </div>
-    <label class="est-lbl">Name</label>
-    <input id="npName" placeholder="Full name">
-    <label class="est-lbl" style="margin-top:12px;">Project Type</label>
-    <select id="npType"><option>Custom Home</option><option>Renovation</option><option>Addition</option><option>Addition + Renovation</option></select>
-    <label class="est-lbl" style="margin-top:12px;">Phone</label>
-    <input id="npPhone" placeholder="000-000-0000">
-    <label class="est-lbl" style="margin-top:12px;">Email</label>
-    <input id="npEmail" type="email" placeholder="name@email.com">
-    <label class="est-lbl" style="margin-top:12px;">Property Address</label>
-    <div style="position:relative;"><input id="npAddress" placeholder="Start typing an address..." autocomplete="off"></div>
-    <div class="row" style="margin-top:18px; justify-content:flex-end; gap:8px;">
-      <button class="btn btn-outline" onclick="closeQuickOverlay()">Cancel</button>
-      <button class="btn btn-dark" onclick="submitAddProspect()">Add Prospect</button>
-    </div>
-  `);
-  attachAddressAutocomplete('npAddress');
-}
-function submitAddProspect(){
-  const name = document.getElementById('npName').value.trim();
-  if(!name){ alert('Please enter a name.'); return; }
-  const id = 'p' + Date.now();
-  OPPORTUNITIES.push({
-    id, name, stage:'Need to Contact', owner:null, leadTemp:'Warm',
-    projectType: document.getElementById('npType').value, dealValue:null, feeAmount:null, rating:null,
-    nextFollowUpDate:null, nextFollowUpNote:null, leadSource:null, budgetRange:null, referralPartner:null,
-    address: document.getElementById('npAddress').value.trim() || null, phone: document.getElementById('npPhone').value.trim() || null,
-    email: document.getElementById('npEmail').value.trim() || null, description:null,
-    nextActivityDate:null, nextActivityTask:null, stageEnteredDate: new Date().toISOString().slice(0,10), createdDate: new Date().toISOString().slice(0,10), files:{}
-  });
-  closeQuickOverlay();
-  renderProspectsClientsTable();
-  renderSalesKanban(); renderSalesTable(); renderSalesSequence();
-}
-function deleteProspect(id){
-  if(!confirm('Delete this prospect? This removes them from the pipeline entirely.')) return;
-  OPPORTUNITIES = OPPORTUNITIES.filter(o => o.id !== id);
-  delete OPP_ESTIMATES[id];
-  renderProspectsClientsTable();
-  renderSalesKanban(); renderSalesTable(); renderSalesSequence();
-}
-function openWebsiteFormPreview(){
-  openQuickOverlay(`
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-      <h3 style="font-family:'Space Grotesk',sans-serif; font-size:18px;">Website Lead Form — Preview</h3>
-      <span style="cursor:pointer; color:var(--ink-faint); font-size:20px;" onclick="closeQuickOverlay()">&times;</span>
-    </div>
-    <div class="hint" style="margin-bottom:16px;">This is what you'd embed on your website's contact page. Submitting here creates a real lead at "Need to Contact" in your pipeline — exactly like a real visitor would, once this is actually hosted on your site.</div>
-    <label class="est-lbl">Name</label>
-    <input id="wfName" placeholder="Full name">
-    <label class="est-lbl" style="margin-top:12px;">Phone</label>
-    <input id="wfPhone" placeholder="000-000-0000">
-    <label class="est-lbl" style="margin-top:12px;">Email</label>
-    <input id="wfEmail" type="email" placeholder="you@example.com">
-    <label class="est-lbl" style="margin-top:12px;">Project Type</label>
-    <select id="wfType"><option>Custom Home</option><option>Renovation</option><option>Addition</option><option>Addition + Renovation</option></select>
-    <label class="est-lbl" style="margin-top:12px;">Budget Range</label>
-    <select id="wfBudget"><option value="">Prefer not to say</option><option>$100k-$200k</option><option>$500k-$900k</option><option>$1M-$1.5M</option><option>$2M+</option></select>
-    <label class="est-lbl" style="margin-top:12px;">Tell us about your project</label>
-    <textarea id="wfMessage" style="width:100%; min-height:70px; padding:8px 10px; border:1px solid var(--border); border-radius:7px; font-family:'Inter',sans-serif; font-size:13px; resize:vertical;" placeholder="What are you looking to build..."></textarea>
-    <div class="row" style="margin-top:18px; justify-content:flex-end; gap:8px;">
-      <button class="btn btn-outline" onclick="closeQuickOverlay()">Cancel</button>
-      <button class="btn btn-dark" id="wfSubmitBtn">Submit Inquiry</button>
-    </div>
-  `);
-  document.getElementById('wfSubmitBtn').onclick = submitWebsiteLead;
-}
-function submitWebsiteLead(){
-  const name = document.getElementById('wfName').value.trim();
-  if(!name){ alert('Please enter a name.'); return; }
-  const id = 'web' + Date.now();
-  OPPORTUNITIES.push({
-    id, name, stage:'Need to Contact', owner:null, leadTemp:'Warm',
-    projectType: document.getElementById('wfType').value, dealValue:null, feeAmount:null, rating:null,
-    nextFollowUpDate:null, nextFollowUpNote:null, leadSource:'Website', budgetRange: document.getElementById('wfBudget').value || null,
-    referralPartner:null, address:null, phone: document.getElementById('wfPhone').value.trim() || null,
-    email: document.getElementById('wfEmail').value.trim() || null, description: document.getElementById('wfMessage').value.trim() || null,
-    nextActivityDate:null, nextActivityTask:'First contact', stageEnteredDate: new Date().toISOString().slice(0,10), createdDate: new Date().toISOString().slice(0,10), files:{}
-  });
-  closeQuickOverlay();
-  renderProspectsClientsTable();
-  renderSalesKanban(); renderSalesTable(); renderSalesSequence();
-  renderFollowUpsPage();
-  alert(`Thanks, ${name}! We'll be in touch shortly.`);
-}
-function renderSalesSequence(){
-  const el = document.getElementById('pipeline-sequence');
-  if(!el) return;
-  const body = STAGE_ORDER.map((stage, idx) => {
-    const opps = OPPORTUNITIES.filter(o => o.stage === stage);
-    const cards = opps.length ? opps.map(o => {
-      const followUp = o.nextFollowUpDate ? new Date(o.nextFollowUpDate+'T00:00:00') : null;
-      const overdue = followUp && followUp < TODAY;
-      const days = daysInStage(o);
-      return `<div class="seq-lead-card ${ltClass(o.leadTemp)}" onclick="openOpportunity('${o.id}')">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
-          <div class="sl-name">${o.name}</div>
-          <span class="seq-avatar">${initials(o.owner)}</span>
-        </div>
-        <div class="sl-meta">${o.projectType}</div>
-        ${o.dealValue ? `<div class="sl-value">${fmtMoneyOrDash(o.dealValue)}</div>` : ''}
-        <div class="sl-foot">
-          <span class="seq-temp-pill ${ltClass(o.leadTemp)}">${o.leadTemp || 'Unrated'}</span>
-          <span style="font-size:11px; color:${days !== null && days > 30 ? 'var(--rust)' : 'var(--ink-faint)'};">${days !== null ? days + 'd in stage' : ''}</span>
-        </div>
-        ${o.nextFollowUpDate ? `<div style="margin-top:6px; font-size:11px; ${overdue ? 'color:var(--rust); font-weight:600;' : 'color:var(--ink-faint);'}">${overdue ? '⚠ Overdue follow-up' : 'Follow up ' + o.nextFollowUpDate}</div>` : ''}
-      </div>`;
-    }).join('') : '<div class="seq-empty">No leads currently in this step.</div>';
-    return `<div class="seq-stage ${opps.length ? 'has-leads' : 'seq-empty-stage'}">
-      <div class="seq-badge">${idx+1}</div>
-      <div class="seq-stage-head"><h3>${stage}</h3><span class="stage-count">${opps.length}</span></div>
-      <div class="seq-lead-grid">${cards}</div>
-    </div>`;
-  }).join('');
-  el.innerHTML = `<div class="seq-timeline">${body}</div>`;
-}
 
 const searchIndex = [
-  {label:'BonnieSue Nygard', type:'Opportunity', page:'pipeline', oppId:'nygard'},
-  {label:'Carrisann Woods', type:'Opportunity', page:'pipeline', oppId:'woods'},
   {label:'Smith Residence', type:'Project', page:'precon-dash', projectId:'smith'},
   {label:'Chris Lawrence', type:'Project', page:'precon-dash', projectId:'lawrence'},
   {label:'Craig & Lydia Bell', type:'Project', page:'precon-dash', projectId:'bell'},
@@ -7857,7 +6847,6 @@ function runGlobalSearch(q){
   if(!matches.length){ box.innerHTML = '<div class="list-row"><span class="sub-txt">No matches</span></div>'; box.style.display='block'; return; }
   box.innerHTML = matches.map(m => {
     let action = `goPage('${m.page}')`;
-    if(m.oppId) action = `goPage('${m.page}'); openOpportunity('${m.oppId}')`;
     if(m.projectId) action = `openProject('${m.projectId}')`;
     return `<div class="list-row" style="cursor:pointer" onclick="${action}; document.getElementById('searchResults').style.display='none'; document.getElementById('globalSearch').value='';"><span class="main-txt">${m.label}</span><span class="pill pill-ink">${m.type}</span></div>`;
   }).join('');
@@ -16676,7 +15665,7 @@ function applyThemeVars(vars){
 }
 function buildAppSnapshot(){
   return {
-    OPPORTUNITIES, OPP_ESTIMATES, PROJECTS, RELATIONSHIP_PARTNERS, PROSPECT_CONTACTS,
+    OPPORTUNITIES, OPP_ESTIMATES, PROJECTS, RELATIONSHIP_PARTNERS,
     PARTNER_CATEGORIES, COMPANY_LOCATIONS, TEAM_MEMBERS, TEAM_ROSTER, CUSTOM_AUTOMATIONS,
     DEFAULT_TASK_ASSIGNEES, COMPANY_TEMPLATES, COMPANY_LOGO, COMPANY_LOGO_SIZE, CONTACTS,
     DRIP_CAMPAIGN_CONNECTION, PHASE_DESCRIPTIONS,
@@ -16689,7 +15678,6 @@ function applyAppSnapshot(snap){
   if(snap.OPP_ESTIMATES) OPP_ESTIMATES = snap.OPP_ESTIMATES;
   if(snap.PROJECTS){ Object.keys(PROJECTS).forEach(k => delete PROJECTS[k]); Object.assign(PROJECTS, snap.PROJECTS); }
   if(snap.RELATIONSHIP_PARTNERS) RELATIONSHIP_PARTNERS = snap.RELATIONSHIP_PARTNERS;
-  if(snap.PROSPECT_CONTACTS) PROSPECT_CONTACTS = snap.PROSPECT_CONTACTS;
   if(snap.PARTNER_CATEGORIES) PARTNER_CATEGORIES = snap.PARTNER_CATEGORIES;
   if(snap.COMPANY_LOCATIONS) COMPANY_LOCATIONS = snap.COMPANY_LOCATIONS;
   if(snap.TEAM_ROSTER) TEAM_ROSTER = snap.TEAM_ROSTER;
@@ -16810,11 +15798,7 @@ function renderEverything(){
     renderClientProgressView(CLIENT_VIEW_PROJECT_ID);
     return;
   }
-  renderSalesKanban();
-  renderSalesTable();
-  renderSalesSequence();
   renderProjectCardGrids();
-  renderProspectsClientsTable();
   renderRelationshipPartners();
   renderDashboardFinancials();
   renderDashboardAtAGlance();
@@ -16827,8 +15811,6 @@ function renderEverything(){
   renderPhaseDescriptionsPanel();
   renderScheduleTemplatePanel();
   if(document.getElementById('page-project-detail')?.classList.contains('active') && CURRENT_PROJECT_ID) renderProjectDetail();
-  const openOppOverlay = document.getElementById('oppOverlay');
-  if(openOppOverlay && openOppOverlay.style.display === 'flex' && CURRENT_OPP_ID) openOpportunity(CURRENT_OPP_ID);
 }
 (async function bootApp(){
 await loadAppState();
