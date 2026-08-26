@@ -3257,34 +3257,13 @@ function togglePropertyPanel(){
   renderProjectDetail();
 }
 function buildPropertyHomeownerPanelHTML(p, contactId, refreshJs){
-  const c = getOrCreateContact(contactId, p.client || p.name);
   return `<div class="section-label-row" style="margin-top:22px; cursor:pointer;" onclick="togglePropertyPanel()"><div class="eyebrow">${PROPERTY_PANEL_OPEN ? '▾' : '▸'} Property &amp; Homeowner Info</div></div>
   ${PROPERTY_PANEL_OPEN ? `<div class="panel" style="margin-bottom:20px;"><div class="panel-body" style="padding:16px 20px;">
     <div class="field-grid">
-      <div><label>Property Address</label><input id="addr_${p.id}" value="${escapeHtmlLite(p.propertyAddress || '')}" onchange="setProjectField('${p.id}','propertyAddress',this.value)" autocomplete="off"></div>
+      <div><label>Client Name</label><input value="${escapeHtmlLite(p.client || '')}" onchange="setProjectField('${p.id}','client',this.value); renderProjectDetail();"></div>
       <div><label>Phone</label><input value="${escapeHtmlLite(p.phone || '')}" onchange="setProjectField('${p.id}','phone',this.value)"></div>
       <div><label>Email</label><input type="email" value="${escapeHtmlLite(p.email || '')}" onchange="setProjectField('${p.id}','email',this.value)"></div>
-      <div><label>Referral Source</label><select onchange="setProjectField('${p.id}','referralPartner',this.value); renderProjectDetail()">${referralPartnerOptions(p.referralPartner)}</select></div>
-      <div><label>Decision Maker</label><input value="${escapeHtmlLite(c.decisionMaker)}" placeholder="e.g. Both, or name" onchange="setContactField('${contactId}','decisionMaker',this.value)"></div>
-      <div><label>Spouse / Partner</label><input value="${escapeHtmlLite(c.spousePartnerName)}" onchange="setContactField('${contactId}','spousePartnerName',this.value)"></div>
-      <div><label>Communication Preference</label><select onchange="setContactField('${contactId}','communicationPref',this.value)">${['No preference','Call','Text','Email'].map(o => `<option ${o===c.communicationPref?'selected':''}>${o}</option>`).join('')}</select></div>
-      <div><label>Best Time to Reach</label><input value="${escapeHtmlLite(c.bestTimeToReach)}" placeholder="e.g. evenings, weekends" onchange="setContactField('${contactId}','bestTimeToReach',this.value)"></div>
-      <div><label>Hobbies / Interests</label><input value="${escapeHtmlLite(c.hobbiesInterests)}" placeholder="e.g. golf, boating, grandkids" onchange="setContactField('${contactId}','hobbiesInterests',this.value)"></div>
-      <div><label>Family Notes</label><input value="${escapeHtmlLite(c.familyNotes)}" placeholder="kids' names, pets, etc." onchange="setContactField('${contactId}','familyNotes',this.value)"></div>
-    </div>
-    <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border-soft);">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><label class="est-lbl" style="margin:0;">Get to Know You Form (PDF)</label></div>
-      ${c.getToKnowYouFile
-        ? `<div class="file-row"><a href="javascript:void(0)" onclick="openFilePreview('${c.getToKnowYouFile.dataUrl}', '${escapeHtmlLite(c.getToKnowYouFile.name)}')" class="fr-name" style="text-decoration:none; color:inherit;">📄 ${escapeHtmlLite(c.getToKnowYouFile.name)}</a><span style="display:flex; align-items:center; gap:10px;"><span class="sub-txt">${fmtNoteDate(c.getToKnowYouFile.uploadedAt)}</span><span style="cursor:pointer; color:var(--rust); font-size:14px;" onclick="removeGetToKnowYouForm('${contactId}'); ${refreshJs}">&times;</span></span></div>`
-        : `<label class="pill pill-slate" style="cursor:pointer; display:inline-block;">+ Upload PDF<input type="file" accept="application/pdf" style="display:none;" onchange="uploadGetToKnowYouForm('${contactId}', this).then(() => { ${refreshJs} })"></label>`}
-    </div>
-    <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border-soft);">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><label class="est-lbl" style="margin:0;">Important Dates</label><span class="pill pill-slate" style="cursor:pointer;" onclick="openAddContactDateModal('${contactId}', () => { ${refreshJs} })">+ Add Date</span></div>
-      ${c.importantDates.length ? c.importantDates.map(d => `<div class="file-row" style="cursor:pointer;" onclick="openAddContactDateModal('${contactId}', () => { ${refreshJs} }, '${d.id}')"><span class="fr-name">🎂 ${escapeHtmlLite(d.label)}${d.notes ? ' — ' + escapeHtmlLite(d.notes) : ''}${(d.attachments||[]).length ? ' · 📎 ' + d.attachments.length : ''}</span><span style="display:flex; align-items:center; gap:10px;"><span class="pill pill-gold">${escapeHtmlLite(d.date)}</span><span style="cursor:pointer; color:var(--rust); font-size:14px;" onclick="event.stopPropagation(); removeContactDate('${contactId}','${d.id}', () => { ${refreshJs} })">&times;</span></span></div>`).join('') : '<div class="empty-row">No dates saved yet.</div>'}
-    </div>
-    <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border-soft);">
-      <label class="est-lbl">General Notes</label>
-      <textarea style="width:100%; min-height:56px; margin-top:4px; padding:8px 10px; border:1px solid var(--border); border-radius:7px; font-family:'Inter',sans-serif; font-size:13px; resize:vertical;" onchange="setContactField('${contactId}','generalNotes',this.value)">${escapeHtmlLite(c.generalNotes)}</textarea>
+      <div><label>Property Address</label><input id="addr_${p.id}" value="${escapeHtmlLite(p.propertyAddress || '')}" onchange="setProjectField('${p.id}','propertyAddress',this.value)" autocomplete="off"></div>
     </div>
   </div></div>` : ''}`;
 }
@@ -4715,8 +4694,10 @@ function recomputeStage(p){
     const st = getStepState(stage, def.id);
     if(st.status === 'Not Ready' || st.status === 'Ready'){
       const prev = i === 0 ? null : ph.steps[i-1];
-      const clear = !prev || (stage.steps[prev.id] && (stage.steps[prev.id].status === 'Complete' || stage.steps[prev.id].status === 'N/A'));
-      st.status = clear ? 'Ready' : 'Not Ready';
+      const depClear = !prev || (stage.steps[prev.id] && (stage.steps[prev.id].status === 'Complete' || stage.steps[prev.id].status === 'N/A'));
+      // Nothing goes Ready without a baseline schedule — the schedule comes first, always,
+      // not just for the first step but for every step in every phase.
+      st.status = (wf.baselineSet && depClear) ? 'Ready' : 'Not Ready';
     }
   });
   const allDone = ph.steps.every(def => {
@@ -5153,8 +5134,7 @@ function buildScheduleHealthStripHTML(p){
   if(!health){
     return `<div class="schedhealth schedhealth-unset">
       <div class="schedhealth-row">
-        <div><div class="hero-label">No Baseline Schedule Set</div><div class="sub" style="margin:2px 0 0;">Nothing to measure against yet — set one so every date from here forward means something.</div></div>
-        <button class="btn btn-dark" onclick="promptGenerateProcessBaseline('${p.id}')">Set Baseline Schedule</button>
+        <div><div class="hero-label">No Baseline Schedule Set</div><div class="sub" style="margin:2px 0 0;">Nothing to measure against yet — the step below is the one required action right now.</div></div>
       </div>
     </div>`;
   }
@@ -5193,6 +5173,19 @@ function buildStageRailHTML(p){
 // this tab competes with it for attention — that's the point. ----
 function buildNextActionHeroHTML(p){
   const wf = ensureWorkflowModel(p);
+  // The absolute gate: no baseline schedule means nothing else is allowed to be "next" —
+  // not even a step someone already had In Progress before this rule existed. Setting the
+  // schedule is step one, every time, full stop.
+  if(!wf.baselineSet){
+    return `<div class="hero hero-blocked">
+      <div class="hero-label">Before Anything Else</div>
+      <div class="hero-title">Set the Baseline Schedule</div>
+      <div class="hero-meta">Every deadline on this project depends on this being set first — nothing else starts until it is.</div>
+      <div class="row" style="margin-top:14px;">
+        <button class="btn btn-dark" onclick="promptGenerateProcessBaseline('${p.id}')">Set Baseline Schedule</button>
+      </div>
+    </div>`;
+  }
   const ph = phaseDef(wf.currentStageN);
   if(!ph){
     return `<div class="hero hero-done"><div class="hero-label">Preconstruction Complete</div><div class="hero-title">Ready for Construction.</div></div>`;
@@ -6550,16 +6543,15 @@ function buildActionBannerHTML(p){
     const dpc = daysInPreconstruction(p);
     const dep = daysInEntirePipeline(p);
     const curPhaseDef = WORKFLOW_PHASE_DEFS.find(pd => pd.n === p.currentPhase);
+    const wfBaselineCheck = ensureWorkflowModel(p);
     tabBody = `
     ${buildScheduleHealthStripHTML(p)}
     ${buildStageRailHTML(p)}
     ${buildNextActionHeroHTML(p)}
-    ${buildWaitingBlockedSummaryHTML(p)}
-    ${buildFullActionListHTML(p)}
+    ${wfBaselineCheck.baselineSet ? `${buildWaitingBlockedSummaryHTML(p)}${buildFullActionListHTML(p)}` : ''}
     ${buildPropertyHomeownerPanelHTML(p, srcOppId, `renderProjectDetail()`)}
     <div class="section-label-row" style="margin-top:8px;"><div class="eyebrow">Review &amp; Send Log</div><span class="pill pill-slate" style="cursor:pointer;" onclick="openCCSubNav('scopes','review')">Open in Scopes →</span></div>
     <div class="panel" style="margin-bottom:20px;"><div class="panel-body" style="padding:6px 20px;" id="reviewSendLogDashboard"><div class="empty-row">Loading…</div></div></div>
-    ${buildKpiLogHTML(p)}
     ${buildClientLogPanelHTML(p)}`;
   } else if(CC_TAB === 'schedule'){
     tabBody = buildScheduleTabHTML(p);
