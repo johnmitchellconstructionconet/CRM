@@ -950,7 +950,10 @@ select{cursor:pointer;}
 .file-row:last-child{border-bottom:none;}
 .file-row .fr-name{display:flex; align-items:center; gap:8px;}
 .file-row .fr-empty{color:var(--ink-faint); font-style:italic;}
-.task-row-mini{display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--border-soft);}
+.task-row-mini{position:relative; padding:11px 0 12px; border-bottom:1px solid var(--border-soft); cursor:pointer;}
+.task-row-title{font-family:'Space Grotesk',sans-serif; font-size:15px; font-weight:600; line-height:1.3; padding-right:96px;}
+.task-row-meta{font-size:12px; color:var(--ink-faint); margin-top:3px; padding-right:96px;}
+.task-row-status{position:absolute; top:11px; right:0; font-size:10px; padding:3px 8px 3px 9px;}
 .task-row-mini:last-child{border-bottom:none;}
 .task-check{width:16px; height:16px; border-radius:4px; border:1.5px solid var(--border); flex-shrink:0; cursor:pointer;}
 .task-check.done{background:var(--jade); border-color:var(--jade); display:flex; align-items:center; justify-content:center; color:#fff; font-size:10px;}
@@ -3525,14 +3528,12 @@ function buildTaskRowHTML(oppId, t){
   const fileCount = (t.attachments || []).length;
   const status = t.status || (t.done ? 'Done' : 'Not Started');
   const statusCls = status === 'Done' ? 'pill-jade' : status === 'Working On' ? 'pill-gold' : 'pill-slate';
-  return `<div class="task-row-mini" style="cursor:pointer;" onclick="openTaskDetail('${oppId}','${t.id}')">
-    <select class="pill ${statusCls}" style="width:auto; padding:3px 8px 3px 9px; font-size:10px; border:none; flex-shrink:0;" onclick="event.stopPropagation();" onchange="event.stopPropagation(); setTaskStatus('${oppId}','${t.id}', this.value)">
+  return `<div class="task-row-mini" onclick="openTaskDetail('${oppId}','${t.id}')">
+    <div class="task-row-title" style="${status === 'Done' ? 'color:var(--ink-faint); text-decoration:line-through;' : ''}">${escapeHtmlLite(t.title) || '<span style="font-style:italic; color:var(--ink-faint);">Untitled task</span>'}</div>
+    <div class="task-row-meta">${escapeHtmlLite(t.assignee||'Unassigned')}${t.due ? ' \u00b7 Due ' + t.due : ''}${fileCount ? ' \u00b7 📎 ' + fileCount : ''}</div>
+    <select class="pill ${statusCls} task-row-status" style="width:auto;" onclick="event.stopPropagation();" onchange="event.stopPropagation(); setTaskStatus('${oppId}','${t.id}', this.value)">
       ${['Not Started','Working On','Done'].map(o => `<option ${o===status?'selected':''}>${o}</option>`).join('')}
     </select>
-    <div style="flex:1;">
-      <div style="font-size:13px; ${status === 'Done' ? 'color:var(--ink-faint); text-decoration:line-through;' : 'font-weight:500;'}">${escapeHtmlLite(t.title)}</div>
-      <div class="sub-txt">${escapeHtmlLite(t.assignee||'Unassigned')}${t.due ? ' \u00b7 Due ' + t.due : ''}${fileCount ? ' \u00b7 📎 ' + fileCount : ''}</div>
-    </div>
   </div>`;
 }
 function setTaskStatus(oppId, taskId, status){
