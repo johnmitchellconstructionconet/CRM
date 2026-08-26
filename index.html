@@ -1026,6 +1026,33 @@ select{cursor:pointer;}
   body:has(#projectDetailHost .client-view-frame) #projectDetailHost{padding:20px !important;}
 }
 
+/* ---- Preconstruction Command: Stage Chart, Control Center, Stage Workspace ---- */
+.stagechart-scroll{overflow-x:auto; padding-bottom:6px; margin-bottom:22px;}
+.stagechart{display:flex; align-items:stretch; gap:0; min-width:max-content;}
+.stagechip{background:#fff; border:1px solid var(--border); border-radius:10px; padding:12px 14px; min-width:150px; cursor:pointer; transition:border-color .15s ease, box-shadow .15s ease;}
+.stagechip:hover{border-color:var(--taupe-dark); box-shadow:0 2px 8px rgba(0,0,0,.05);}
+.stagechip-n{font-size:10px; font-weight:700; color:var(--ink-faint); letter-spacing:.06em; margin-bottom:4px;}
+.stagechip-name{font-weight:600; font-size:13px; line-height:1.3;}
+.stagechip-sub{font-size:11px; color:var(--ink-faint); margin-top:4px;}
+.stagechip-complete{background:#F3F6F3; border-color:var(--jade);}
+.stagechip-current{background:#fff; border-color:var(--taupe-dark); border-width:2px; box-shadow:0 2px 10px rgba(0,0,0,.06);}
+.stagechip-upcoming{background:#FAFAF8; color:var(--ink-faint);}
+.stagechip-arrow{display:flex; align-items:center; justify-content:center; padding:0 8px; color:var(--ink-faint); font-size:14px; flex-shrink:0;}
+.cc-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:8px;}
+.ccpanel{background:#fff; border:1px solid var(--border); border-radius:10px; padding:14px 16px; min-height:96px;}
+.ccpanel-head{font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-faint); margin-bottom:8px;}
+.ccpanel-title{font-weight:600; font-size:13.5px; margin-bottom:6px;}
+.ccpanel-row{display:flex; justify-content:space-between; font-size:12px; margin-top:3px; gap:8px;}
+.ccpanel-row span{color:var(--ink-faint);}
+.ccpanel-empty{font-size:12px; color:var(--ink-faint); font-style:italic;}
+.wsgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px; margin-bottom:6px;}
+.wscard{border:1px solid var(--border); border-radius:8px; padding:10px 12px; background:#FAFAF8;}
+.wscard-name{font-size:12.5px; font-weight:600; margin-bottom:6px;}
+.wscard-status{width:100%; font-size:11.5px; padding:5px 7px;}
+.gatelist{display:flex; flex-direction:column; gap:7px; margin-top:4px;}
+.gaterow{display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;}
+.gaterow input{width:15px; height:15px; cursor:pointer;}
+@media (max-width:900px){ .cc-grid{grid-template-columns:repeat(2,1fr);} }
 </style>
 </head>
 <body>
@@ -4381,6 +4408,67 @@ const WORKFLOW_PHASE_DEFS = [
     'Construction Agreement Sent','Construction Contract Signed',
     'Final Scheduling Phase','Project Handoff / Production Setup']},
 ];
+// ============================================================
+// PRECONSTRUCTION COMMAND — new stage/workstream/gate model.
+// This runs alongside the legacy phase/milestone system above (WORKFLOW_PHASE_DEFS,
+// buildFreshPhases, p.phases) rather than replacing it outright. The legacy system is
+// still the source of truth for per-task assignment and days-in-phase tracking; this
+// layer adds the Stage Chart, Control Center, and Gate concepts from the master prompt
+// on top. A project's workflow model is created lazily (ensureWorkflowModel) the first
+// time it's viewed, mapped from its legacy currentPhase as a *starting point only* —
+// never treated as confirmed, hence reconciliationRequired staying true until someone
+// actually reviews it. ----
+const PRECON_STAGES = [
+  { n:1, name:'Launch & Alignment',
+    objective:'Convert the signed Preconstruction Agreement into an organized, scheduled, aligned project.',
+    workstreams:['Project Setup','Client Alignment','Preconstruction Planning'],
+    gateRequirements:['Project Brief complete','Project team assigned','Investment target documented','Property information documented','Discovery complete','Baseline schedule established'] },
+  { n:2, name:'Concept & Feasibility',
+    objective:'Prove the client\'s vision can work with the site, investment target, constraints, and project strategy.',
+    workstreams:['Site / Property','Concept Design','Financial Feasibility'],
+    gateRequirements:['Site strategy viable','Major constraints understood','Concept approved','Budget direction viable','Consultants identified'] },
+  { n:3, name:'Design Development',
+    objective:'Convert the approved concept into coordinated architectural information.',
+    workstreams:['Architecture & Engineering','Site & Exterior','Client Reviews','Selection Takeoffs'],
+    gateRequirements:['Architectural direction approved','Required internal review complete','Required client review complete','Major structural/site issues identified','Selection takeoffs complete'] },
+  { n:4, name:'Design & Selections',
+    objective:'Translate the client\'s Discovery information into a complete, cohesive, buildable design.',
+    workstreams:['Design Direction','Renderings','Selections'],
+    gateRequirements:['Design direction locked','Major selections established','Pricing-critical selections established','Renderings approved (if applicable)','Long-lead items identified'] },
+  { n:5, name:'Scope & Constructability',
+    objective:'Turn plans and design decisions into a precise definition of what MC&D is going to build.',
+    workstreams:['Area Definition','Trade Scopes','Assumptions & Clarifications','Constructability Review'],
+    gateRequirements:['Area Register complete','Required scopes ready','Critical assumptions resolved','Critical clarifications resolved','Constructability review complete'] },
+  { n:6, name:'Pricing & Contract',
+    objective:'Convert a bid-ready scope package into validated project economics and an executed Construction Agreement.',
+    workstreams:['Trade Pricing','Formal Estimate','Value Engineering','Contract'],
+    gateRequirements:['Reliable trade pricing basis','Estimate complete','Investment aligned','Client approves economics','Construction Agreement signed'] },
+  { n:7, name:'Construction Readiness',
+    objective:'Deliver a complete, coordinated project to Production — Production formally accepts it, not us.',
+    workstreams:['Design Ready','Selections Ready','Scope Ready','Financial Ready','Site Ready','Schedule Ready','Production Handoff'],
+    gateRequirements:['All readiness categories at Ready','Production walkthrough complete','PM accepts project'] },
+];
+// Deliberately coarse legacy→stage mapping, used only as a starting point (see note above).
+const LEGACY_PHASE_TO_STAGE = {3:3, 4:3, 5:4, 6:4, 7:6, 8:6};
+function ensureWorkflowModel(p){
+  if(p.workflow) return p.workflow;
+  let currentStageN;
+  if(p.currentPhase === null) currentStageN = 7;
+  else currentStageN = LEGACY_PHASE_TO_STAGE[p.currentPhase] || 1;
+  p.workflow = {
+    currentStageN,
+    reconciliationRequired: true,
+    stages: PRECON_STAGES.map(s => ({
+      n: s.n,
+      status: s.n < currentStageN ? 'complete' : s.n === currentStageN ? 'current' : 'upcoming',
+      baselineFinish: null, forecastFinish: null, actualFinish: null,
+      workstreamStatus: {}, gateChecked: {},
+    })),
+    waitingOn: null,
+    blocker: null,
+  };
+  return p.workflow;
+}
 function buildFreshPhases(){
   return WORKFLOW_PHASE_DEFS.map(p => ({
     n: p.n, name: p.name,
@@ -4715,6 +4803,198 @@ function printScheduleTab(projectId){
   win.document.close();
   win.onload = () => { win.focus(); win.print(); };
   setTimeout(() => { win.focus(); win.print(); }, 400);
+}
+// ---- Stage Chart — the spine of the new Preconstruction Command view. Replaces the old
+// phase stepper on the Overview tab (see master prompt: "do not stack a new dashboard on
+// top of the old workflow"). Clicking a stage opens its workspace inline below. ----
+let CC_STAGE_OPEN = null;
+function toggleStageWorkspace(n){
+  CC_STAGE_OPEN = (CC_STAGE_OPEN === n) ? null : n;
+  renderProjectDetail();
+  if(CC_STAGE_OPEN) setTimeout(()=>{ const el=document.getElementById('stageWorkspaceHost'); if(el) el.scrollIntoView({behavior:'smooth', block:'start'}); }, 50);
+}
+function buildStageChartHTML(p){
+  const wf = ensureWorkflowModel(p);
+  const nodes = PRECON_STAGES.map(s => {
+    const st = wf.stages.find(x=>x.n===s.n);
+    const cls = st.status==='complete' ? 'stagechip-complete' : st.status==='current' ? 'stagechip-current' : 'stagechip-upcoming';
+    const sub = st.status==='complete' ? '✓ Complete' : st.status==='current' ? (st.forecastFinish ? 'Forecast ' + fmtNoteDate(st.forecastFinish) : '● Current') : (st.baselineFinish ? fmtNoteDate(st.baselineFinish) : '');
+    return `<div class="stagechip ${cls}" onclick="toggleStageWorkspace(${s.n})">
+      <div class="stagechip-n">0${s.n}</div>
+      <div class="stagechip-name">${escapeHtmlLite(s.name)}</div>
+      ${sub ? `<div class="stagechip-sub">${sub}</div>` : ''}
+    </div><div class="stagechip-arrow">→</div>`;
+  }).join('');
+  const allDone = wf.stages.every(s=>s.status==='complete');
+  return `<div class="section-label-row"><div class="eyebrow">Preconstruction Stage Chart</div>${wf.reconciliationRequired ? '<span class="pill pill-gold">Workflow Reconciliation Required — review workstreams below</span>' : ''}</div>
+    <div class="stagechart-scroll"><div class="stagechart">${nodes}<div class="stagechip ${allDone?'stagechip-complete':'stagechip-upcoming'}"><div class="stagechip-name">Ready for Construction</div></div></div></div>`;
+}
+function buildProjectControlCenterHTML(p){
+  const wf = ensureWorkflowModel(p);
+  const task = getActiveTaskForProject(p);
+  const stageDef = PRECON_STAGES.find(s=>s.n===wf.currentStageN);
+  const nextActionHTML = task
+    ? `<div class="ccpanel-title">${escapeHtmlLite(task.milestone.name)}</div>
+       <div class="ccpanel-row"><span>Owner</span><b>${escapeHtmlLite(task.milestone.assignee||'Unassigned')}</b></div>
+       <div class="ccpanel-row"><span>Stage</span><b>${escapeHtmlLite(stageDef ? stageDef.name : '—')}</b></div>`
+    : `<div class="ccpanel-empty">Nothing active right now in ${escapeHtmlLite(stageDef ? stageDef.name : 'this stage')}.</div>`;
+  const w = wf.waitingOn;
+  const waitingHTML = w
+    ? `<div class="ccpanel-title">${escapeHtmlLite(w.party)}</div>
+       <div class="ccpanel-row"><span>Item</span><b>${escapeHtmlLite(w.item)}</b></div>
+       <div class="ccpanel-row"><span>Expected</span><b>${escapeHtmlLite(w.expectedDate||'—')}</b></div>
+       <div class="row" style="margin-top:8px;"><button class="btn btn-outline btn-sm" onclick="clearWaitingOn('${p.id}')">Clear</button></div>`
+    : `<div class="ccpanel-empty">Nothing on record.</div><button class="btn btn-outline btn-sm" style="margin-top:6px;" onclick="openLogWaitingOn('${p.id}')">+ Log Request</button>`;
+  const b = wf.blocker;
+  const blockerHTML = b
+    ? `<div class="ccpanel-title" style="color:var(--rust);">${escapeHtmlLite(b.title)}</div>
+       <div class="ccpanel-row"><span>Blocks</span><b>${escapeHtmlLite((b.blocks||[]).join(', ')||'—')}</b></div>
+       <div class="row" style="margin-top:8px;"><button class="btn btn-outline btn-sm" onclick="clearBlocker('${p.id}')">Resolve</button></div>`
+    : `<div class="ccpanel-empty">No blockers logged.</div><button class="btn btn-outline btn-sm" style="margin-top:6px;" onclick="openLogBlocker('${p.id}')">+ Log Blocker</button>`;
+  const curStage = wf.stages.find(s=>s.n===wf.currentStageN);
+  let scheduleHTML = `<div class="ccpanel-empty">Baseline dates not set yet.</div>`;
+  if(curStage && curStage.baselineFinish && curStage.forecastFinish){
+    const variance = Math.round((new Date(curStage.forecastFinish+'T00:00:00') - new Date(curStage.baselineFinish+'T00:00:00'))/86400000);
+    scheduleHTML = `<div class="ccpanel-row"><span>Baseline Finish</span><b>${fmtNoteDate(curStage.baselineFinish)}</b></div>
+       <div class="ccpanel-row"><span>Forecast Finish</span><b>${fmtNoteDate(curStage.forecastFinish)}</b></div>
+       <div class="ccpanel-row"><span>Variance</span><b style="${variance>0?'color:var(--rust);':''}">${variance>0?'+':''}${variance} days</b></div>`;
+  }
+  return `<div class="cc-grid">
+    <div class="ccpanel"><div class="ccpanel-head">Next Required Action</div>${nextActionHTML}</div>
+    <div class="ccpanel"><div class="ccpanel-head">Waiting On</div>${waitingHTML}</div>
+    <div class="ccpanel"><div class="ccpanel-head">Blocker</div>${blockerHTML}</div>
+    <div class="ccpanel"><div class="ccpanel-head">Schedule Health</div>${scheduleHTML}</div>
+  </div>`;
+}
+function buildStageWorkspaceHTML(p, n){
+  const stageDef = PRECON_STAGES.find(s=>s.n===n);
+  const wf = ensureWorkflowModel(p);
+  const st = wf.stages.find(s=>s.n===n);
+  if(!stageDef || !st) return '';
+  const wsCards = stageDef.workstreams.map(ws => {
+    const status = st.workstreamStatus[ws] || 'Not Started';
+    return `<div class="wscard">
+      <div class="wscard-name">${escapeHtmlLite(ws)}</div>
+      <select class="wscard-status" onchange="setWorkstreamStatus('${p.id}',${n},'${ws.replace(/'/g,"\\'")}' ,this.value)">
+        ${['Not Started','In Progress','Waiting on Client','Needs Attention','Complete'].map(o=>`<option ${o===status?'selected':''}>${o}</option>`).join('')}
+      </select>
+    </div>`;
+  }).join('');
+  const gateRows = stageDef.gateRequirements.map((req,i) => {
+    const checked = !!(st.gateChecked && st.gateChecked[i]);
+    return `<label class="gaterow"><input type="checkbox" ${checked?'checked':''} onchange="toggleGateRequirement('${p.id}',${n},${i})"> ${escapeHtmlLite(req)}</label>`;
+  }).join('');
+  const incompleteCount = stageDef.gateRequirements.filter((_,i)=>!(st.gateChecked && st.gateChecked[i])).length;
+  const nextName = (PRECON_STAGES.find(s=>s.n===n+1) || {}).name || 'Ready for Construction';
+  return `<div class="panel" id="stageWorkspaceHost" style="margin:16px 0 22px; border-color:var(--taupe-dark);"><div class="panel-body" style="padding:20px 24px;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+        <div><div class="eyebrow">STAGE 0${n} — ${escapeHtmlLite(stageDef.name.toUpperCase())}</div>
+        <div class="sub" style="margin-top:4px;">${escapeHtmlLite(stageDef.objective)}</div></div>
+        <span style="cursor:pointer; color:var(--ink-faint); font-size:20px;" onclick="toggleStageWorkspace(${n})">&times;</span>
+      </div>
+      <div class="section-label-row" style="margin-top:16px;"><div class="eyebrow">Workstreams</div></div>
+      <div class="wsgrid">${wsCards}</div>
+      <div class="section-label-row" style="margin-top:18px;"><div class="eyebrow">Stage Gate</div><span class="pill ${incompleteCount?'pill-gold':'pill-jade'}">${incompleteCount ? incompleteCount+' incomplete' : 'Ready to advance'}</span></div>
+      <div class="gatelist">${gateRows}</div>
+      <div class="row" style="margin-top:16px; justify-content:flex-end;">
+        <button class="btn ${incompleteCount?'btn-outline':'btn-dark'}" onclick="advanceStage('${p.id}',${n})">${incompleteCount ? `Override &amp; Advance (${incompleteCount} incomplete) →` : `Advance to ${escapeHtmlLite(nextName)} →`}</button>
+      </div>
+  </div></div>`;
+}
+function setWorkstreamStatus(projectId, stageN, wsName, status){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const wf = ensureWorkflowModel(p);
+  const st = wf.stages.find(s=>s.n===stageN); if(!st) return;
+  st.workstreamStatus[wsName] = status;
+  saveAppState(); renderProjectDetail();
+}
+function toggleGateRequirement(projectId, stageN, reqIdx){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const wf = ensureWorkflowModel(p);
+  const st = wf.stages.find(s=>s.n===stageN); if(!st) return;
+  st.gateChecked = st.gateChecked || {};
+  st.gateChecked[reqIdx] = !st.gateChecked[reqIdx];
+  saveAppState(); renderProjectDetail();
+}
+function advanceStage(projectId, stageN){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const wf = ensureWorkflowModel(p);
+  const stageDef = PRECON_STAGES.find(s=>s.n===stageN);
+  const st = wf.stages.find(s=>s.n===stageN);
+  const allChecked = stageDef.gateRequirements.every((_,i) => st.gateChecked && st.gateChecked[i]);
+  if(!allChecked && !confirm('Not all gate requirements are checked off. Override and advance anyway? This will be logged permanently.')) return;
+  st.status = 'complete';
+  st.actualFinish = st.actualFinish || new Date().toISOString().slice(0,10);
+  st.advancedBy = CURRENT_LOGGED_IN_USER;
+  st.advancedAt = new Date().toISOString();
+  if(!allChecked){ st.overridden = true; st.overrideBy = CURRENT_LOGGED_IN_USER; st.overrideAt = new Date().toISOString(); }
+  const next = wf.stages.find(s=>s.n===stageN+1);
+  if(next){ next.status = 'current'; wf.currentStageN = stageN+1; }
+  wf.reconciliationRequired = false;
+  CC_STAGE_OPEN = null;
+  saveAppState(); renderProjectDetail();
+}
+function openLogWaitingOn(projectId){
+  openQuickOverlay(`
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <h3 style="font-family:'Space Grotesk',sans-serif; font-size:18px;">Log What We're Waiting On</h3>
+      <span style="cursor:pointer; color:var(--ink-faint); font-size:20px;" onclick="closeQuickOverlay()">&times;</span>
+    </div>
+    <label class="est-lbl">Waiting On</label>
+    <select id="woParty"><option>Client</option><option>Architect</option><option>Designer</option><option>Engineer</option><option>Surveyor</option><option>Municipality</option><option>Lender</option><option>Trade</option><option>Vendor</option><option>Internal MC&amp;D</option></select>
+    <label class="est-lbl" style="margin-top:12px;">What are we waiting on?</label>
+    <input id="woItem" placeholder="e.g. Revised stair detail">
+    <label class="est-lbl" style="margin-top:12px;">Expected Date</label>
+    <input id="woExpected" type="date">
+    <div class="row" style="margin-top:18px; justify-content:flex-end; gap:8px;">
+      <button class="btn btn-outline" onclick="closeQuickOverlay()">Cancel</button>
+      <button class="btn btn-dark" onclick="submitLogWaitingOn('${projectId}')">Save</button>
+    </div>
+  `);
+}
+function submitLogWaitingOn(projectId){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const wf = ensureWorkflowModel(p);
+  const item = document.getElementById('woItem').value.trim();
+  if(!item){ alert("Enter what we're waiting on."); return; }
+  wf.waitingOn = { party: document.getElementById('woParty').value, item, requestedDate: new Date().toISOString().slice(0,10), expectedDate: document.getElementById('woExpected').value || null };
+  closeQuickOverlay();
+  saveAppState(); renderProjectDetail();
+}
+function clearWaitingOn(projectId){
+  const p = PROJECTS[projectId]; if(!p) return;
+  ensureWorkflowModel(p).waitingOn = null;
+  saveAppState(); renderProjectDetail();
+}
+function openLogBlocker(projectId){
+  openQuickOverlay(`
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <h3 style="font-family:'Space Grotesk',sans-serif; font-size:18px;">Log a Blocker</h3>
+      <span style="cursor:pointer; color:var(--ink-faint); font-size:20px;" onclick="closeQuickOverlay()">&times;</span>
+    </div>
+    <label class="est-lbl">Blocker</label>
+    <input id="bkTitle" placeholder="e.g. Fireplace material not confirmed">
+    <label class="est-lbl" style="margin-top:12px;">What does this block? (comma-separated)</label>
+    <input id="bkBlocks" placeholder="e.g. Masonry Scope, Rendering Approval">
+    <div class="row" style="margin-top:18px; justify-content:flex-end; gap:8px;">
+      <button class="btn btn-outline" onclick="closeQuickOverlay()">Cancel</button>
+      <button class="btn btn-dark" onclick="submitLogBlocker('${projectId}')">Save</button>
+    </div>
+  `);
+}
+function submitLogBlocker(projectId){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const wf = ensureWorkflowModel(p);
+  const title = document.getElementById('bkTitle').value.trim();
+  if(!title){ alert('Enter the blocker.'); return; }
+  wf.blocker = { title, blocks: document.getElementById('bkBlocks').value.split(',').map(s=>s.trim()).filter(Boolean) };
+  closeQuickOverlay();
+  saveAppState(); renderProjectDetail();
+}
+function clearBlocker(projectId){
+  const p = PROJECTS[projectId]; if(!p) return;
+  ensureWorkflowModel(p).blocker = null;
+  saveAppState(); renderProjectDetail();
 }
 function buildPhaseStepperHTML(project){
   if(project.currentPhase === null){
@@ -5928,10 +6208,12 @@ function buildActionBannerHTML(p){
     const dep = daysInEntirePipeline(p);
     const curPhaseDef = WORKFLOW_PHASE_DEFS.find(pd => pd.n === p.currentPhase);
     tabBody = `
-    <div class="section-label-row"><div class="eyebrow">Review &amp; Send Log</div><span class="pill pill-slate" style="cursor:pointer;" onclick="setCCTab('scopes'); setTimeout(()=>openCCSubNav('scopes','review'), 200);">Open in Scopes →</span></div>
+    ${buildStageChartHTML(p)}
+    ${buildProjectControlCenterHTML(p)}
+    ${CC_STAGE_OPEN !== null ? buildStageWorkspaceHTML(p, CC_STAGE_OPEN) : ''}
+    <div class="section-label-row" style="margin-top:22px;"><div class="eyebrow">Review &amp; Send Log</div><span class="pill pill-slate" style="cursor:pointer;" onclick="setCCTab('scopes'); setTimeout(()=>openCCSubNav('scopes','review'), 200);">Open in Scopes →</span></div>
     <div class="panel" style="margin-bottom:20px;"><div class="panel-body" style="padding:6px 20px;" id="reviewSendLogDashboard"><div class="empty-row">Loading…</div></div></div>
-    ${buildActionBannerHTML(p)}
-    ${buildPhaseStepperHTML(p)}
+    <div class="section-label-row" style="margin-top:4px;"><div class="eyebrow">Legacy Phase Tracker</div><span class="pill pill-slate">Retained for task assignment below — being folded into the Stage Chart above</span></div>
     <div class="sub" style="margin:2px 0 16px;">${p.currentPhase !== null ? `Currently in Phase ${p.currentPhase} · ${curPhaseDef ? curPhaseDef.name : ''}` : 'All phases complete'}</div>
     <div class="stat-grid" style="grid-template-columns:repeat(3,1fr); margin-bottom:22px;">
       <div class="stat-card"><div class="num">${dip !== null ? dip : '—'}</div><div class="lbl">Days in This Phase</div></div>
@@ -13685,7 +13967,12 @@ function packagesForProject(projId){ return state.packages.filter(p=>p.projectId
 function curPage(){ const v=curVersion(); return v ? v.pages[state.ui.pageIndex] : null; }
 function annotationsForPage(pageId){ return state.annotations.filter(a=>a.pageId===pageId); }
 function commentsForAnnotation(annId){ return state.comments.filter(c=>c.annotationId===annId).sort((a,b)=>a.ts-b.ts); }
-function logActivity(text, pkgId){ state.activity.unshift({id:uid(), ts:Date.now(), text, pkgId: pkgId || null}); }
+// Renamed from logActivity — that name collided with the main app's logActivity(type,text,who)
+// (ESTIMATE.activities). Both were bare top-level function declarations in the same script,
+// so this one, being declared later, was silently overriding the app-wide one everywhere:
+// proposal-sent, agreement-signed, meeting-notes, and follow-up logging were all silently
+// writing into this module's plan-review state.activity instead of the intended feed.
+function logPlanActivity(text, pkgId){ state.activity.unshift({id:uid(), ts:Date.now(), text, pkgId: pkgId || null}); }
 function activityForPackage(pkgId){ return state.activity.filter(a=>a.pkgId===pkgId); }
 
 const CATEGORY_TAXONOMY = [
@@ -14085,7 +14372,7 @@ function openNewPackageForm(){
       finalizedVersionId: null, archived:false
     };
     state.packages.push(pkg);
-    logActivity(`"${name}" (${category}) created as a new review package`, pkg.id);
+    logPlanActivity(`"${name}" (${category}) created as a new review package`, pkg.id);
     closeModal();
     toast(`"${name}" created — upload the first version to begin.`);
     openPackage(pkg.id);
@@ -14243,7 +14530,7 @@ function renderCollaboratorsScreen(){
       if(!e.target.value) return;
       const c = collaboratorById(e.target.dataset.collab);
       c.projectIds.push(e.target.value);
-      logActivity(`${c.name} was given access to ${state.projects.find(p=>p.id===e.target.value).name}`);
+      logPlanActivity(`${c.name} was given access to ${state.projects.find(p=>p.id===e.target.value).name}`);
       saveAndRender();
     };
   });
@@ -14259,7 +14546,7 @@ function renderCollaboratorsScreen(){
     const projectIds = Array.from(wrap.querySelectorAll("#newCollabProjects input:checked")).map(i=>i.value);
     const newCollab = { id:uid(), name, role, company, email, projectIds };
     state.collaborators.push(newCollab);
-    logActivity(`${name} (${role}) added as a collaborator`);
+    logPlanActivity(`${name} (${role}) added as a collaborator`);
     saveState();
     render();
     if(projectIds.length){
@@ -14388,7 +14675,7 @@ function handleSendToClient(){
   const version = curVersion();
   if(!confirm(`Send V${version.versionNumber} of "${curPackage().name}" to the client for review?`)) return;
   version.clientVisible = true;
-  logActivity(`Internal team sent V${version.versionNumber} of "${curPackage().name}" to client for review (Round ${roundNumberFor(curPackage(), version)})`, curPackage().id);
+  logPlanActivity(`Internal team sent V${version.versionNumber} of "${curPackage().name}" to client for review (Round ${roundNumberFor(curPackage(), version)})`, curPackage().id);
   toast("Sent to client.");
   saveAndRender();
 }
@@ -14398,12 +14685,12 @@ function handleDecision(decision){
   if(decision==="approved"){
     version.approvedAt = Date.now();
     delete version.needsChangesAt;
-    logActivity(`Client approved V${version.versionNumber} of "${curPackage().name}"`, curPackage().id);
+    logPlanActivity(`Client approved V${version.versionNumber} of "${curPackage().name}"`, curPackage().id);
     toast("Approval recorded. Mitchell Construction & Design will use this version going forward unless further revisions are issued.");
   }else{
     version.needsChangesAt = Date.now();
     delete version.approvedAt;
-    logActivity(`Client marked V${version.versionNumber} of "${curPackage().name}" as Needs Changes`, curPackage().id);
+    logPlanActivity(`Client marked V${version.versionNumber} of "${curPackage().name}" as Needs Changes`, curPackage().id);
     toast("Feedback recorded — the team has been notified.");
   }
   saveAndRender();
@@ -14416,7 +14703,7 @@ function handleFinalize(){
   }
   if(!confirm(`Finalize V${version.versionNumber}? This will designate it as the current approved plan set for this review package.`)) return;
   curPackage().finalizedVersionId = version.id;
-  logActivity(`Internal team finalized V${version.versionNumber} of "${curPackage().name}"`, curPackage().id);
+  logPlanActivity(`Internal team finalized V${version.versionNumber} of "${curPackage().name}"`, curPackage().id);
   toast(`V${version.versionNumber} finalized.`);
   saveAndRender();
 }
@@ -15168,7 +15455,7 @@ function openComposer(ann, clientX, clientY){
     if(body || pendingAttachments.length){
       state.comments.push({ id:uid(), annotationId: ann.id, pageId: ann.pageId, versionId: ann.versionId,
         body, attachments: pendingAttachments, author: state.ui.viewMode==='client' ? 'Client' : 'Internal Team', ts: Date.now(), resolved:false });
-      logActivity(`${state.ui.viewMode==='client'?'Client':(state.ui.viewMode==='collaborator'?(actingCollaborator()?.name||'Collaborator'):'Internal team')} added Comment #${ann.seq} on ${curPackage().name} V${curVersion().versionNumber}`, curPackage().id);
+      logPlanActivity(`${state.ui.viewMode==='client'?'Client':(state.ui.viewMode==='collaborator'?(actingCollaborator()?.name||'Collaborator'):'Internal team')} added Comment #${ann.seq} on ${curPackage().name} V${curVersion().versionNumber}`, curPackage().id);
     } else {
       state.annotations = state.annotations.filter(a=>a.id!==ann.id);
     }
@@ -15251,7 +15538,7 @@ function renderCommentPanel(){
         <button class="mini-btn ${a.status!=='resolved'?'active':''}" data-act="open">Open</button>
         <button class="mini-btn ${a.status==='resolved'?'active':''}" data-act="resolve">Resolved</button>
       `;
-      resolveRow.querySelector('[data-act="resolve"]').onclick=(e)=>{e.stopPropagation(); a.status="resolved"; logActivity(`Comment #${a.seq} marked resolved`, curPackage().id); saveAndRender();};
+      resolveRow.querySelector('[data-act="resolve"]').onclick=(e)=>{e.stopPropagation(); a.status="resolved"; logPlanActivity(`Comment #${a.seq} marked resolved`, curPackage().id); saveAndRender();};
       resolveRow.querySelector('[data-act="open"]').onclick=(e)=>{e.stopPropagation(); a.status="open"; saveAndRender();};
       thread.appendChild(resolveRow);
 
@@ -15286,7 +15573,7 @@ function renderCommentPanel(){
         if(replyText.value.trim() || replyAttachments.length){
           state.comments.push({id:uid(), annotationId:a.id, pageId:a.pageId, versionId:a.versionId,
             body:replyText.value.trim(), attachments: replyAttachments, author: state.ui.viewMode==='client'?'Client':'Internal Team', ts:Date.now(), resolved:false});
-          logActivity(`Reply added to Comment #${a.seq}`, curPackage().id);
+          logPlanActivity(`Reply added to Comment #${a.seq}`, curPackage().id);
           saveAndRender();
         }
       };
@@ -15370,13 +15657,13 @@ async function handleVersionUpload(e){
       state.annotations.push(copy);
     });
     if(openAnns.length){
-      logActivity(`${openAnns.length} unresolved comment(s) carried forward from V${prevVersion.versionNumber} to V${newVersionNum} — flagged for verification`, pkg.id);
+      logPlanActivity(`${openAnns.length} unresolved comment(s) carried forward from V${prevVersion.versionNumber} to V${newVersionNum} — flagged for verification`, pkg.id);
     }
   }
 
   state.ui.versionId = newVersion.id;
   state.ui.pageIndex = 0;
-  logActivity(`${uploadedByName} uploaded V${newVersionNum} of "${pkg.name}" — pending internal review (Round ${totalRoundsFor(pkg)+1} coming up)`, pkg.id);
+  logPlanActivity(`${uploadedByName} uploaded V${newVersionNum} of "${pkg.name}" — pending internal review (Round ${totalRoundsFor(pkg)+1} coming up)`, pkg.id);
   toast(`V${newVersionNum} uploaded — pending internal review before it can be sent to the client.`);
   saveAndRender();
 }
@@ -15477,7 +15764,7 @@ function seedSamplePackageIfNeeded(projectId, projectName){
     collaboratorId: null, dueDate: Date.now()+86400000*5, finalizedVersionId: null, archived:false
   });
   state.versions.push(v1);
-  logActivity(`Sample plan set uploaded for ${projectName} — try pinning a comment, drawing a markup, or switching to Client mode to see how it looks to them`, pkgId);
+  logPlanActivity(`Sample plan set uploaded for ${projectName} — try pinning a comment, drawing a markup, or switching to Client mode to see how it looks to them`, pkgId);
 }
 function mountProject(container, projectId, projectName){
   ensureProjectInState(projectId, projectName);
