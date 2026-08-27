@@ -145,6 +145,7 @@ button{font-family:'Inter',sans-serif; cursor:pointer;}
 .pill{display:inline-flex; align-items:center; font-size:11px; font-weight:600; padding:3px 9px; border-radius:20px; white-space:nowrap;}
 .pill-jade{background:var(--jade-soft); color:var(--jade);}
 .pill-rust{background:var(--rust-soft); color:var(--rust);}
+.pill-violet{background:#EDE6F5; color:#7a5ea8;}
 .pill-gold{background:var(--gold-soft); color:var(--gold);}
 .pill-slate{background:var(--slate-soft); color:var(--slate);}
 .pill-dark{background:var(--ink); color:#fff;}
@@ -653,6 +654,7 @@ tbody tr:hover{background:#FCFBF8;}
 .pill{display:inline-flex; align-items:center; font-size:11px; font-weight:600; padding:3px 9px; border-radius:20px; white-space:nowrap;}
 .pill-jade{background:var(--jade-soft); color:var(--jade);}
 .pill-rust{background:var(--rust-soft); color:var(--rust);}
+.pill-violet{background:#EDE6F5; color:#7a5ea8;}
 .pill-gold{background:var(--gold-soft); color:var(--gold);}
 .pill-slate{background:var(--slate-soft); color:var(--slate);}
 .pill-ink{background:var(--border-soft); color:var(--ink-soft);}
@@ -1052,6 +1054,7 @@ select{cursor:pointer;}
 .hero{background:#fff; border:1.5px solid var(--taupe-dark); border-radius:14px; padding:22px 26px; margin-bottom:6px; box-shadow:0 2px 12px rgba(0,0,0,.05);}
 .hero-blocked{border-color:var(--rust);}
 .hero-waiting{border-color:#c9a868;}
+.hero-revision{border-color:#7a5ea8;}
 .hero-done{border-color:var(--jade); background:#F8FAF8;}
 .hero-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-faint); margin-bottom:8px;}
 .hero-title{font-family:'Space Grotesk',sans-serif; font-size:22px; font-weight:600; line-height:1.3;}
@@ -4498,6 +4501,9 @@ function renderProcessEditorPanel(){
           <input value="${escapeHtmlLite(step.title)}" style="flex:2; min-width:180px;" onchange="setProcessStepField(${ph.n},'${step.id}','title',this.value)">
           <input value="${escapeHtmlLite(step.role)}" placeholder="Role" style="max-width:150px;" onchange="setProcessStepField(${ph.n},'${step.id}','role',this.value)">
           <input type="number" min="1" value="${step.days||2}" title="Typical days" style="max-width:64px; text-align:center;" onchange="setProcessStepField(${ph.n},'${step.id}','days',parseInt(this.value,10)||1)">
+          <label style="display:flex; align-items:center; gap:4px; font-size:10.5px; color:var(--ink-faint); white-space:nowrap; cursor:pointer;" title="Lets this step be sent back for revision (e.g. plans or renderings that come back from the Architect/Designer needing changes) instead of just Complete/Blocked/Waiting">
+            <input type="checkbox" ${step.revisable?'checked':''} onchange="setProcessStepField(${ph.n},'${step.id}','revisable',this.checked)"> Can Revise
+          </label>
           <button class="btn btn-outline btn-sm" ${i===0?'disabled':''} onclick="moveProcessStep(${ph.n},'${step.id}',-1)" title="Move up">↑</button>
           <button class="btn btn-outline btn-sm" ${i===ph.steps.length-1?'disabled':''} onclick="moveProcessStep(${ph.n},'${step.id}',1)" title="Move down">↓</button>
           <span style="cursor:pointer; color:var(--rust); font-size:16px; padding:0 4px;" onclick="removeProcessStep(${ph.n},'${step.id}')" title="Remove step">&times;</span>
@@ -4850,6 +4856,14 @@ function getWaitingSteps(p){
   if(!ph || !stage) return [];
   return ph.steps.filter(def => stage.steps[def.id] && stage.steps[def.id].status === 'Waiting').map(def => ({ def, a: stage.steps[def.id] }));
 }
+function getRevisionSteps(p){
+  recomputeStage(p);
+  const wf = ensureWorkflowModel(p);
+  const ph = phaseDef(wf.currentStageN);
+  const stage = wf.stages.find(s => s.n === wf.currentStageN);
+  if(!ph || !stage) return [];
+  return ph.steps.filter(def => stage.steps[def.id] && stage.steps[def.id].status === 'In Revision').map(def => ({ def, a: stage.steps[def.id] }));
+}
 function setStepStatus(projectId, stepId, status){
   const p = PROJECTS[projectId]; if(!p) return;
   const wf = ensureWorkflowModel(p);
@@ -4943,7 +4957,7 @@ function openPhaseChecklistModal(projectId, phaseN){
   const stage = wf.stages.find(s => s.n === phaseN);
   if(!ph || !stage) return;
   document.getElementById('phaseChecklistOverlay')?.remove();
-  const statusClass = { 'Not Ready':'pill-slate', 'Ready':'pill-ink', 'In Progress':'pill-gold', 'Waiting':'pill-gold', 'Blocked':'pill-rust', 'Complete':'pill-jade', 'N/A':'pill-slate' };
+  const statusClass = { 'Not Ready':'pill-slate', 'Ready':'pill-ink', 'In Progress':'pill-gold', 'Waiting':'pill-gold', 'In Revision':'pill-violet', 'Blocked':'pill-rust', 'Complete':'pill-jade', 'N/A':'pill-slate' };
   const rows = ph.steps.map((def,i) => {
     const st = getStepState(stage, def.id);
     return `<tr>
@@ -5578,6 +5592,17 @@ function buildHeroInnerHTML(p){
           <button class="btn btn-outline btn-sm" onclick="setStepStatus('${p.id}','${w.def.id}','Ready')">They responded — mark Ready</button>
         </div>` };
     }
+    const revising = getRevisionSteps(p);
+    if(revising.length){
+      const r = revising[0];
+      return { cls:'hero-revision', html: `
+        <div class="hero-label">Phase ${ph.n} · ${escapeHtmlLite(ph.name)} — In Revision</div>
+        <div class="hero-title">${escapeHtmlLite(r.def.title)}</div>
+        <div class="hero-meta">${r.a.revisionParty ? `With <b>${escapeHtmlLite(r.a.revisionParty)}</b> for revision` : 'Sent back for revision'}${r.a.revisionExpected ? ` · expected back ${escapeHtmlLite(r.a.revisionExpected)}` : ''}${r.a.revisionNote ? ` — ${escapeHtmlLite(r.a.revisionNote)}` : ''}</div>
+        <div class="row" style="margin-top:12px; gap:8px;">
+          <button class="btn btn-outline btn-sm" onclick="setStepStatus('${p.id}','${r.def.id}','Ready')">Revised copy is back — mark Ready</button>
+        </div>` };
+    }
     return { cls:'hero-done', html: `
       <div class="hero-label">Phase ${ph.n} · ${escapeHtmlLite(ph.name)} — nothing outstanding</div>
       <div class="hero-title">This phase will hand off to Phase ${ph.n+1} automatically once every step clears.</div>` };
@@ -5606,6 +5631,7 @@ function buildHeroInnerHTML(p){
       ${!isInProgress && !isBlocked ? `<button class="btn btn-outline" onclick="setStepStatus('${p.id}','${def.id}','In Progress')">Start</button>` : ''}
       <button class="btn btn-dark" onclick="setStepStatus('${p.id}','${def.id}','Complete')">Mark Complete</button>
       ${!isBlocked ? `<button class="btn btn-outline" onclick="openMarkWaiting('${p.id}','${def.id}')">Waiting on Someone</button>
+      ${def.revisable ? `<button class="btn btn-outline" style="color:#7a5ea8; border-color:#7a5ea8;" onclick="openMarkRevision('${p.id}','${def.id}')">Send Back for Revision</button>` : ''}
       <button class="btn btn-outline" style="color:var(--rust); border-color:var(--rust);" onclick="openMarkBlocked('${p.id}','${def.id}')">Flag as Blocked</button>
       <button class="btn btn-outline" onclick="extendCurrentStep('${p.id}','${def.id}','${escapeHtmlLite(def.title).replace(/'/g,"\\'")}')">Needs More Time</button>` : `<button class="btn btn-outline" onclick="setStepStatus('${p.id}','${def.id}','Ready')">Resolved — Clear Blocker</button>`}
     </div>` };
@@ -5639,10 +5665,12 @@ function buildWaitingBlockedSummaryHTML(p){
   const stage = wf.stages.find(s=>s.n===wf.currentStageN);
   const blocked = ph.steps.filter(d => stage.steps[d.id] && stage.steps[d.id].status==='Blocked');
   const waiting = ph.steps.filter(d => stage.steps[d.id] && stage.steps[d.id].status==='Waiting');
-  if(!blocked.length && !waiting.length) return '';
+  const revising = ph.steps.filter(d => stage.steps[d.id] && stage.steps[d.id].status==='In Revision');
+  if(!blocked.length && !waiting.length && !revising.length) return '';
   return `<div class="section-label-row" style="margin-top:18px;"><div class="eyebrow">Everything Else Outstanding This Phase</div></div>
     <div class="readylist">
       ${blocked.map(d => `<div class="readyrow" style="border-left:3px solid var(--rust); cursor:default;"><span>🔴 ${escapeHtmlLite(d.title)}${stage.steps[d.id].blockerNote ? ' — ' + escapeHtmlLite(stage.steps[d.id].blockerNote) : ''}</span></div>`).join('')}
+      ${revising.map(d => `<div class="readyrow" style="border-left:3px solid #7a5ea8; cursor:default;"><span>🟣 ${escapeHtmlLite(d.title)}${stage.steps[d.id].revisionParty ? ' — with ' + escapeHtmlLite(stage.steps[d.id].revisionParty) + ' for revision' : ' — sent back for revision'}</span></div>`).join('')}
       ${waiting.map(d => `<div class="readyrow" style="border-left:3px solid #c9a868; cursor:default;"><span>🟡 ${escapeHtmlLite(d.title)}${stage.steps[d.id].waitingParty ? ' — waiting on ' + escapeHtmlLite(stage.steps[d.id].waitingParty) : ''}</span></div>`).join('')}
     </div>`;
 }
@@ -5652,7 +5680,7 @@ function buildFullActionListHTML(p){
   const ph = phaseDef(wf.currentStageN);
   if(!ph) return '';
   const stage = wf.stages.find(s=>s.n===wf.currentStageN);
-  const statusClass = { 'Not Ready':'pill-slate', 'Ready':'pill-ink', 'In Progress':'pill-gold', 'Waiting':'pill-gold', 'Blocked':'pill-rust', 'Complete':'pill-jade', 'N/A':'pill-slate' };
+  const statusClass = { 'Not Ready':'pill-slate', 'Ready':'pill-ink', 'In Progress':'pill-gold', 'Waiting':'pill-gold', 'In Revision':'pill-violet', 'Blocked':'pill-rust', 'Complete':'pill-jade', 'N/A':'pill-slate' };
   return `<div class="section-label-row" style="margin-top:20px; cursor:pointer;" onclick="toggleFullActionList()"><div class="eyebrow">${CC_STAGE_OPEN ? '▾' : '▸'} Full Step List — Phase ${ph.n} · ${escapeHtmlLite(ph.name)}</div></div>
     ${CC_STAGE_OPEN ? `<table><thead><tr><th>#</th><th>Step</th><th>Role</th><th>Status</th><th>Owner</th><th>Due</th></tr></thead><tbody>
       ${ph.steps.map((def, i) => {
@@ -5690,6 +5718,35 @@ function submitMarkWaiting(projectId, stepId){
   setStepField(projectId, stepId, 'waitingExpected', document.getElementById('woExpected').value);
   closeQuickOverlay();
   setStepStatus(projectId, stepId, 'Waiting');
+}
+// ---- "Send Back for Revision" — its own status, distinct from generic Waiting, for the
+// specific case of plans or renderings coming back from the Architect/Designer needing
+// changes. Only offered on steps flagged "Can Revise" in Company Settings, since this
+// doesn't apply to most steps in the process. ----
+function openMarkRevision(projectId, stepId){
+  openQuickOverlay(`
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <h3 style="font-family:'Space Grotesk',sans-serif; font-size:18px;">Send Back for Revision</h3>
+      <span style="cursor:pointer; color:var(--ink-faint); font-size:20px;" onclick="closeQuickOverlay()">&times;</span>
+    </div>
+    <label class="est-lbl">With</label>
+    <select id="rvParty"><option>Architect</option><option>Designer</option><option>Estimator</option></select>
+    <label class="est-lbl" style="margin-top:12px;">What needs to change?</label>
+    <input id="rvNote" placeholder="e.g. Client wants the primary bath layout revised">
+    <label class="est-lbl" style="margin-top:12px;">Expected Back</label>
+    <input id="rvExpected" type="date">
+    <div class="row" style="margin-top:18px; justify-content:flex-end; gap:8px;">
+      <button class="btn btn-outline" onclick="closeQuickOverlay()">Cancel</button>
+      <button class="btn btn-dark" onclick="submitMarkRevision('${projectId}','${stepId}')">Save</button>
+    </div>
+  `);
+}
+function submitMarkRevision(projectId, stepId){
+  setStepField(projectId, stepId, 'revisionParty', document.getElementById('rvParty').value);
+  setStepField(projectId, stepId, 'revisionNote', document.getElementById('rvNote').value.trim());
+  setStepField(projectId, stepId, 'revisionExpected', document.getElementById('rvExpected').value);
+  closeQuickOverlay();
+  setStepStatus(projectId, stepId, 'In Revision');
 }
 function openMarkBlocked(projectId, stepId){
   openQuickOverlay(`
