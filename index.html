@@ -5072,32 +5072,57 @@ function openManualScheduleBuilder(){
 // fields the auto-generated (template-based) baseline uses, so the Gantt and every
 // schedule-health number work identically either way. Steps left blank are simply skipped
 // rather than guessed at.
-function commitManualScheduleAsBaseline(projectId){
-  const p = PROJECTS[projectId]; if(!p) return;
+// ---- Applies each step's day-count (per-project override if set, otherwise the Company
+// Settings default) cumulatively from a single start date — this is what makes the builder
+// below work in "days," not 42 individual calendar dates. Also used to live-preview dates
+// as the person adjusts a day-count, before anything is locked in. ----
+function computeCumulativeDates(p, startDate){
   const wf = ensureWorkflowModel(p);
-  const missing = [];
-  let earliestDue = null;
+  let cursor = startDate;
+  const result = {}; // stepId -> computed due date
   PROCESS_PHASES.forEach(ph => {
     const stage = wf.stages.find(s => s.n === ph.n);
     ph.steps.forEach(def => {
       const st = getStepState(stage, def.id);
-      if(!st.due) missing.push(`${ph.name} — ${def.title}`);
-      else if(!earliestDue || st.due < earliestDue) earliestDue = st.due;
+      const days = (st.projectDays != null ? st.projectDays : def.days) || 2;
+      cursor = addBusinessDays(cursor, days);
+      result[def.id] = cursor;
     });
   });
-  if(!earliestDue){ alert('Enter at least one due date before locking in a baseline.'); return; }
-  if(missing.length && !confirm(`${missing.length} step${missing.length===1?'':'s'} still don't have a due date (starting with "${missing[0]}"). Lock in a baseline using just the dates that are filled in? You can fill in the rest and reset the baseline later.`)) return;
+  return result;
+}
+function setStepProjectDays(projectId, phaseN, stepId, days){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const wf = ensureWorkflowModel(p);
+  const stage = wf.stages.find(s => s.n === phaseN);
+  const st = getStepState(stage, stepId);
+  st.projectDays = parseInt(days, 10) || 1;
+  saveAppState(); renderProjectDetail();
+}
+let MANUAL_SCHEDULE_START = null; // session-only until locked in
+function setManualScheduleStart(projectId, value){
+  MANUAL_SCHEDULE_START = value || null;
+  renderProjectDetail();
+}
+function commitManualScheduleAsBaseline(projectId){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const wf = ensureWorkflowModel(p);
+  const startDate = MANUAL_SCHEDULE_START || wf.baselineStartDate || p.preconStartDate || new Date().toISOString().slice(0,10);
+  const computed = computeCumulativeDates(p, startDate);
   PROCESS_PHASES.forEach(ph => {
     const stage = wf.stages.find(s => s.n === ph.n);
     let lastDue = null;
     ph.steps.forEach(def => {
       const st = getStepState(stage, def.id);
-      if(st.due){ st.baselineDue = st.due; st.forecastDue = st.due; lastDue = st.due; }
+      const due = computed[def.id];
+      st.due = due; st.baselineDue = due; st.forecastDue = due;
+      lastDue = due;
     });
-    if(lastDue){ stage.baselineFinish = lastDue; stage.forecastFinish = lastDue; }
+    stage.baselineFinish = lastDue;
+    stage.forecastFinish = lastDue;
   });
   wf.baselineSet = true;
-  wf.baselineStartDate = earliestDue;
+  wf.baselineStartDate = startDate;
   wf.baselineSetAt = new Date().toISOString().slice(0,10);
   wf.reconciliationRequired = false;
   MANUAL_SCHEDULE_OPEN = false;
@@ -5105,24 +5130,30 @@ function commitManualScheduleAsBaseline(projectId){
 }
 function buildManualScheduleBuilderHTML(p){
   const wf = ensureWorkflowModel(p);
+  const startDate = MANUAL_SCHEDULE_START || wf.baselineStartDate || p.preconStartDate || new Date().toISOString().slice(0,10);
+  const computed = computeCumulativeDates(p, startDate);
   const phaseBlocks = PROCESS_PHASES.map(ph => {
     const stage = wf.stages.find(s => s.n === ph.n);
     const stepRows = ph.steps.map((def, i) => {
       const st = getStepState(stage, def.id);
+      const days = st.projectDays != null ? st.projectDays : (def.days || 2);
       return `<tr>
         <td>${i+1}</td>
         <td class="name-cell">${escapeHtmlLite(def.title)}</td>
         <td style="font-size:11px; color:var(--ink-faint);">${escapeHtmlLite(def.role)}</td>
         <td><select style="min-width:150px;" onchange="setStepFieldForPhase('${p.id}',${ph.n},'${def.id}','owner',this.value)">${stepOwnerOptions(def.role, st.owner || ROLE_DEFAULT_ASSIGNEE[def.role])}</select></td>
-        <td><input type="date" style="min-width:135px;" value="${st.due||''}" onchange="setStepFieldForPhase('${p.id}',${ph.n},'${def.id}','due',this.value)"></td>
+        <td><input type="number" min="1" value="${days}" style="max-width:64px; text-align:center;" title="Business days for this step — starts from Company Settings' default, adjust here for just this project" onchange="setStepProjectDays('${p.id}',${ph.n},'${def.id}',this.value)"></td>
+        <td style="font-size:12px; color:var(--ink-faint);">${fmtNoteDate(computed[def.id])}</td>
       </tr>`;
     }).join('');
     return `<div class="section-label-row" style="margin-top:16px;"><div class="eyebrow">Phase ${ph.n} · ${escapeHtmlLite(ph.name)}</div></div>
-      <table><thead><tr><th>#</th><th>Step</th><th>Role</th><th>Owner</th><th>Due</th></tr></thead><tbody>${stepRows}</tbody></table>`;
+      <table><thead><tr><th>#</th><th>Step</th><th>Role</th><th>Owner</th><th>Days</th><th>Computed Due</th></tr></thead><tbody>${stepRows}</tbody></table>`;
   }).join('');
   return `<div id="manualScheduleBuilder" class="section-label-row" style="margin-top:20px; cursor:pointer;" onclick="toggleManualScheduleBuilder()"><div class="eyebrow">${MANUAL_SCHEDULE_OPEN ? '▾' : '▸'} Build the Schedule Manually — Every Step, Phase 3 through 8</div></div>
     ${MANUAL_SCHEDULE_OPEN ? `<div class="panel" style="margin-bottom:16px;"><div class="panel-body" style="padding:16px 20px;">
-      <div class="hint" style="margin-bottom:6px;">Set a real due date for every step below, then lock it in. Those dates become the baseline the Gantt chart and every schedule-health number are measured against from then on — this replaces the auto-generated template spacing with the actual plan.</div>
+      <div class="hint" style="margin-bottom:10px;">Each step's day-count starts from Company Settings' typical duration — adjust any of them just for this project without changing the global default. Dates are computed automatically in business days from the start date below; nothing to type calendar dates by hand.</div>
+      <label class="est-lbl">Start Date</label>
+      <input type="date" style="max-width:180px;" value="${startDate}" onchange="setManualScheduleStart('${p.id}',this.value)">
       ${phaseBlocks}
       <div class="row" style="margin-top:18px; justify-content:flex-end;">
         <button class="btn btn-dark" onclick="commitManualScheduleAsBaseline('${p.id}')">Lock In These Dates as Baseline</button>
@@ -6042,7 +6073,7 @@ let CLARIF_ACTIVE_ROUND = {}; // projectId -> active round id, session-only
 function ensureClarifications(p){
   if(!p.clarifications) p.clarifications = { rounds: [] };
   if(!p.clarifications.rounds.length){
-    p.clarifications.rounds.push({ id: 'r' + Date.now(), name: '1st Round', items: [] });
+    p.clarifications.rounds.push({ id: 'r' + Date.now(), name: '1st Round', audience: 'Client', items: [] });
   }
   return p.clarifications;
 }
@@ -6053,9 +6084,16 @@ function ordinalRoundName(n){
 function addClarifRound(projectId){
   const p = PROJECTS[projectId]; if(!p) return;
   const c = ensureClarifications(p);
-  const round = { id: 'r' + Date.now(), name: ordinalRoundName(c.rounds.length + 1), items: [] };
+  const round = { id: 'r' + Date.now(), name: ordinalRoundName(c.rounds.length + 1), audience: 'Client', items: [] };
   c.rounds.push(round);
   CLARIF_ACTIVE_ROUND[projectId] = round.id;
+  saveAppState(); renderProjectDetail();
+}
+function setClarifRoundAudience(projectId, roundId, audience){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const c = ensureClarifications(p);
+  const round = c.rounds.find(r => r.id === roundId); if(!round) return;
+  round.audience = audience;
   saveAppState(); renderProjectDetail();
 }
 function setClarifActiveRound(projectId, roundId){
@@ -6101,6 +6139,63 @@ function deleteClarifItem(projectId, roundId, itemId){
   round.items = round.items.filter(i => i.id !== itemId);
   saveAppState(); renderProjectDetail();
 }
+// ---- Copy a plain-text summary of a round's OPEN items — meant for pasting straight into
+// an email to whichever audience the round is set to. This is deliberately not a live
+// clickable link: this app's Supabase reads and writes are gated on being signed in (see
+// loadAppState/saveAppState), so an external recipient with no account couldn't actually
+// see real data or have their answers sync back — a link that silently shows the wrong
+// thing is worse than no link. Text they can paste into an email works today, with nothing
+// backend-dependent to break.
+function copyClarifRoundSummary(projectId, roundId){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const c = ensureClarifications(p);
+  const round = c.rounds.find(r => r.id === roundId); if(!round) return;
+  const open = round.items.filter(i => i.status === 'Open');
+  if(!open.length){ alert('Nothing open in this round to send.'); return; }
+  const lines = [`${p.name} — ${round.name} — Open Items for ${round.audience || 'Client'}`, ''];
+  open.forEach((item, i) => {
+    lines.push(`${i+1}. ${item.location ? `[${item.location}] ` : ''}${item.trade ? `(${item.trade}) ` : ''}${item.note || '(no note entered)'}`);
+  });
+  lines.push('', 'Please reply with your answer to each item above.');
+  const text = lines.join('\n');
+  navigator.clipboard.writeText(text).then(() => {
+    alert(`Copied ${open.length} open item${open.length===1?'':'s'} — paste this into an email to your ${round.audience || 'Client'}.`);
+  }).catch(() => {
+    prompt('Copy failed automatically — copy manually from below:', text);
+  });
+}
+function printClarifRound(projectId, roundId){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const c = ensureClarifications(p);
+  const round = c.rounds.find(r => r.id === roundId); if(!round) return;
+  const tableEl = document.getElementById('clarifRoundTable_' + roundId);
+  if(!tableEl) return;
+  const win = window.open('', '_blank', 'width=900,height=1000');
+  if(!win){ alert('Your browser blocked the print window as a pop-up. Please allow pop-ups for this page and try again.'); return; }
+  // Inputs/textareas don't print their live values in a raw innerHTML copy — swap each for
+  // plain text first so what prints matches what's actually on screen.
+  const clone = tableEl.cloneNode(true);
+  clone.querySelectorAll('input, textarea, select').forEach(el => {
+    const span = document.createElement('span');
+    span.textContent = el.tagName === 'SELECT' ? el.value : el.value;
+    span.style.cssText = 'display:block; font-size:12px;';
+    el.replaceWith(span);
+  });
+  win.document.write(`<!DOCTYPE html><html><head><title>${escapeHtmlLite(p.name)} — ${escapeHtmlLite(round.name)}</title><style>
+    body{font-family:'Inter',-apple-system,sans-serif; color:#1f2023; margin:0; padding:36px 44px;}
+    h1{font-size:20px; margin:0 0 4px;}
+    .sub{color:#767268; font-size:13px; margin-bottom:24px;}
+    table{width:100%; border-collapse:collapse;}
+    th,td{border:1px solid #ddd; padding:8px 10px; text-align:left; vertical-align:top; font-size:12px;}
+    th{background:#f3f2ee;}
+  </style></head><body>
+    <h1>${escapeHtmlLite(p.name)} — ${escapeHtmlLite(round.name)}</h1>
+    <div class="sub">Audience: ${escapeHtmlLite(round.audience || 'Client')} &middot; Printed ${new Date().toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'})}</div>
+    ${clone.innerHTML}
+  </body></html>`);
+  win.document.close();
+  setTimeout(() => { win.focus(); win.print(); }, 400);
+}
 // ============================================================
 // PROJECT FILES — general documents & photos that don't belong anywhere more specific:
 // the Design Discovery form, inspiration photos, articles the client sent, loose notes.
@@ -6114,15 +6209,52 @@ function ensureProjectFiles(p){
   if(!p.files) p.files = [];
   return p.files;
 }
-async function uploadProjectFile(projectId, category, inputEl){
+function openUploadProjectFileModal(projectId){
+  document.getElementById('pfUploadOverlay')?.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'pfUploadOverlay';
+  overlay.style.cssText = 'position:fixed; inset:0; z-index:400; display:flex; align-items:center; justify-content:center; background:rgba(20,18,14,.55); padding:20px;';
+  overlay.innerHTML = `
+    <div class="modal-card" style="width:440px; background:#fff; border-radius:14px; padding:20px; box-shadow:0 20px 50px rgba(0,0,0,.25);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <div class="panel-title" style="margin-bottom:0;">Upload File</div>
+        <span style="cursor:pointer; color:var(--ink-faint); font-size:20px;" onclick="document.getElementById('pfUploadOverlay').remove()">&times;</span>
+      </div>
+      <label class="est-lbl">Title</label>
+      <input type="text" id="pfTitleInput" placeholder="e.g. Inspiration - primary bath tile">
+      <div class="field-grid" style="margin-top:10px;">
+        <div><label class="est-lbl">Category</label><select id="pfCategoryInput">${PROJECT_FILE_CATEGORIES.map(c => `<option>${escapeHtmlLite(c)}</option>`).join('')}</select></div>
+        <div><label class="est-lbl">Date</label><input type="date" id="pfDateInput" value="${new Date().toISOString().slice(0,10)}"></div>
+      </div>
+      <label class="est-lbl" style="margin-top:10px; display:block;">File(s) or Photo(s)</label>
+      <input type="file" id="pfFileInput" multiple>
+      <div class="row" style="margin-top:18px; justify-content:flex-end; gap:8px;">
+        <button class="btn btn-outline" onclick="document.getElementById('pfUploadOverlay').remove()">Cancel</button>
+        <button class="btn btn-dark" onclick="submitUploadProjectFile('${projectId}')">Upload</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.onclick = (e) => { if(e.target === overlay) overlay.remove(); };
+}
+async function submitUploadProjectFile(projectId){
   const p = PROJECTS[projectId]; if(!p) return;
+  const fileInput = document.getElementById('pfFileInput');
+  const picked = Array.from(fileInput.files || []);
+  if(!picked.length){ alert('Choose at least one file.'); return; }
+  const titleInput = document.getElementById('pfTitleInput').value.trim();
+  const category = document.getElementById('pfCategoryInput').value;
+  const date = document.getElementById('pfDateInput').value || new Date().toISOString().slice(0,10);
   const files = ensureProjectFiles(p);
-  const picked = Array.from(inputEl.files || []);
-  for(const file of picked){
+  for(let i=0; i<picked.length; i++){
+    const file = picked[i];
     const dataUrl = await readFileAsDataUrl(file);
-    files.push({ id: 'pf' + Date.now() + Math.random().toString(36).slice(2,6), name: file.name, dataUrl, category: category || 'Other', uploadedAt: new Date().toISOString().slice(0,10) });
+    // A title is required per upload, not per file — with several files at once, the extra
+    // ones get numbered off the same title rather than silently reusing the filename, so
+    // the library stays as readable as a single upload.
+    const title = titleInput ? (picked.length > 1 ? `${titleInput} (${i+1})` : titleInput) : file.name;
+    files.push({ id: 'pf' + Date.now() + Math.random().toString(36).slice(2,6), name: file.name, title, dataUrl, category: category || 'Other', uploadedAt: date });
   }
-  inputEl.value = '';
+  document.getElementById('pfUploadOverlay')?.remove();
   saveAppState(); renderProjectDetail();
 }
 function setProjectFileCategory(projectId, fileId, category){
@@ -6154,15 +6286,12 @@ function buildProjectFilesTabHTML(p){
     <div class="hint" style="margin-bottom:14px;">General documents and photos for this project — the Design Discovery form, inspiration photos, reading material the client sent, loose notes. Plans and renderings live on the Plans &amp; Design tab instead, not here.</div>
     <div class="section-label-row">
       <div class="row" style="gap:8px; flex-wrap:wrap;">${chips}</div>
-      <div class="row" style="gap:8px; align-items:center;">
-        <select id="pfUploadCategory" style="width:auto; min-width:160px;">${PROJECT_FILE_CATEGORIES.map(c => `<option>${escapeHtmlLite(c)}</option>`).join('')}</select>
-        <label class="btn btn-dark" style="cursor:pointer; margin:0;">+ Upload<input type="file" multiple style="display:none;" onchange="uploadProjectFile('${p.id}', document.getElementById('pfUploadCategory').value, this)"></label>
-      </div>
+      <button class="btn btn-dark" onclick="openUploadProjectFileModal('${p.id}')">+ Upload</button>
     </div>
     ${filtered.length ? `<div class="pf-grid">
       ${filtered.map(f => `<div class="pf-card">
-        ${isImage(f.name) ? `<img src="${f.dataUrl}" class="pf-thumb" onclick="openFilePreview('${f.dataUrl}','${escapeHtmlLite(f.name).replace(/'/g,"\\'")}')">` : `<div class="pf-thumb pf-thumb-doc" onclick="openFilePreview('${f.dataUrl}','${escapeHtmlLite(f.name).replace(/'/g,"\\'")}')">📄</div>`}
-        <div class="pf-name" title="${escapeHtmlLite(f.name)}">${escapeHtmlLite(f.name)}</div>
+        ${isImage(f.name) ? `<img src="${f.dataUrl}" class="pf-thumb" onclick="openFilePreview('${f.dataUrl}','${escapeHtmlLite(f.title||f.name).replace(/'/g,"\\'")}')">` : `<div class="pf-thumb pf-thumb-doc" onclick="openFilePreview('${f.dataUrl}','${escapeHtmlLite(f.title||f.name).replace(/'/g,"\\'")}')">📄</div>`}
+        <div class="pf-name" title="${escapeHtmlLite(f.title||f.name)}">${escapeHtmlLite(f.title||f.name)}</div>
         <select class="pf-cat" onchange="setProjectFileCategory('${p.id}','${f.id}',this.value)">${PROJECT_FILE_CATEGORIES.map(c => `<option ${c===f.category?'selected':''}>${escapeHtmlLite(c)}</option>`).join('')}</select>
         <div class="pf-meta">${fmtNoteDate(f.uploadedAt)} <span style="cursor:pointer; color:var(--rust); float:right;" onclick="deleteProjectFile('${p.id}','${f.id}')">&times;</span></div>
       </div>`).join('')}
@@ -6183,18 +6312,23 @@ function buildClarificationsTabHTML(p){
       <span class="pill pill-slate" style="cursor:pointer; padding:6px 14px;" onclick="addClarifRound('${p.id}')">+ Add Round</span>
     </div>
     <div class="section-label-row">
-      <div class="eyebrow" style="display:flex; align-items:center; gap:8px;">
+      <div class="eyebrow" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
         <input value="${escapeHtmlLite(round.name)}" style="max-width:180px; font-weight:700; text-transform:none; letter-spacing:normal; padding:4px 8px; font-size:12.5px;" onchange="renameClarifRound('${p.id}','${round.id}',this.value)">
+        <select style="max-width:130px; font-size:11px; padding:4px 8px;" onchange="setClarifRoundAudience('${p.id}','${round.id}',this.value)">
+          ${['Client','Architect','Designer'].map(a => `<option ${a===(round.audience||'Client')?'selected':''}>${a}</option>`).join('')}
+        </select>
         ${openCount ? `<span class="pill pill-gold">${openCount} open</span>` : `<span class="pill pill-jade">All answered</span>`}
       </div>
       <div class="row" style="gap:8px;">
+        <span class="pill pill-slate" style="cursor:pointer;" onclick="copyClarifRoundSummary('${p.id}','${round.id}')">📋 Copy Summary for ${escapeHtmlLite(round.audience||'Client')}</span>
+        <span class="pill pill-slate" style="cursor:pointer;" onclick="printClarifRound('${p.id}','${round.id}')">🖨 Print / PDF</span>
         ${c.rounds.length > 1 ? `<span class="pill pill-slate" style="cursor:pointer;" onclick="deleteClarifRound('${p.id}','${round.id}')">Delete This Round</span>` : ''}
         <span class="pill pill-slate" style="cursor:pointer;" onclick="addClarifItem('${p.id}','${round.id}')">+ Add Item</span>
       </div>
     </div>
-    <div class="panel" style="margin-bottom:20px; overflow-x:auto;"><div class="panel-body" style="padding:0;">
+    <div class="panel" style="margin-bottom:20px; overflow-x:auto;"><div class="panel-body" style="padding:0;" id="clarifRoundTable_${round.id}">
       <table style="min-width:900px;">
-        <thead><tr><th style="width:110px;">Date</th><th style="width:130px;">Location</th><th style="width:120px;">Trade</th><th>Notes / Question / Clarification</th><th style="width:140px;">Marked By</th><th>Client Response</th><th style="width:70px;"></th></tr></thead>
+        <thead><tr><th style="width:110px;">Date</th><th style="width:130px;">Location</th><th style="width:120px;">Trade</th><th>Notes / Question / Clarification</th><th style="width:140px;">Marked By</th><th>${escapeHtmlLite(round.audience||'Client')} Response</th><th style="width:70px;"></th></tr></thead>
         <tbody>
           ${round.items.length ? round.items.map(item => `<tr>
             <td><input type="date" style="min-width:120px;" value="${item.date||''}" onchange="setClarifItemField('${p.id}','${round.id}','${item.id}','date',this.value)"></td>
@@ -6202,7 +6336,7 @@ function buildClarificationsTabHTML(p){
             <td><input value="${escapeHtmlLite(item.trade)}" placeholder="e.g. Electrical" onchange="setClarifItemField('${p.id}','${round.id}','${item.id}','trade',this.value)"></td>
             <td><textarea style="width:100%; min-height:38px; padding:6px 8px; border:1px solid var(--border); border-radius:6px; font-family:'Inter',sans-serif; font-size:12.5px; resize:vertical;" onchange="setClarifItemField('${p.id}','${round.id}','${item.id}','note',this.value)">${escapeHtmlLite(item.note)}</textarea></td>
             <td><select style="min-width:130px;" onchange="setClarifItemField('${p.id}','${round.id}','${item.id}','markedBy',this.value)">${teamMemberOptions(item.markedBy)}</select></td>
-            <td><textarea style="width:100%; min-height:38px; padding:6px 8px; border:1px solid var(--border); border-radius:6px; font-family:'Inter',sans-serif; font-size:12.5px; resize:vertical;" placeholder="Client's answer..." onchange="setClarifItemField('${p.id}','${round.id}','${item.id}','clientResponse',this.value)">${escapeHtmlLite(item.clientResponse)}</textarea></td>
+            <td><textarea style="width:100%; min-height:38px; padding:6px 8px; border:1px solid var(--border); border-radius:6px; font-family:'Inter',sans-serif; font-size:12.5px; resize:vertical;" placeholder="${escapeHtmlLite(round.audience||'Client')}'s answer..." onchange="setClarifItemField('${p.id}','${round.id}','${item.id}','clientResponse',this.value)">${escapeHtmlLite(item.clientResponse)}</textarea></td>
             <td style="text-align:center;"><span style="cursor:pointer; color:var(--rust); font-size:16px;" onclick="deleteClarifItem('${p.id}','${round.id}','${item.id}')">&times;</span></td>
           </tr>`).join('') : `<tr><td colspan="7" class="empty-row">Nothing logged for ${escapeHtmlLite(round.name)} yet.</td></tr>`}
         </tbody>
