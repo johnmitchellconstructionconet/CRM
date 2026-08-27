@@ -18044,18 +18044,39 @@ async function saveAppStateInner(){
   // have in memory, silently erasing a teammate's edit that just hadn't arrived here yet
   // over the realtime channel. Only re-renders if the merge actually pulled in something new
   // — not on every 4-second tick — so it doesn't interrupt anyone mid-edit for no reason.
+  // Merge PROJECTS and OPP_ESTIMATES against whatever the cloud actually has right now.
+  // This now happens INSIDE the database via merge_save_entity (see merge-save-entity-rpc.sql),
+  // which locks each row for the duration of its own merge+write. That's what actually closes
+  // the race: two computers saving within the same few seconds used to be able to both read
+  // an older cloud copy, merge on top of it, and whichever one committed second would silently
+  // wipe out the other's newest change (e.g. a just-created project on a different computer).
+  // Locking the row means the second caller waits, sees the first caller's committed result,
+  // and merges on top of THAT — no lost update, regardless of timing.
   if(session){
     try{
-      const { data: cloudRows } = await supabaseClient.from('app_state').select('key,value').in('key', ['PROJECTS','OPP_ESTIMATES']);
-      const cloudProjects = (cloudRows || []).find(r => r.key === 'PROJECTS');
-      const cloudEstimates = (cloudRows || []).find(r => r.key === 'OPP_ESTIMATES');
-      const projectsResult = mergeEntityDictForSave(PROJECTS, LAST_SYNCED_PROJECTS, cloudProjects ? cloudProjects.value : {}, DELETED_PROJECT_IDS_PENDING_SYNC);
-      const estimatesResult = mergeEntityDictForSave(OPP_ESTIMATES, LAST_SYNCED_OPP_ESTIMATES, cloudEstimates ? cloudEstimates.value : {});
-      Object.keys(PROJECTS).forEach(k => delete PROJECTS[k]); Object.assign(PROJECTS, projectsResult.merged);
-      OPP_ESTIMATES = estimatesResult.merged;
-      if(projectsResult.pulledInTeammateChange || estimatesResult.pulledInTeammateChange) renderEverything();
+      const deletedProjectIds = Array.from(DELETED_PROJECT_IDS_PENDING_SYNC);
+      const lastSyncedProjectsObj = {};
+      Object.keys(LAST_SYNCED_PROJECTS).forEach(id => { try{ lastSyncedProjectsObj[id] = JSON.parse(LAST_SYNCED_PROJECTS[id]); } catch(e){} });
+      const lastSyncedEstimatesObj = {};
+      Object.keys(LAST_SYNCED_OPP_ESTIMATES).forEach(id => { try{ lastSyncedEstimatesObj[id] = JSON.parse(LAST_SYNCED_OPP_ESTIMATES[id]); } catch(e){} });
+
+      const [projectsRpc, estimatesRpc] = await Promise.all([
+        supabaseClient.rpc('merge_save_entity', { p_key: 'PROJECTS', p_local: PROJECTS, p_last_synced: lastSyncedProjectsObj, p_deleted_ids: deletedProjectIds }),
+        supabaseClient.rpc('merge_save_entity', { p_key: 'OPP_ESTIMATES', p_local: OPP_ESTIMATES, p_last_synced: lastSyncedEstimatesObj, p_deleted_ids: [] }),
+      ]);
+      if(projectsRpc.error) throw projectsRpc.error;
+      if(estimatesRpc.error) throw estimatesRpc.error;
+
+      const mergedProjectsChanged = JSON.stringify(PROJECTS) !== JSON.stringify(projectsRpc.data);
+      const mergedEstimatesChanged = JSON.stringify(OPP_ESTIMATES) !== JSON.stringify(estimatesRpc.data);
+      Object.keys(PROJECTS).forEach(k => delete PROJECTS[k]); Object.assign(PROJECTS, projectsRpc.data);
+      OPP_ESTIMATES = estimatesRpc.data;
+      DELETED_PROJECT_IDS_PENDING_SYNC.clear(); // the RPC call above already applied these deletions in the same transaction
+      snapshotSyncedEntities(); // PROJECTS/OPP_ESTIMATES are now confirmed to match the cloud
+      if(mergedProjectsChanged || mergedEstimatesChanged) renderEverything();
     } catch(mergeErr){
-      console.warn('Could not merge against cloud before saving — proceeding with local copy only:', mergeErr);
+      console.warn('Atomic merge RPC failed — falling back to local copy only for this save:', mergeErr);
+      showSyncErrorBanner('Team sync for projects/estimates failed this round — your local copy is safe and will retry. (' + (mergeErr && mergeErr.message || mergeErr) + ')');
     }
   }
   const snapshot = buildAppSnapshot();
@@ -18074,8 +18095,12 @@ async function saveAppStateInner(){
   try{
     // updated_at is stamped from this save's own timestamp, so the sync indicator and any
     // future debugging always reflect exactly when this specific write happened.
+    // PROJECTS and OPP_ESTIMATES are deliberately excluded here — they were already committed
+    // atomically via merge_save_entity() above. Re-writing them with a plain upsert here would
+    // undo that protection, since this upsert has no row lock and could clobber a third
+    // computer's write that landed in the gap between the RPC call and this one.
     const updatedAtIso = new Date(savedAtMs).toISOString();
-    const rows = Object.keys(snapshot).map(key => ({ key, value: snapshot[key], updated_at: updatedAtIso }));
+    const rows = Object.keys(snapshot).filter(key => key !== 'PROJECTS' && key !== 'OPP_ESTIMATES').map(key => ({ key, value: snapshot[key], updated_at: updatedAtIso }));
     const { error } = await supabaseClient.from('app_state').upsert(rows);
     if(error){
       console.warn('Supabase sync failed, data is still safe locally:', error);
@@ -18165,7 +18190,19 @@ async function subscribeToRealtimeSync(){
     .on('postgres_changes', { event: '*', schema: 'public', table: 'app_state' }, (payload) => {
       const row = payload.new || payload.old;
       if(!row || !row.key) return;
-      applyAppSnapshot({ [row.key]: row.value });
+      // PROJECTS and OPP_ESTIMATES get the same protective, per-id merge used before saving —
+      // never a blind overwrite. Without this, a teammate's save landing here mid-edit (or in
+      // the split second before this browser's own not-yet-saved "Add Project" finishes) would
+      // wholesale replace the local dictionary and silently erase the unsaved local change.
+      if(row.key === 'PROJECTS'){
+        const result = mergeEntityDictForSave(PROJECTS, LAST_SYNCED_PROJECTS, row.value || {}, DELETED_PROJECT_IDS_PENDING_SYNC);
+        Object.keys(PROJECTS).forEach(k => delete PROJECTS[k]); Object.assign(PROJECTS, result.merged);
+      } else if(row.key === 'OPP_ESTIMATES'){
+        const result = mergeEntityDictForSave(OPP_ESTIMATES, LAST_SYNCED_OPP_ESTIMATES, row.value || {}, null);
+        OPP_ESTIMATES = result.merged;
+      } else {
+        applyAppSnapshot({ [row.key]: row.value });
+      }
       renderEverything();
       setSyncIndicator('Updated by teammate ' + new Date().toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}));
     })
