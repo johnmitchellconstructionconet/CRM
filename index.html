@@ -1152,22 +1152,11 @@ select{cursor:pointer;}
 
       <div class="nav-section">
         <div class="nav-section-label">Preconstruction</div>
-        <div class="nav-item" data-page="followups">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
-          Follow-Ups
-        </div>
         <div class="nav-item active" data-page="precon-dash">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/></svg>
           Preconstruction
         </div>
       </div>
-
-      <div class="nav-section">
-        <div class="nav-section-label">Relationships</div>
-        <div class="nav-item" data-page="relationships">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 8.5a3 3 0 1 0-3-3"/><path d="M7 15.5a3 3 0 1 0 3 3"/><path d="M8.5 12.5l7-6M8.5 12.5l7 6"/></svg>
-          Relationship Pipeline
-        </div>
       </div>
 
       <div class="nav-section">
@@ -1218,21 +1207,6 @@ select{cursor:pointer;}
         <tbody id="taskCenterBody"></tbody>
       </table>
     </div>
-    <!-- ===== FOLLOW-UPS ===== -->
-    <div class="page" id="page-followups">
-      <div class="page-header"><div><div class="eyebrow">Preconstruction</div><h1>Follow-Ups</h1><div class="sub">Every scheduled follow-up across active Preconstruction projects, in one place. Real data, not a snapshot.</div></div></div>
-      <div class="tabs" id="followupTabs">
-        <div class="tab active" data-fu="overdue">Overdue</div>
-        <div class="tab" data-fu="today">Due Today</div>
-        <div class="tab" data-fu="upcoming">Upcoming</div>
-        <div class="tab" data-fu="all">All</div>
-      </div>
-      <table>
-        <thead><tr><th>Project</th><th>Follow-Up</th><th>Phase</th><th>Assigned To</th><th>Due</th></tr></thead>
-        <tbody id="followupsBody"></tbody>
-      </table>
-    </div>
-
     <!-- ===== PRECONSTRUCTION (merged dashboard + projects) ===== -->
     <div class="page active" id="page-precon-dash">
       <div class="page-header"><div><div class="eyebrow">Preconstruction</div><h1>Preconstruction</h1><div class="sub">Every project's exact position in the pipeline — one phase must finish before the next starts.</div></div>
@@ -1244,18 +1218,6 @@ select{cursor:pointer;}
     <!-- ===== PROJECT COMMAND CENTER (single-project detail, shown via openProject()) ===== -->
     <div class="page" id="page-project-detail">
       <div id="projectDetailHost"></div>
-    </div>
-
-    <!-- ===== RELATIONSHIP PIPELINE ===== -->
-    <div class="page" id="page-relationships">
-      <div class="page-header"><div><div class="eyebrow">Relationships</div><h1>Relationship Pipeline</h1><div class="sub">Tracks who sends us business, not who's buying from us. Referrals are some of our highest-converting, highest-value leads, so this gets tracked properly.</div></div>
-        <button class="btn btn-dark" id="relPageAddBtn" onclick="openAddPartner()">+ Add Partner</button>
-      </div>
-      <div id="dripCampaignPanel" style="margin-bottom:18px;"></div>
-      <div id="relPartnersView">
-        <div class="stat-grid" style="grid-template-columns:repeat(4,1fr);" id="relStatGrid"></div>
-        <div id="relPartnersGroups"></div>
-      </div>
     </div>
 
     <!-- ===== COMPANY SETTINGS: everything System-level now lives on this one page — Users, Locations, and Automations were merged in here so it's a single place instead of four ===== -->
@@ -7070,7 +7032,6 @@ function buildClientProgressContentHTML(p){
     <h1 style="text-align:center; font-family:'Space Grotesk',sans-serif; margin-top:4px;">${escapeHtmlLite(p.name)}</h1>
     <div class="sub" style="text-align:center; margin-bottom:8px;">${escapeHtmlLite(p.client || '')}${p.location ? ' · ' + escapeHtmlLite(p.location) : ''}</div>
     <div class="sub" style="text-align:center; margin-bottom:16px; font-weight:600;">${p.currentPhase !== null ? `Currently in Phase ${p.currentPhase} · ${currentPhaseDef ? currentPhaseDef.name : ''}` : '✅ All phases complete — ready for production'}</div>
-    ${buildClientProgressStatsHTML(p)}
     <div class="no-print" style="text-align:center; margin-bottom:24px;">
       <button class="btn btn-outline" onclick="printClientDashboard()">🖨 Print / Save as PDF</button>
     </div>
@@ -8721,8 +8682,6 @@ const searchIndex = [
   {label:'Smith Residence', type:'Project', page:'precon-dash', projectId:'smith'},
   {label:'Chris Lawrence', type:'Project', page:'precon-dash', projectId:'lawrence'},
   {label:'Craig & Lydia Bell', type:'Project', page:'precon-dash', projectId:'bell'},
-  {label:'Mark Reyes', type:'Referral Partner', page:'relationships'},
-  {label:'Jason Thompson', type:'Referral Partner', page:'relationships'},
 ];
 function runGlobalSearch(q){
   const box = document.getElementById('searchResults');
