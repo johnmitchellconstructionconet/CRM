@@ -17944,6 +17944,14 @@ function snapshotSyncedEntities(){
 // browser is the authority on its own edit. Returns the merged dictionary and also updates
 // the local in-memory copy to match, so this browser immediately picks up anything a
 // teammate changed elsewhere too. ----
+// ---- CRITICAL SAFETY RULE: this function must NEVER cause an id this browser has locally
+// to disappear, for any reason OTHER than an explicit entry in deletedIds. A single fetch of
+// "the cloud's current state" can be stale or simply race ahead of another save that's still
+// landing — treating "not in this particular fetch" as "someone deleted it" caused a real
+// data-loss bug: a just-created project could vanish, both locally and in the cloud, if a
+// second save (e.g. the periodic autosave) fetched the cloud a moment before the first
+// save's write had actually committed. The fix: local knowledge always wins by default;
+// only deletedIds can remove something. ----
 function mergeEntityDictForSave(localDict, lastSyncedMap, cloudDict, deletedIds){
   const merged = {};
   let pulledInTeammateChange = false;
@@ -17953,13 +17961,20 @@ function mergeEntityDictForSave(localDict, lastSyncedMap, cloudDict, deletedIds)
     if(!(id in localDict)) pulledInTeammateChange = true;
   });
   Object.keys(localDict).forEach(id => {
+    if(deletedIds && deletedIds.has(id)) return;
+    const inCloud = !!(cloudDict && Object.prototype.hasOwnProperty.call(cloudDict, id));
     const touchedLocally = lastSyncedMap[id] === undefined || JSON.stringify(localDict[id]) !== lastSyncedMap[id];
-    if(touchedLocally){
-      merged[id] = localDict[id]; // this browser's own edit wins
-    } else if(cloudDict && Object.prototype.hasOwnProperty.call(cloudDict, id) && JSON.stringify(cloudDict[id]) !== JSON.stringify(localDict[id])){
-      pulledInTeammateChange = true; // untouched here, but a teammate changed it since we last synced
+    if(touchedLocally || !inCloud){
+      // Either this browser has genuinely changed it, or this particular fetch simply
+      // doesn't show it (a race, a stale read, anything) — in both cases the local copy is
+      // the one we actually know is real, so it wins. Never drop it just because one fetch
+      // happened not to include it.
+      merged[id] = localDict[id];
+    } else if(JSON.stringify(cloudDict[id]) !== JSON.stringify(localDict[id])){
+      merged[id] = cloudDict[id]; // untouched here, and the cloud's copy differs — a teammate's edit, take theirs
+      pulledInTeammateChange = true;
     }
-    // else: leave whatever came from cloudDict above — untouched here, unchanged there too.
+    // else: identical either way — nothing to do, merged[id] already holds the right value.
   });
   return { merged, pulledInTeammateChange };
 }
@@ -17967,11 +17982,37 @@ function setSyncIndicator(text){
   const el = document.getElementById('autosaveIndicator');
   if(el) el.textContent = text;
 }
+// ---- Serializes saves so this browser's own writes can never overlap and race against
+// each other. Without this, an explicit save triggered by a user action could still be
+// mid-flight (its cloud fetch already done, its upsert not yet landed) when the periodic
+// 4-second autosave fires again — the second call's merge would then be working from a
+// stale fetch that doesn't yet show the first call's not-yet-committed write. Combined with
+// the hardened merge rule above this is extra insurance, not the only line of defense: if a
+// save is already running, this just makes sure one more runs right after it finishes,
+// instead of starting a second one in parallel. ----
+let SAVE_IN_PROGRESS = false;
+let SAVE_QUEUED_AGAIN = false;
+async function saveAppState(){
+  if(SAVE_IN_PROGRESS){
+    SAVE_QUEUED_AGAIN = true;
+    return;
+  }
+  SAVE_IN_PROGRESS = true;
+  try{
+    await saveAppStateInner();
+  } finally {
+    SAVE_IN_PROGRESS = false;
+    if(SAVE_QUEUED_AGAIN){
+      SAVE_QUEUED_AGAIN = false;
+      saveAppState();
+    }
+  }
+}
 // ---- Real, shared persistence — every signed-in team member reads and writes the same
 // rows in the `app_state` table (see supabase-app-state-schema.sql). localStorage is kept
 // only as an offline cache: it saves synchronously in case the network call can't complete
 // (e.g. right as the tab closes), never as the source of truth once Supabase is connected. ----
-async function saveAppState(){
+async function saveAppStateInner(){
   const savedAtMs = Date.now();
   let session = null;
   if(SUPABASE_CONFIGURED && supabaseClient){
