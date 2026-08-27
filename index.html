@@ -4755,7 +4755,7 @@ function generateProcessBaseline(projectId, startDate){
   PROCESS_PHASES.forEach(ph => {
     const stage = wf.stages.find(s => s.n === ph.n);
     ph.steps.forEach(def => {
-      cursor = addBusinessDays(cursor, def.days || 2);
+      cursor = addBusinessDays(cursor, getCompanySettingsDays(ph.n, def.id));
       const st = getStepState(stage, def.id);
       st.baselineDue = cursor;
       st.forecastDue = cursor;
@@ -4922,6 +4922,40 @@ function getRevisionTargetingStep(p, stepId){
   if(!ph || !stage) return null;
   const sourceDef = ph.steps.find(def => def.revisesStepId === stepId && stage.steps[def.id] && stage.steps[def.id].status === 'In Revision');
   return sourceDef ? { def: sourceDef, a: stage.steps[sourceDef.id] } : null;
+}
+// ---- Manual "go backwards" — the sequential engine only ever moves forward on its own, on
+// purpose, but sometimes a step (or a whole phase) genuinely needs to be reopened: something
+// was marked complete too early, or work has to be redone that isn't a formal "send back for
+// revision." Reopens the previous step within the phase, or — if already on the very first
+// step — steps the whole project back into the previous phase and reopens its last step. ----
+function goBackOneStep(projectId){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const wf = ensureWorkflowModel(p);
+  const ph = phaseDef(wf.currentStageN);
+  const stage = wf.stages.find(s => s.n === wf.currentStageN);
+  if(!ph || !stage) return;
+  const next = getNextAction(p);
+  if(!next) return;
+  const idx = ph.steps.findIndex(d => d.id === next.def.id);
+  if(idx > 0){
+    const prevDef = ph.steps[idx - 1];
+    if(!confirm(`Go back to "${prevDef.title}"? This reopens it and undoes its completion.`)) return;
+    getStepState(stage, prevDef.id).status = 'In Progress';
+    getStepState(stage, next.def.id).status = 'Not Ready';
+  } else {
+    const prevStage = wf.stages.find(s => s.n === wf.currentStageN - 1);
+    if(!prevStage){ alert('This is already the first phase — nowhere earlier to go.'); return; }
+    const prevPh = phaseDef(prevStage.n);
+    if(!confirm(`Go back to Phase ${prevPh.n} · ${prevPh.name}? This reopens its last step and makes it the current phase again.`)) return;
+    prevStage.status = 'current';
+    stage.status = 'upcoming';
+    wf.currentStageN = prevStage.n;
+    p.currentPhase = prevStage.n; // keep the legacy field in sync — see the note in recomputeStage
+    const lastDef = prevPh.steps[prevPh.steps.length - 1];
+    getStepState(prevStage, lastDef.id).status = 'In Progress';
+  }
+  recomputeStage(p);
+  saveAppState(); renderProjectDetail(); renderProjectCardGrids();
 }
 function setStepStatus(projectId, stepId, status){
   const p = PROJECTS[projectId]; if(!p) return;
@@ -5476,13 +5510,45 @@ function buildMonthGridHTML(overallStart, overallEnd){
     const isWeekStart = d.getDay() === 1;
     return `<div style="position:absolute; left:${offsetPct}%; top:0; bottom:0; width:1px; background:var(--border-soft); opacity:${isMonthStart ? 1 : isWeekStart ? 0.6 : 0.25};"></div>`;
   }).join('');
-  const today = new Date(TODAY);
-  let todayLine = '';
-  if(today >= start && today <= end){
-    const offsetPct = (today - start) / 86400000 / totalDays * 100;
-    todayLine = `<div style="position:absolute; left:${offsetPct}%; top:-22px; bottom:0; width:2px; background:var(--rust); z-index:2;"><span style="position:absolute; top:-16px; left:50%; transform:translateX(-50%); font-size:9px; font-weight:700; color:var(--rust); white-space:nowrap; font-family:'Montserrat',sans-serif;">TODAY</span></div>`;
+  return { axis: axis + dayAxis, gridlines };
+}
+// ---- A single line spanning the full height of the Gantt — axis down through every phase
+// row — marking today's date. Built separately from the axis/gridlines (which live inside
+// two different nested containers) and positioned in real pixels against the outer panel,
+// so it isn't at the mercy of whichever wrapper happens to contain it. ----
+// ---- Shades every Saturday/Sunday column across the full height of the chart — weekends
+// are non-work days, so a phase's bar spanning a weekend shouldn't read as "2 days of
+// progress" when 2 of those days were never workable to begin with. Same real-pixel, full-
+// height approach as the today-line, for the same reason: percentage math inside a nested
+// wrapper is fragile once the container gets restructured. ----
+function buildWeekendHighlightsHTML(overallStart, overallEnd, timelineLeftPx, timelineWidthPx){
+  if(!overallStart || !overallEnd) return '';
+  const start = new Date(overallStart+'T00:00:00');
+  const end = new Date(overallEnd+'T00:00:00');
+  const totalDays = Math.max(1, (end - start) / 86400000);
+  const pxPerDay = timelineWidthPx / totalDays;
+  const bands = [];
+  const d = new Date(start);
+  while(d <= end){
+    if(d.getDay() === 0 || d.getDay() === 6){
+      const leftPx = timelineLeftPx + ((d - start) / 86400000) * pxPerDay;
+      bands.push(`<div style="position:absolute; left:${leftPx}px; width:${pxPerDay}px; top:0; bottom:0; background:var(--ink-faint); opacity:0.055; z-index:0; pointer-events:none;"></div>`);
+    }
+    d.setDate(d.getDate() + 1);
   }
-  return { axis: axis + dayAxis, gridlines: gridlines + todayLine };
+  return bands.join('');
+}
+function buildTodayLineHTML(overallStart, overallEnd, timelineLeftPx, timelineWidthPx){
+  if(!overallStart || !overallEnd) return '';
+  const start = new Date(overallStart+'T00:00:00');
+  const end = new Date(overallEnd+'T00:00:00');
+  const totalDays = Math.max(1, (end - start) / 86400000);
+  const today = new Date(TODAY);
+  if(today < start || today > end) return '';
+  const leftPx = timelineLeftPx + ((today - start) / 86400000 / totalDays) * timelineWidthPx;
+  return `<div style="position:absolute; left:${leftPx}px; top:0; bottom:0; width:2px; background:var(--rust); z-index:5; pointer-events:none;">
+    <span style="position:absolute; top:-2px; left:4px; font-size:9px; font-weight:700; color:var(--rust); white-space:nowrap; font-family:'Montserrat',sans-serif; background:var(--paper); padding:0 3px 0 0;">TODAY</span>
+  </div>`;
 }
 function buildGanttRowHTML(phaseDef, baselineRow, actualRow, overallStart, spanDays, progressPct, timelineWidthPx, projectId){
   const track = (row, color, height, opacity, locked) => {
@@ -5574,6 +5640,7 @@ function buildScheduleTabHTML(p){
       <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:14px; height:6px; background:var(--ink-faint); opacity:0.5; border-radius:3px; display:inline-block;"></span> Baseline</span>
       <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:14px; height:10px; background:var(--taupe-dark); border-radius:3px; display:inline-block;"></span> Actual</span>
       <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:14px; height:10px; background:var(--jade); border-radius:3px; display:inline-block;"></span> Progress (steps checked off)</span>
+      <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:14px; height:10px; background:var(--ink-faint); opacity:0.3; border-radius:3px; display:inline-block;"></span> Weekend (non-work day)</span>
     </div>
     <div id="scheduleTabContent" class="panel" style="overflow-x:auto;"><div class="panel-body" style="padding:20px 20px 16px; position:relative; min-width:${GANTT_LEFT_COL+GANTT_GAP+timelineWidthPx+GANTT_GAP+GANTT_RIGHT_COL}px;">
       <div style="display:flex; align-items:center; gap:${GANTT_GAP}px; height:34px; position:relative;">
@@ -5585,6 +5652,8 @@ function buildScheduleTabHTML(p){
         <div style="position:absolute; left:${GANTT_LEFT_COL+GANTT_GAP}px; width:${timelineWidthPx}px; top:0; bottom:0; pointer-events:none;">${grid.gridlines}</div>
         ${rows}
       </div>
+      ${buildWeekendHighlightsHTML(overallStart, overallEnd, GANTT_LEFT_COL+GANTT_GAP, timelineWidthPx)}
+      ${buildTodayLineHTML(overallStart, overallEnd, GANTT_LEFT_COL+GANTT_GAP, timelineWidthPx)}
     </div></div>
     ${!wf.baselineSet ? `<div class="hint" style="margin-top:12px;">No baseline set yet — click "Set Baseline Schedule" so there's something fixed to measure real progress against. This is the same baseline the Overview tab's schedule strip and every step's due date depend on — one schedule, not two.</div>` : ''}`;
 }
@@ -5745,6 +5814,7 @@ function buildHeroInnerHTML(p){
       ${a.baselineDue ? `<div><label>Baseline Was</label><div style="font-size:13px; color:var(--ink-faint); padding-top:8px;">${fmtNoteDate(a.baselineDue)}</div></div>` : ''}
     </div>
     <div class="row" style="margin-top:14px; gap:8px; flex-wrap:wrap;">
+      <button class="btn btn-outline" style="color:var(--ink-faint); border-color:var(--border);" onclick="goBackOneStep('${p.id}')" title="Reopens the previous step (or the previous phase, if this is the first step) — a manual correction, not part of the normal flow forward">◀ Go Back</button>
       ${!isInProgress && !isBlocked ? `<button class="btn btn-outline" onclick="setStepStatus('${p.id}','${def.id}','In Progress')">Start</button>` : ''}
       <button class="btn btn-dark" onclick="setStepStatus('${p.id}','${def.id}','Complete')">Mark Complete</button>
       ${!isBlocked ? `<button class="btn btn-outline" onclick="openMarkWaiting('${p.id}','${def.id}')">Waiting on Someone</button>
@@ -6589,6 +6659,8 @@ function buildClientProgressScheduleHTML(project){
         <div style="position:absolute; left:${GANTT_LEFT_COL+GANTT_GAP}px; width:${timelineWidthPx}px; top:0; bottom:0; pointer-events:none;">${grid.gridlines}</div>
         ${rows}
       </div>
+      ${buildWeekendHighlightsHTML(overallStart, overallEnd, GANTT_LEFT_COL+GANTT_GAP, timelineWidthPx)}
+      ${buildTodayLineHTML(overallStart, overallEnd, GANTT_LEFT_COL+GANTT_GAP, timelineWidthPx)}
     </div></div>
     <div style="font-size:11px; color:var(--muted-text); margin-bottom:26px; display:flex; gap:16px; flex-wrap:wrap;">
       <span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:14px; height:6px; background:var(--ink-faint); opacity:0.5; border-radius:3px; display:inline-block;"></span> Target</span>
