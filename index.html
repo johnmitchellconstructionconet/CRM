@@ -146,6 +146,13 @@ button{font-family:'Inter',sans-serif; cursor:pointer;}
 .pill-jade{background:var(--jade-soft); color:var(--jade);}
 .pill-rust{background:var(--rust-soft); color:var(--rust);}
 .pill-violet{background:#EDE6F5; color:#7a5ea8;}
+.pf-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:14px; margin-top:16px;}
+.pf-card{background:#fff; border:1px solid var(--border-soft); border-radius:10px; padding:10px; box-shadow:0 1px 3px rgba(30,27,24,0.05);}
+.pf-thumb{width:100%; height:110px; object-fit:cover; border-radius:6px; cursor:pointer; background:var(--border-soft);}
+.pf-thumb-doc{display:flex; align-items:center; justify-content:center; font-size:34px; color:var(--ink-faint);}
+.pf-name{font-size:12px; font-weight:600; margin-top:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.pf-cat{width:100%; font-size:10.5px; margin-top:6px; padding:4px 6px;}
+.pf-meta{font-size:10px; color:var(--ink-faint); margin-top:6px;}
 .pill-gold{background:var(--gold-soft); color:var(--gold);}
 .pill-slate{background:var(--slate-soft); color:var(--slate);}
 .pill-dark{background:var(--ink); color:#fff;}
@@ -6048,6 +6055,73 @@ function deleteClarifItem(projectId, roundId, itemId){
   round.items = round.items.filter(i => i.id !== itemId);
   saveAppState(); renderProjectDetail();
 }
+// ============================================================
+// PROJECT FILES — general documents & photos that don't belong anywhere more specific:
+// the Design Discovery form, inspiration photos, articles the client sent, loose notes.
+// Deliberately NOT for plans or renderings — those already have a real home on the Plans &
+// Design tab, and dumping everything into one flat pile is exactly what tagging here is
+// meant to avoid. Every file gets a category so this stays a library, not a junk drawer.
+// ----
+const PROJECT_FILE_CATEGORIES = ['Design Discovery Form', 'Inspiration Photos', 'Reading Material', 'Notes', 'Other'];
+let PROJECT_FILES_FILTER = 'All';
+function ensureProjectFiles(p){
+  if(!p.files) p.files = [];
+  return p.files;
+}
+async function uploadProjectFile(projectId, category, inputEl){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const files = ensureProjectFiles(p);
+  const picked = Array.from(inputEl.files || []);
+  for(const file of picked){
+    const dataUrl = await readFileAsDataUrl(file);
+    files.push({ id: 'pf' + Date.now() + Math.random().toString(36).slice(2,6), name: file.name, dataUrl, category: category || 'Other', uploadedAt: new Date().toISOString().slice(0,10) });
+  }
+  inputEl.value = '';
+  saveAppState(); renderProjectDetail();
+}
+function setProjectFileCategory(projectId, fileId, category){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const files = ensureProjectFiles(p);
+  const f = files.find(x => x.id === fileId); if(!f) return;
+  f.category = category;
+  saveAppState(); renderProjectDetail();
+}
+function deleteProjectFile(projectId, fileId){
+  const p = PROJECTS[projectId]; if(!p) return;
+  if(!confirm('Delete this file? This can\'t be undone.')) return;
+  p.files = ensureProjectFiles(p).filter(x => x.id !== fileId);
+  saveAppState(); renderProjectDetail();
+}
+function setProjectFilesFilter(cat){
+  PROJECT_FILES_FILTER = cat;
+  renderProjectDetail();
+}
+function buildProjectFilesTabHTML(p){
+  const files = ensureProjectFiles(p);
+  const isImage = (name) => /\.(png|jpe?g|gif|webp|heic)$/i.test(name||'');
+  const filtered = PROJECT_FILES_FILTER === 'All' ? files : files.filter(f => f.category === PROJECT_FILES_FILTER);
+  const chips = ['All', ...PROJECT_FILE_CATEGORIES].map(cat => {
+    const count = cat === 'All' ? files.length : files.filter(f => f.category === cat).length;
+    return `<span class="pill ${cat===PROJECT_FILES_FILTER?'pill-ink':'pill-slate'}" style="cursor:pointer;" onclick="setProjectFilesFilter('${cat}')">${escapeHtmlLite(cat)}${count?` (${count})`:''}</span>`;
+  }).join('');
+  return `
+    <div class="hint" style="margin-bottom:14px;">General documents and photos for this project — the Design Discovery form, inspiration photos, reading material the client sent, loose notes. Plans and renderings live on the Plans &amp; Design tab instead, not here.</div>
+    <div class="section-label-row">
+      <div class="row" style="gap:8px; flex-wrap:wrap;">${chips}</div>
+      <div class="row" style="gap:8px; align-items:center;">
+        <select id="pfUploadCategory" style="width:auto; min-width:160px;">${PROJECT_FILE_CATEGORIES.map(c => `<option>${escapeHtmlLite(c)}</option>`).join('')}</select>
+        <label class="btn btn-dark" style="cursor:pointer; margin:0;">+ Upload<input type="file" multiple style="display:none;" onchange="uploadProjectFile('${p.id}', document.getElementById('pfUploadCategory').value, this)"></label>
+      </div>
+    </div>
+    ${filtered.length ? `<div class="pf-grid">
+      ${filtered.map(f => `<div class="pf-card">
+        ${isImage(f.name) ? `<img src="${f.dataUrl}" class="pf-thumb" onclick="openFilePreview('${f.dataUrl}','${escapeHtmlLite(f.name).replace(/'/g,"\\'")}')">` : `<div class="pf-thumb pf-thumb-doc" onclick="openFilePreview('${f.dataUrl}','${escapeHtmlLite(f.name).replace(/'/g,"\\'")}')">📄</div>`}
+        <div class="pf-name" title="${escapeHtmlLite(f.name)}">${escapeHtmlLite(f.name)}</div>
+        <select class="pf-cat" onchange="setProjectFileCategory('${p.id}','${f.id}',this.value)">${PROJECT_FILE_CATEGORIES.map(c => `<option ${c===f.category?'selected':''}>${escapeHtmlLite(c)}</option>`).join('')}</select>
+        <div class="pf-meta">${fmtNoteDate(f.uploadedAt)} <span style="cursor:pointer; color:var(--rust); float:right;" onclick="deleteProjectFile('${p.id}','${f.id}')">&times;</span></div>
+      </div>`).join('')}
+    </div>` : `<div class="empty-row">${PROJECT_FILES_FILTER==='All' ? 'No files uploaded yet.' : `Nothing tagged "${escapeHtmlLite(PROJECT_FILES_FILTER)}" yet.`}</div>`}`;
+}
 function buildClarificationsTabHTML(p){
   const c = ensureClarifications(p);
   const activeId = CLARIF_ACTIVE_ROUND[p.id] && c.rounds.find(r => r.id === CLARIF_ACTIVE_ROUND[p.id]) ? CLARIF_ACTIVE_ROUND[p.id] : c.rounds[c.rounds.length-1].id;
@@ -7187,10 +7261,7 @@ function buildActionBannerHTML(p){
       <div class="hint" style="margin-bottom:10px;">Upload a Word doc (.docx) — your Google Drive templates work fine, just download them as .docx first — and edit the whole thing right here. Saved to this project; download when you're done. This edits a local copy only — it doesn't sync back to Google Drive.</div>
       ${DOC_EDITOR_ACTIVE && DOC_EDITOR_ACTIVE.projectId === p.id ? buildDocumentEditorHTML(p) : buildProjectDocsListHTML(p)}`;
   } else if(CC_TAB === 'files'){
-    const srcOppId2 = p.convertedFrom || p.id;
-    const srcOpp2 = getOpp(srcOppId2);
-    const srcEst2 = srcOpp2 ? getOrCreateOppEstimate(srcOpp2) : null;
-    tabBody = srcOpp2 && srcEst2 ? buildFilesPanelHTML(srcOpp2, srcEst2) : `<div class="cc-shell"><strong>Files</strong>No linked opportunity found for this project.</div>`;
+    tabBody = buildProjectFilesTabHTML(p);
   } else {
     const shellCopy = {
       activity:'Activity Timeline — same activity log architecture as Sales opportunities, scoped to this project.'
