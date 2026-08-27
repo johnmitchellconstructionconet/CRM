@@ -17973,22 +17973,43 @@ function snapshotSyncedEntities(){
 // This keeps anything that has changed since the last CONFIRMED sync and doesn't match what
 // the server just returned; everything else (untouched, or already matching) is safe to take
 // from the server and mark confirmed. Ids that keep their local copy are deliberately left out
-// of confirmedSyncedIds so the next save (already queued via SAVE_QUEUED_AGAIN) re-sends them
+// of the ids whose last-synced bookkeeping gets refreshed, so the next save (already queued
+// via SAVE_QUEUED_AGAIN) re-sends them
 // instead of the app wrongly believing they're already synced. ----
 function applyRpcResultProtectingNewerLocalEdits(localDict, lastSyncedMap, rpcResult){
   const merged = {};
-  const confirmedSyncedIds = [];
-  Object.keys(rpcResult || {}).forEach(id => { merged[id] = rpcResult[id]; });
-  Object.keys(localDict).forEach(id => {
-    const touchedSinceLastConfirmedSync = lastSyncedMap[id] === undefined || JSON.stringify(localDict[id]) !== lastSyncedMap[id];
-    const matchesServerResult = !!(rpcResult && Object.prototype.hasOwnProperty.call(rpcResult, id) && JSON.stringify(rpcResult[id]) === JSON.stringify(localDict[id]));
-    if(touchedSinceLastConfirmedSync && !matchesServerResult){
-      merged[id] = localDict[id]; // this browser has moved on since the request was sent — the stale response doesn't get to win
-    } else {
-      confirmedSyncedIds.push(id);
+  // Only ids that actually changed this round need their last-synced bookkeeping touched —
+  // re-stringifying every project/estimate just to refresh a cache entry that's already
+  // correct is wasted work that piles up fast once real project data, photos, and PDFs are in
+  // there. In steady state, most ids see no activity in any given 4-second window.
+  const idsNeedingLastSyncedRefresh = [];
+  let pulledInTeammateChange = false;
+  Object.keys(rpcResult || {}).forEach(id => {
+    merged[id] = rpcResult[id];
+    if(!(id in localDict)){
+      pulledInTeammateChange = true; // a teammate created something this browser never had
+      idsNeedingLastSyncedRefresh.push(id); // start tracking it from here on
     }
   });
-  return { merged, confirmedSyncedIds };
+  Object.keys(localDict).forEach(id => {
+    const touchedSinceLastConfirmedSync = lastSyncedMap[id] === undefined || JSON.stringify(localDict[id]) !== lastSyncedMap[id];
+    if(!touchedSinceLastConfirmedSync){
+      const cloudDiffers = rpcResult && Object.prototype.hasOwnProperty.call(rpcResult, id) && JSON.stringify(rpcResult[id]) !== JSON.stringify(localDict[id]);
+      if(cloudDiffers){
+        pulledInTeammateChange = true;
+        idsNeedingLastSyncedRefresh.push(id); // teammate's edit landed — bookkeeping needs to catch up to the new value
+      }
+      // else: identical to last confirmed sync, and the server agrees — genuinely nothing to do here
+      return;
+    }
+    const matchesServerResult = !!(rpcResult && Object.prototype.hasOwnProperty.call(rpcResult, id) && JSON.stringify(rpcResult[id]) === JSON.stringify(localDict[id]));
+    if(matchesServerResult){
+      idsNeedingLastSyncedRefresh.push(id); // this browser's edit just got confirmed synced
+    } else {
+      merged[id] = localDict[id]; // this browser has moved on since the request was sent — the stale response doesn't get to win
+    }
+  });
+  return { merged, idsNeedingLastSyncedRefresh, pulledInTeammateChange };
 }
 function mergeEntityDictForSave(localDict, lastSyncedMap, cloudDict, deletedIds){
   const merged = {};
@@ -18101,20 +18122,18 @@ async function saveAppStateInner(){
       if(projectsRpc.error) throw projectsRpc.error;
       if(estimatesRpc.error) throw estimatesRpc.error;
 
-      const mergedProjectsChanged = JSON.stringify(PROJECTS) !== JSON.stringify(projectsRpc.data);
-      const mergedEstimatesChanged = JSON.stringify(OPP_ESTIMATES) !== JSON.stringify(estimatesRpc.data);
       const projectsApply = applyRpcResultProtectingNewerLocalEdits(PROJECTS, LAST_SYNCED_PROJECTS, projectsRpc.data);
       Object.keys(PROJECTS).forEach(k => delete PROJECTS[k]); Object.assign(PROJECTS, projectsApply.merged);
-      projectsApply.confirmedSyncedIds.forEach(id => { LAST_SYNCED_PROJECTS[id] = JSON.stringify(PROJECTS[id]); });
+      projectsApply.idsNeedingLastSyncedRefresh.forEach(id => { LAST_SYNCED_PROJECTS[id] = JSON.stringify(PROJECTS[id]); });
       const estimatesApply = applyRpcResultProtectingNewerLocalEdits(OPP_ESTIMATES, LAST_SYNCED_OPP_ESTIMATES, estimatesRpc.data);
       OPP_ESTIMATES = estimatesApply.merged;
-      estimatesApply.confirmedSyncedIds.forEach(id => { LAST_SYNCED_OPP_ESTIMATES[id] = JSON.stringify(OPP_ESTIMATES[id]); });
+      estimatesApply.idsNeedingLastSyncedRefresh.forEach(id => { LAST_SYNCED_OPP_ESTIMATES[id] = JSON.stringify(OPP_ESTIMATES[id]); });
       // Only clear the exact ids THIS request told the server about — a deletion made after
       // this request was already sent (during the round-trip) is still sitting in
       // DELETED_PROJECT_IDS_PENDING_SYNC and needs to survive to the next save so it actually
       // gets reported, instead of being silently assumed-handled here.
       deletedProjectIds.forEach(id => DELETED_PROJECT_IDS_PENDING_SYNC.delete(id));
-      if(mergedProjectsChanged || mergedEstimatesChanged) renderEverything();
+      if(projectsApply.pulledInTeammateChange || estimatesApply.pulledInTeammateChange) renderEverything();
     } catch(mergeErr){
       console.warn('Atomic merge RPC failed — falling back to local copy only for this save:', mergeErr);
       showSyncErrorBanner('Team sync for projects/estimates failed this round — your local copy is safe and will retry. (' + (mergeErr && mergeErr.message || mergeErr) + ')');
