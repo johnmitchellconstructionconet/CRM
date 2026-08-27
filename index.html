@@ -17866,6 +17866,18 @@ function renderThemeColorPanel(){
 // for login — a bigger, separate step from this fix.
 // ============================================================
 const APP_STATE_KEY = 'mcd_portal_state_v1';
+// ---- CRITICAL SAFETY GATE — this exists because of a real incident: PROJECTS (and the
+// other shared collections) start out as hardcoded demo/seed data literally built into this
+// file, on every single page load, before loadAppState() ever runs. If a fresh deploy hits
+// any hiccup while pulling the real data from Supabase — a network blip, a brief auth delay,
+// anything — the app would otherwise sit there with the demo data in memory, and the
+// periodic autosave (every 4 seconds, unconditional) would push that demo data to Supabase
+// and overwrite the real, live project data. This flag stays false until loadAppState()
+// actually confirms it pulled a real result (from Supabase or this browser's own local
+// cache) — never for the demo-data fallback — and saveAppState() below refuses to run at
+// all until it's true. No save of any kind should ever happen from data nobody has
+// confirmed is real. ----
+let DATA_LOAD_CONFIRMED = false;
 function captureThemeVars(){
   const computed = getComputedStyle(document.documentElement);
   const out = {};
@@ -17993,6 +18005,13 @@ function setSyncIndicator(text){
 let SAVE_IN_PROGRESS = false;
 let SAVE_QUEUED_AGAIN = false;
 async function saveAppState(){
+  if(!DATA_LOAD_CONFIRMED){
+    // Nothing real has been loaded yet — this could still be the hardcoded demo data.
+    // Refusing to save anything until loadAppState() confirms a real result is what
+    // prevents a rough deploy from ever overwriting real project data with seed data.
+    console.warn('saveAppState skipped — no confirmed data load yet (still on demo data, or load is still in progress)');
+    return;
+  }
   if(SAVE_IN_PROGRESS){
     SAVE_QUEUED_AGAIN = true;
     return;
@@ -18103,6 +18122,7 @@ async function loadAppState(){
           applyAppSnapshot(Object.fromEntries(data.map(r => [r.key, r.value])));
           try{ localStorage.setItem(APP_STATE_KEY, JSON.stringify(buildAppSnapshot())); localStorage.setItem(APP_STATE_KEY + '_ts', String(Date.now())); } catch(e){}
           setSyncIndicator('Loaded from Supabase');
+          DATA_LOAD_CONFIRMED = true; // real data confirmed — saves are now allowed
           return 'supabase';
         }
         if(error) console.warn('Supabase load failed, falling back to local cache:', error);
@@ -18111,9 +18131,19 @@ async function loadAppState(){
   }
   try{
     const raw = localStorage.getItem(APP_STATE_KEY);
-    if(raw){ applyAppSnapshot(JSON.parse(raw)); setSyncIndicator('Loaded from this browser\u2019s local cache'); return 'local'; }
+    if(raw){
+      applyAppSnapshot(JSON.parse(raw));
+      setSyncIndicator('Loaded from this browser\u2019s local cache');
+      DATA_LOAD_CONFIRMED = true; // this browser's own prior real data — saves are now allowed
+      return 'local';
+    }
   } catch(e){ console.warn('Local cache read failed:', e); }
-  setSyncIndicator('Using built-in demo data');
+  // Neither Supabase nor a local cache produced anything real — PROJECTS and the other
+  // shared collections are still whatever demo data was hardcoded in this file. Deliberately
+  // NOT setting DATA_LOAD_CONFIRMED here: saveAppState() must keep refusing to run until a
+  // real load actually succeeds, so this demo data can never get pushed up and overwrite
+  // anyone's real project data.
+  setSyncIndicator('Using built-in demo data — nothing will be saved until a real connection loads');
   return 'demo';
 }
 // ---- Real-time multi-user sync — without this, each person only ever pulls data once,
@@ -18152,7 +18182,7 @@ function resetToDemoData(){
 // Autosave on an interval and on the way out — covers every mutation everywhere in the
 // app without needing a save call hand-added to every single edit function.
 setInterval(saveAppState, 4000);
-window.addEventListener('beforeunload', () => { try{ localStorage.setItem(APP_STATE_KEY, JSON.stringify(buildAppSnapshot())); localStorage.setItem(APP_STATE_KEY + '_ts', String(Date.now())); }catch(e){} });
+window.addEventListener('beforeunload', () => { if(!DATA_LOAD_CONFIRMED) return; try{ localStorage.setItem(APP_STATE_KEY, JSON.stringify(buildAppSnapshot())); localStorage.setItem(APP_STATE_KEY + '_ts', String(Date.now())); }catch(e){} });
 document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden') saveAppState(); });
 
 const CLIENT_VIEW_PROJECT_ID = new URLSearchParams(location.search).get('client_project');
