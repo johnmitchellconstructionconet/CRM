@@ -1167,6 +1167,7 @@ select{cursor:pointer;}
 .duebadge-overdue{background:var(--rust); color:#fff;}
 .duebadge-today{background:#c9a868; color:#fff;}
 .duebadge-soon{background:var(--border); color:var(--ink-faint);}
+.duebadge-progress{background:var(--jade-soft); color:var(--jade);}
 .hero-split{display:flex; gap:26px;}
 .hero-main{flex:1.5; min-width:0;}
 .hero-tasks-col{flex:1; min-width:0; border-left:1px solid var(--border-soft); padding-left:24px;}
@@ -4081,7 +4082,7 @@ function bulkDeleteSelected(kind){
     BULK_SELECTED.partner.clear();
     renderRelationshipPartners();
   } else if(kind === 'project'){
-    ids.forEach(id => delete PROJECTS[id]);
+    ids.forEach(id => { delete PROJECTS[id]; DELETED_PROJECT_IDS_PENDING_SYNC.add(id); });
     BULK_SELECTED.project.clear();
     renderPreconProjectTable(); renderProjectCardGrids();
   }
@@ -6098,7 +6099,7 @@ function buildHeroInnerHTML(p){
   </div>` : '';
   return { cls: (isBlocked || overdue) ? 'hero-blocked' : revSource ? 'hero-revision' : '', html: `
     ${revisionBanner}
-    <div class="hero-label">Phase ${ph.n} · ${escapeHtmlLite(ph.name)} — Step ${index+1} of ${total}${dueBadge}</div>
+    <div class="hero-label">Phase ${ph.n} · ${escapeHtmlLite(ph.name)} — Step ${index+1} of ${total}${dueBadge}${isInProgress ? `<span class="duebadge duebadge-progress">In Progress</span>` : ''}</div>
     <div class="hero-title">${escapeHtmlLite(def.title)}</div>
     <div class="hero-meta">${escapeHtmlLite(def.role)}${isBlocked && a.blockerNote ? ` — Blocked: ${escapeHtmlLite(a.blockerNote)}${a.blockedParty ? ` · ${escapeHtmlLite(a.blockedParty)}` : ''}` : ''}</div>
     <div class="hero-row">
@@ -7163,7 +7164,6 @@ function buildClientProgressStatsHTML(project){
 }
 function buildClientProgressContentHTML(p){
   CLIENT_VIEW_ACTIVE_TAB = CLIENT_VIEW_ACTIVE_TAB || 'schedule';
-  const currentPhaseDef = phaseDef(p.currentPhase);
   const logs = (p.clientLogs || []).slice().reverse();
   return `
     <div style="text-align:center; margin-bottom:28px;">
@@ -7172,8 +7172,6 @@ function buildClientProgressContentHTML(p){
     <div class="eyebrow" style="text-align:center;">Preconstruction Progress</div>
     <h1 style="text-align:center; font-family:'Space Grotesk',sans-serif; margin-top:4px;">${escapeHtmlLite(p.name)}</h1>
     <div class="sub" style="text-align:center; margin-bottom:8px;">${escapeHtmlLite(p.client || '')}${p.location ? ' · ' + escapeHtmlLite(p.location) : ''}</div>
-    <div class="sub" style="text-align:center; margin-bottom:16px; font-weight:600;">${p.currentPhase !== null ? `Currently in Phase ${p.currentPhase} · ${currentPhaseDef ? currentPhaseDef.name : ''}` : '✅ All phases complete — ready for production'}</div>
-    ${buildClientProgressStatsHTML(p)}
     <div class="no-print" style="text-align:center; margin-bottom:24px;">
       <button class="btn btn-outline" onclick="printClientDashboard()">🖨 Print / Save as PDF</button>
     </div>
@@ -7576,11 +7574,13 @@ function renderPreconProjectGrid(){
 function deleteProject(id){
   if(!confirm('Delete this project? This cannot be undone.')) return;
   delete PROJECTS[id];
+  DELETED_PROJECT_IDS_PENDING_SYNC.add(id);
   renderProjectCardGrids();
 }
 function deleteProjectFromDetail(id){
   if(!confirm('Delete this project? This cannot be undone.')) return;
   delete PROJECTS[id];
+  DELETED_PROJECT_IDS_PENDING_SYNC.add(id);
   goPage('precon-dash');
   renderProjectCardGrids();
 }
@@ -17910,6 +17910,58 @@ function applyAppSnapshot(snap){
   if(snap.PROJECT_FILE_CATEGORIES) PROJECT_FILE_CATEGORIES = snap.PROJECT_FILE_CATEGORIES;
   if(snap.PLAN_DRAWING_CATEGORIES) PLAN_DRAWING_CATEGORIES = snap.PLAN_DRAWING_CATEGORIES;
   if(snap.themeVars) applyThemeVars(snap.themeVars);
+  snapshotSyncedEntities();
+}
+// ---- Tracks, per project/estimate id, the exact JSON this browser last knew to match the
+// cloud (right after a load, a realtime push, or this browser's own successful save). Used
+// by saveAppState()'s merge step below: an id whose current in-memory copy still matches
+// this snapshot hasn't been touched here, so a teammate's newer copy of THAT SAME id should
+// win instead of this browser blindly re-pushing its own (possibly stale) copy over it. An
+// id that no longer matches has genuinely been edited in this browser, so it should win. ----
+let LAST_SYNCED_PROJECTS = {};
+let LAST_SYNCED_OPP_ESTIMATES = {};
+// ---- Deletion is invisible to the "did I touch this id" check above — a deleted project
+// simply isn't in PROJECTS anymore, which looks identical to "a teammate created this and
+// it hasn't synced here yet." Both must be handled oppositely (keep the teammate's; drop
+// the deleted one), so every place a project actually gets deleted also records it here.
+// Cleared once a save has actually gone through, since the cloud's copy of PROJECTS no
+// longer contains it at that point either. ----
+let DELETED_PROJECT_IDS_PENDING_SYNC = new Set();
+function snapshotSyncedEntities(){
+  LAST_SYNCED_PROJECTS = {};
+  Object.keys(PROJECTS).forEach(id => { LAST_SYNCED_PROJECTS[id] = JSON.stringify(PROJECTS[id]); });
+  LAST_SYNCED_OPP_ESTIMATES = {};
+  Object.keys(OPP_ESTIMATES).forEach(id => { LAST_SYNCED_OPP_ESTIMATES[id] = JSON.stringify(OPP_ESTIMATES[id]); });
+}
+// ---- Merges a locally-touched entity dictionary (PROJECTS or OPP_ESTIMATES) against
+// whatever the cloud actually has right now, right before saving. Two or more people can be
+// on completely different projects/estimates at the same moment — without this, this
+// browser's periodic autosave would blindly overwrite the WHOLE dictionary with its own
+// in-memory copy, silently erasing a teammate's edit to a different id that just hadn't
+// arrived here yet over the realtime channel. The rule: an id this browser hasn't actually
+// changed since its last known-synced copy defers to whatever the cloud has for that id
+// (a teammate's edit, if any); an id this browser HAS changed locally wins, since this
+// browser is the authority on its own edit. Returns the merged dictionary and also updates
+// the local in-memory copy to match, so this browser immediately picks up anything a
+// teammate changed elsewhere too. ----
+function mergeEntityDictForSave(localDict, lastSyncedMap, cloudDict, deletedIds){
+  const merged = {};
+  let pulledInTeammateChange = false;
+  Object.keys(cloudDict || {}).forEach(id => {
+    if(deletedIds && deletedIds.has(id)) return; // deliberately deleted here — don't let the cloud's stale copy resurrect it
+    merged[id] = cloudDict[id]; // start from cloud — covers ids this browser doesn't have at all yet
+    if(!(id in localDict)) pulledInTeammateChange = true;
+  });
+  Object.keys(localDict).forEach(id => {
+    const touchedLocally = lastSyncedMap[id] === undefined || JSON.stringify(localDict[id]) !== lastSyncedMap[id];
+    if(touchedLocally){
+      merged[id] = localDict[id]; // this browser's own edit wins
+    } else if(cloudDict && Object.prototype.hasOwnProperty.call(cloudDict, id) && JSON.stringify(cloudDict[id]) !== JSON.stringify(localDict[id])){
+      pulledInTeammateChange = true; // untouched here, but a teammate changed it since we last synced
+    }
+    // else: leave whatever came from cloudDict above — untouched here, unchanged there too.
+  });
+  return { merged, pulledInTeammateChange };
 }
 function setSyncIndicator(text){
   const el = document.getElementById('autosaveIndicator');
@@ -17920,8 +17972,37 @@ function setSyncIndicator(text){
 // only as an offline cache: it saves synchronously in case the network call can't complete
 // (e.g. right as the tab closes), never as the source of truth once Supabase is connected. ----
 async function saveAppState(){
-  const snapshot = buildAppSnapshot();
   const savedAtMs = Date.now();
+  let session = null;
+  if(SUPABASE_CONFIGURED && supabaseClient){
+    try{
+      const { data: sessionData } = await supabaseClient.auth.getSession();
+      session = sessionData && sessionData.session;
+    } catch(e){ /* treated as no session below */ }
+  }
+  // Merge PROJECTS and OPP_ESTIMATES against whatever the cloud actually has right now,
+  // before this browser's own copy gets saved over them — see mergeEntityDictForSave above.
+  // Two or more people are routinely going to be on different projects (or different
+  // proposals/estimates) at the same moment; without this, a plain periodic autosave would
+  // blindly overwrite the WHOLE shared dictionary with whatever this one browser happens to
+  // have in memory, silently erasing a teammate's edit that just hadn't arrived here yet
+  // over the realtime channel. Only re-renders if the merge actually pulled in something new
+  // — not on every 4-second tick — so it doesn't interrupt anyone mid-edit for no reason.
+  if(session){
+    try{
+      const { data: cloudRows } = await supabaseClient.from('app_state').select('key,value').in('key', ['PROJECTS','OPP_ESTIMATES']);
+      const cloudProjects = (cloudRows || []).find(r => r.key === 'PROJECTS');
+      const cloudEstimates = (cloudRows || []).find(r => r.key === 'OPP_ESTIMATES');
+      const projectsResult = mergeEntityDictForSave(PROJECTS, LAST_SYNCED_PROJECTS, cloudProjects ? cloudProjects.value : {}, DELETED_PROJECT_IDS_PENDING_SYNC);
+      const estimatesResult = mergeEntityDictForSave(OPP_ESTIMATES, LAST_SYNCED_OPP_ESTIMATES, cloudEstimates ? cloudEstimates.value : {});
+      Object.keys(PROJECTS).forEach(k => delete PROJECTS[k]); Object.assign(PROJECTS, projectsResult.merged);
+      OPP_ESTIMATES = estimatesResult.merged;
+      if(projectsResult.pulledInTeammateChange || estimatesResult.pulledInTeammateChange) renderEverything();
+    } catch(mergeErr){
+      console.warn('Could not merge against cloud before saving — proceeding with local copy only:', mergeErr);
+    }
+  }
+  const snapshot = buildAppSnapshot();
   try{
     localStorage.setItem(APP_STATE_KEY, JSON.stringify(snapshot));
     localStorage.setItem(APP_STATE_KEY + '_ts', String(savedAtMs));
@@ -17930,12 +18011,11 @@ async function saveAppState(){
     setSyncIndicator('Saved locally ' + new Date().toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}) + ' — connect Supabase to sync with the team');
     return;
   }
+  if(!session){
+    setSyncIndicator('Saved locally only — sign in to sync with the team');
+    return;
+  }
   try{
-    const { data: sessionData } = await supabaseClient.auth.getSession();
-    if(!sessionData || !sessionData.session){
-      setSyncIndicator('Saved locally only — sign in to sync with the team');
-      return;
-    }
     // updated_at is stamped from the SAME savedAtMs used for the local cache, on purpose —
     // loadAppState compares this against the local timestamp to decide which copy is
     // actually newer, so a slow or failed cloud write can never silently overwrite a more
@@ -17949,6 +18029,8 @@ async function saveAppState(){
       setSyncIndicator('Saved locally — cloud sync failed (' + error.message + ')');
       return;
     }
+    snapshotSyncedEntities(); // this push succeeded — PROJECTS/OPP_ESTIMATES now match the cloud
+    DELETED_PROJECT_IDS_PENDING_SYNC.clear(); // the cloud's copy no longer has these either now
     setSyncIndicator('Synced ' + new Date().toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}));
   } catch(e){
     console.warn('Supabase sync failed, data is still safe locally:', e);
