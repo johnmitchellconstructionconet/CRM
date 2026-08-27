@@ -3467,14 +3467,179 @@ function buildPlansDesignPanelHTML(p){
   const link = p.govisuallyLink || '';
   return `
     <div class="section-label-row"><div class="eyebrow">GoVisually Project</div></div>
-    <div class="panel"><div class="panel-body" style="padding:20px;">
-      <div class="hint" style="margin-bottom:14px;">Plans, renders, and markups for ${escapeHtmlLite(p.client)} now live in GoVisually — paste the project link below once, and it'll open straight there from here.</div>
+    <div class="panel" style="margin-bottom:22px;"><div class="panel-body" style="padding:20px;">
+      <div class="hint" style="margin-bottom:14px;">Plans, renders, and markups for ${escapeHtmlLite(p.client)} live in GoVisually while they're in progress — paste the project link below once, and it'll open straight there from here.</div>
       <label class="est-lbl">GoVisually Project Link</label>
       <input type="url" id="govisuallyLinkInput" value="${escapeHtmlLite(link)}" placeholder="https://app.govisually.com/..." onchange="setProjectGoVisuallyLink('${p.id}', this.value)">
       <div class="row" style="margin-top:16px;">
         ${link ? `<button class="btn btn-dark" onclick="window.open('${escapeHtmlLite(link)}','_blank')">Open in GoVisually →</button>` : `<span class="pill pill-ink">No link saved yet</span>`}
       </div>
-    </div></div>`;
+    </div></div>
+    ${buildFinalizedPlansPanelHTML(p)}`;
+}
+// ============================================================
+// FINALIZED PLANS & DRAWINGS — a separate library from the general Files tab, on purpose:
+// Files is explicitly for everything that ISN'T plans or renderings; this is exclusively
+// for the finished, approved sheets (architectural, structural, electrical, etc.) once
+// they're done — not the in-progress markup/review cycle, which stays in GoVisually above.
+// Same upload-with-a-form-and-tag pattern as Files, but a completely separate store and
+// tag list, so the two never mix.
+const PLAN_CATEGORY_STORAGE_KEY = 'planDrawing';
+let PLAN_DRAWING_CATEGORIES = ['Architectural', 'Structural', 'Electrical', 'Plumbing', 'Mechanical', 'Site Plan', 'Elevations', 'Other'];
+let PLAN_DRAWINGS_FILTER = 'All';
+function ensureProjectPlanDrawings(p){
+  if(!p.finalizedPlans) p.finalizedPlans = [];
+  return p.finalizedPlans;
+}
+function setPlanDrawingsFilter(cat){
+  PLAN_DRAWINGS_FILTER = cat;
+  renderProjectDetail();
+}
+function openUploadPlanDrawingModal(projectId){
+  document.getElementById('planUploadOverlay')?.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'planUploadOverlay';
+  overlay.style.cssText = 'position:fixed; inset:0; z-index:400; display:flex; align-items:center; justify-content:center; background:rgba(20,18,14,.55); padding:20px;';
+  overlay.innerHTML = `
+    <div class="modal-card" style="width:440px; background:#fff; border-radius:14px; padding:20px; box-shadow:0 20px 50px rgba(0,0,0,.25);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <div class="panel-title" style="margin-bottom:0;">Upload Finalized Plan / Drawing</div>
+        <span style="cursor:pointer; color:var(--ink-faint); font-size:20px;" onclick="document.getElementById('planUploadOverlay').remove()">&times;</span>
+      </div>
+      <label class="est-lbl">Title</label>
+      <input type="text" id="planTitleInput" placeholder="e.g. Foundation Plan — Rev 3">
+      <div class="field-grid" style="margin-top:10px;">
+        <div><label class="est-lbl">Category</label><select id="planCategoryInput">${PLAN_DRAWING_CATEGORIES.map(c => `<option>${escapeHtmlLite(c)}</option>`).join('')}</select></div>
+        <div><label class="est-lbl">Date</label><input type="date" id="planDateInput" value="${new Date().toISOString().slice(0,10)}"></div>
+      </div>
+      <label class="est-lbl" style="margin-top:10px; display:block;">File(s)</label>
+      <input type="file" id="planFileInput" multiple accept="application/pdf,image/*">
+      <div class="row" style="margin-top:18px; justify-content:flex-end; gap:8px;">
+        <button class="btn btn-outline" onclick="document.getElementById('planUploadOverlay').remove()">Cancel</button>
+        <button class="btn btn-dark" onclick="submitUploadPlanDrawing('${projectId}')">Upload</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.onclick = (e) => { if(e.target === overlay) overlay.remove(); };
+}
+async function submitUploadPlanDrawing(projectId){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const fileInput = document.getElementById('planFileInput');
+  const picked = Array.from(fileInput.files || []);
+  if(!picked.length){ alert('Choose at least one file.'); return; }
+  const titleInput = document.getElementById('planTitleInput').value.trim();
+  const category = document.getElementById('planCategoryInput').value;
+  const date = document.getElementById('planDateInput').value || new Date().toISOString().slice(0,10);
+  const plans = ensureProjectPlanDrawings(p);
+  for(let i=0; i<picked.length; i++){
+    const file = picked[i];
+    const dataUrl = await readFileAsDataUrl(file);
+    const title = titleInput ? (picked.length > 1 ? `${titleInput} (${i+1})` : titleInput) : file.name;
+    plans.push({ id: 'pd' + Date.now() + Math.random().toString(36).slice(2,6), name: file.name, title, dataUrl, category: category || 'Other', uploadedAt: date });
+  }
+  document.getElementById('planUploadOverlay')?.remove();
+  saveAppState(); renderProjectDetail();
+}
+function setPlanDrawingCategory(projectId, planId, category){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const plan = ensureProjectPlanDrawings(p).find(x => x.id === planId); if(!plan) return;
+  plan.category = category;
+  saveAppState(); renderProjectDetail();
+}
+function deletePlanDrawing(projectId, planId){
+  const p = PROJECTS[projectId]; if(!p) return;
+  if(!confirm('Delete this plan/drawing? This can\'t be undone.')) return;
+  p.finalizedPlans = ensureProjectPlanDrawings(p).filter(x => x.id !== planId);
+  saveAppState(); renderProjectDetail();
+}
+function openManagePlanTagsModal(){
+  document.getElementById('planTagsOverlay')?.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'planTagsOverlay';
+  overlay.style.cssText = 'position:fixed; inset:0; z-index:400; display:flex; align-items:center; justify-content:center; background:rgba(20,18,14,.55); padding:20px;';
+  overlay.innerHTML = `
+    <div class="modal-card" style="width:420px; background:#fff; border-radius:14px; padding:20px; box-shadow:0 20px 50px rgba(0,0,0,.25);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+        <div class="panel-title" style="margin-bottom:0;">Manage Plan &amp; Drawing Tags</div>
+        <span style="cursor:pointer; color:var(--ink-faint); font-size:20px;" onclick="document.getElementById('planTagsOverlay').remove()">&times;</span>
+      </div>
+      <div class="hint" style="margin-bottom:12px;">Shared across every project — separate from the general Files tags, since these are specifically for finalized plans and drawings.</div>
+      <div id="planTagsList"></div>
+      <div class="row" style="margin-top:12px; gap:8px;">
+        <input type="text" id="newPlanTagInput" placeholder="e.g. Landscape" onkeydown="if(event.key==='Enter') addPlanTag()">
+        <button class="btn btn-outline" onclick="addPlanTag()">+ Add</button>
+      </div>
+      <div class="row" style="margin-top:18px; justify-content:flex-end;">
+        <button class="btn btn-dark" onclick="document.getElementById('planTagsOverlay').remove(); renderProjectDetail();">Done</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.onclick = (e) => { if(e.target === overlay) overlay.remove(); };
+  renderPlanTagsList();
+}
+function renderPlanTagsList(){
+  const host = document.getElementById('planTagsList');
+  if(!host) return;
+  host.innerHTML = PLAN_DRAWING_CATEGORIES.map((cat, i) => `<div class="list-row" style="gap:8px;">
+    <input value="${escapeHtmlLite(cat)}" style="flex:1;" onchange="renamePlanTag(${i}, this.value)">
+    ${cat !== 'Other' ? `<span style="cursor:pointer; color:var(--rust); font-size:16px; padding:0 4px;" onclick="removePlanTag(${i})" title="Remove tag">&times;</span>` : ''}
+  </div>`).join('');
+}
+function addPlanTag(){
+  const input = document.getElementById('newPlanTagInput');
+  const name = input.value.trim();
+  if(!name) return;
+  if(PLAN_DRAWING_CATEGORIES.includes(name)){ alert('That tag already exists.'); return; }
+  PLAN_DRAWING_CATEGORIES.splice(PLAN_DRAWING_CATEGORIES.length - 1, 0, name);
+  input.value = '';
+  saveAppState(); renderPlanTagsList();
+}
+function renamePlanTag(index, newName){
+  const trimmed = newName.trim();
+  if(!trimmed){ renderPlanTagsList(); return; }
+  const oldName = PLAN_DRAWING_CATEGORIES[index];
+  if(oldName === trimmed) return;
+  PLAN_DRAWING_CATEGORIES[index] = trimmed;
+  Object.values(PROJECTS).forEach(p => {
+    (p.finalizedPlans || []).forEach(f => { if(f.category === oldName) f.category = trimmed; });
+  });
+  saveAppState(); renderPlanTagsList(); renderProjectDetail();
+}
+function removePlanTag(index){
+  const name = PLAN_DRAWING_CATEGORIES[index];
+  if(!confirm(`Remove the "${name}" tag? Plans already tagged with it move to "Other" — nothing gets deleted.`)) return;
+  PLAN_DRAWING_CATEGORIES.splice(index, 1);
+  Object.values(PROJECTS).forEach(p => {
+    (p.finalizedPlans || []).forEach(f => { if(f.category === name) f.category = 'Other'; });
+  });
+  saveAppState(); renderPlanTagsList(); renderProjectDetail();
+}
+function buildFinalizedPlansPanelHTML(p){
+  const plans = ensureProjectPlanDrawings(p);
+  const isImage = (name) => /\.(png|jpe?g|gif|webp|heic)$/i.test(name||'');
+  const filtered = PLAN_DRAWINGS_FILTER === 'All' ? plans : plans.filter(f => f.category === PLAN_DRAWINGS_FILTER);
+  const chips = ['All', ...PLAN_DRAWING_CATEGORIES].map(cat => {
+    const count = cat === 'All' ? plans.length : plans.filter(f => f.category === cat).length;
+    return `<span class="pill ${cat===PLAN_DRAWINGS_FILTER?'pill-ink':'pill-slate'}" style="cursor:pointer;" onclick="setPlanDrawingsFilter('${cat}')">${escapeHtmlLite(cat)}${count?` (${count})`:''}</span>`;
+  }).join('');
+  return `
+    <div class="section-label-row"><div class="eyebrow">Finalized Plans &amp; Drawings</div></div>
+    <div class="hint" style="margin-bottom:14px;">Approved, finished sheets only — architectural, structural, electrical, whatever's actually done. Work in progress, markups, and review cycles stay in GoVisually above; this is the record copy once it's final.</div>
+    <div class="section-label-row">
+      <div class="row" style="gap:8px; flex-wrap:wrap;">${chips}</div>
+      <div class="row" style="gap:8px;">
+        <span class="pill pill-slate" style="cursor:pointer;" onclick="openManagePlanTagsModal()">⚙ Manage Tags</span>
+        <button class="btn btn-dark" onclick="openUploadPlanDrawingModal('${p.id}')">+ Upload</button>
+      </div>
+    </div>
+    ${filtered.length ? `<div class="pf-grid">
+      ${filtered.map(f => `<div class="pf-card">
+        ${isImage(f.name) ? `<img src="${f.dataUrl}" class="pf-thumb" onclick="openFilePreview('${f.dataUrl}','${escapeHtmlLite(f.title||f.name).replace(/'/g,"\\'")}')">` : `<div class="pf-thumb pf-thumb-doc" onclick="openFilePreview('${f.dataUrl}','${escapeHtmlLite(f.title||f.name).replace(/'/g,"\\'")}')">📐</div>`}
+        <div class="pf-name" title="${escapeHtmlLite(f.title||f.name)}">${escapeHtmlLite(f.title||f.name)}</div>
+        <select class="pf-cat" onchange="setPlanDrawingCategory('${p.id}','${f.id}',this.value)">${PLAN_DRAWING_CATEGORIES.map(c => `<option ${c===f.category?'selected':''}>${escapeHtmlLite(c)}</option>`).join('')}</select>
+        <div class="pf-meta">${fmtNoteDate(f.uploadedAt)} <span style="cursor:pointer; color:var(--rust); float:right;" onclick="deletePlanDrawing('${p.id}','${f.id}')">&times;</span></div>
+      </div>`).join('')}
+    </div>` : `<div class="empty-row">${plans.length ? `Nothing tagged "${escapeHtmlLite(PLAN_DRAWINGS_FILTER)}" yet.` : 'No finalized plans or drawings uploaded yet.'}</div>`}`;
 }
 function setProjectGoVisuallyLink(projectId, url){
   const p = PROJECTS[projectId];
@@ -17429,7 +17594,7 @@ function buildAppSnapshot(){
     PARTNER_CATEGORIES, COMPANY_LOCATIONS, TEAM_MEMBERS, TEAM_ROSTER, CUSTOM_AUTOMATIONS,
     DEFAULT_TASK_ASSIGNEES, COMPANY_TEMPLATES, COMPANY_LOGO, COMPANY_LOGO_SIZE, CONTACTS,
     DRIP_CAMPAIGN_CONNECTION, PHASE_DESCRIPTIONS,
-    PROCESS_PHASES, ROLE_DEFAULT_ASSIGNEE, PROJECT_FILE_CATEGORIES,
+    PROCESS_PHASES, ROLE_DEFAULT_ASSIGNEE, PROJECT_FILE_CATEGORIES, PLAN_DRAWING_CATEGORIES,
     themeVars: captureThemeVars(),
   };
 }
@@ -17455,6 +17620,7 @@ function applyAppSnapshot(snap){
   if(snap.PROCESS_PHASES) PROCESS_PHASES = snap.PROCESS_PHASES;
   if(snap.ROLE_DEFAULT_ASSIGNEE) ROLE_DEFAULT_ASSIGNEE = snap.ROLE_DEFAULT_ASSIGNEE;
   if(snap.PROJECT_FILE_CATEGORIES) PROJECT_FILE_CATEGORIES = snap.PROJECT_FILE_CATEGORIES;
+  if(snap.PLAN_DRAWING_CATEGORIES) PLAN_DRAWING_CATEGORIES = snap.PLAN_DRAWING_CATEGORIES;
   if(snap.themeVars) applyThemeVars(snap.themeVars);
 }
 function setSyncIndicator(text){
