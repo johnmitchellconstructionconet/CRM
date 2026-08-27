@@ -1106,10 +1106,10 @@ select{cursor:pointer;}
 .duebadge-soon{background:var(--border); color:var(--ink-faint);}
 .hero-split{display:flex; gap:26px;}
 .hero-main{flex:1.5; min-width:0;}
-.hero-tasks-col{flex:1; min-width:0; border-left:1px solid var(--border-soft); padding-left:24px; display:flex; flex-direction:column; max-height:400px;}
-.hero-tasks-list{overflow-y:auto; flex:1; min-height:0;}
+.hero-tasks-col{flex:1; min-width:0; border-left:1px solid var(--border-soft); padding-left:24px;}
+.hero-tasks-list{max-height:260px; overflow-y:auto; overflow-x:hidden;}
 .hero-tasks-list .task-row-mini{padding:7px 0;}
-@media (max-width:820px){ .hero-split{flex-direction:column;} .hero-tasks-col{border-left:none; padding-left:0; border-top:1px solid var(--border-soft); padding-top:16px; max-height:none;} .hero-tasks-list{max-height:320px;} }
+@media (max-width:820px){ .hero-split{flex-direction:column;} .hero-tasks-col{border-left:none; padding-left:0; border-top:1px solid var(--border-soft); padding-top:16px;} .hero-tasks-list{max-height:300px;} }
 </style>
 </head>
 <body>
@@ -6451,7 +6451,71 @@ function printClarifRound(projectId, roundId){
 // Design tab, and dumping everything into one flat pile is exactly what tagging here is
 // meant to avoid. Every file gets a category so this stays a library, not a junk drawer.
 // ----
-const PROJECT_FILE_CATEGORIES = ['Design Discovery Form', 'Inspiration Photos', 'Reading Material', 'Notes', 'Other'];
+let PROJECT_FILE_CATEGORIES = ['Design Discovery Form', 'Inspiration Photos', 'Reading Material', 'Notes', 'Other'];
+function openManageFileTagsModal(projectId){
+  document.getElementById('fileTagsOverlay')?.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'fileTagsOverlay';
+  overlay.style.cssText = 'position:fixed; inset:0; z-index:400; display:flex; align-items:center; justify-content:center; background:rgba(20,18,14,.55); padding:20px;';
+  overlay.innerHTML = `
+    <div class="modal-card" style="width:420px; background:#fff; border-radius:14px; padding:20px; box-shadow:0 20px 50px rgba(0,0,0,.25);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+        <div class="panel-title" style="margin-bottom:0;">Manage File Tags</div>
+        <span style="cursor:pointer; color:var(--ink-faint); font-size:20px;" onclick="document.getElementById('fileTagsOverlay').remove()">&times;</span>
+      </div>
+      <div class="hint" style="margin-bottom:12px;">Shared across every project, not just this one — renaming a tag here updates it everywhere it's already been used.</div>
+      <div id="fileTagsList"></div>
+      <div class="row" style="margin-top:12px; gap:8px;">
+        <input type="text" id="newFileTagInput" placeholder="e.g. Site Photos" onkeydown="if(event.key==='Enter') addFileTag()">
+        <button class="btn btn-outline" onclick="addFileTag()">+ Add</button>
+      </div>
+      <div class="row" style="margin-top:18px; justify-content:flex-end;">
+        <button class="btn btn-dark" onclick="document.getElementById('fileTagsOverlay').remove(); renderProjectDetail();">Done</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.onclick = (e) => { if(e.target === overlay) overlay.remove(); };
+  renderFileTagsList();
+}
+function renderFileTagsList(){
+  const host = document.getElementById('fileTagsList');
+  if(!host) return;
+  host.innerHTML = PROJECT_FILE_CATEGORIES.map((cat, i) => `<div class="list-row" style="gap:8px;">
+    <input value="${escapeHtmlLite(cat)}" style="flex:1;" onchange="renameFileTag(${i}, this.value)">
+    ${cat !== 'Other' ? `<span style="cursor:pointer; color:var(--rust); font-size:16px; padding:0 4px;" onclick="removeFileTag(${i})" title="Remove tag">&times;</span>` : ''}
+  </div>`).join('');
+}
+function addFileTag(){
+  const input = document.getElementById('newFileTagInput');
+  const name = input.value.trim();
+  if(!name) return;
+  if(PROJECT_FILE_CATEGORIES.includes(name)){ alert('That tag already exists.'); return; }
+  PROJECT_FILE_CATEGORIES.splice(PROJECT_FILE_CATEGORIES.length - 1, 0, name); // keep "Other" last
+  input.value = '';
+  saveAppState(); renderFileTagsList();
+}
+function renameFileTag(index, newName){
+  const trimmed = newName.trim();
+  if(!trimmed) { renderFileTagsList(); return; }
+  const oldName = PROJECT_FILE_CATEGORIES[index];
+  if(oldName === trimmed) return;
+  PROJECT_FILE_CATEGORIES[index] = trimmed;
+  // Every file already tagged with the old name follows the rename, across every project —
+  // otherwise renaming a tag would silently orphan everything filed under the old name.
+  Object.values(PROJECTS).forEach(p => {
+    (p.files || []).forEach(f => { if(f.category === oldName) f.category = trimmed; });
+  });
+  saveAppState(); renderFileTagsList(); renderProjectDetail();
+}
+function removeFileTag(index){
+  const name = PROJECT_FILE_CATEGORIES[index];
+  if(!confirm(`Remove the "${name}" tag? Files already tagged with it move to "Other" — nothing gets deleted.`)) return;
+  PROJECT_FILE_CATEGORIES.splice(index, 1);
+  Object.values(PROJECTS).forEach(p => {
+    (p.files || []).forEach(f => { if(f.category === name) f.category = 'Other'; });
+  });
+  saveAppState(); renderFileTagsList(); renderProjectDetail();
+}
 let PROJECT_FILES_FILTER = 'All';
 function ensureProjectFiles(p){
   if(!p.files) p.files = [];
@@ -6534,7 +6598,10 @@ function buildProjectFilesTabHTML(p){
     <div class="hint" style="margin-bottom:14px;">General documents and photos for this project — the Design Discovery form, inspiration photos, reading material the client sent, loose notes. Plans and renderings live on the Plans &amp; Design tab instead, not here.</div>
     <div class="section-label-row">
       <div class="row" style="gap:8px; flex-wrap:wrap;">${chips}</div>
-      <button class="btn btn-dark" onclick="openUploadProjectFileModal('${p.id}')">+ Upload</button>
+      <div class="row" style="gap:8px;">
+        <span class="pill pill-slate" style="cursor:pointer;" onclick="openManageFileTagsModal('${p.id}')">⚙ Manage Tags</span>
+        <button class="btn btn-dark" onclick="openUploadProjectFileModal('${p.id}')">+ Upload</button>
+      </div>
     </div>
     ${filtered.length ? `<div class="pf-grid">
       ${filtered.map(f => `<div class="pf-card">
@@ -17362,7 +17429,7 @@ function buildAppSnapshot(){
     PARTNER_CATEGORIES, COMPANY_LOCATIONS, TEAM_MEMBERS, TEAM_ROSTER, CUSTOM_AUTOMATIONS,
     DEFAULT_TASK_ASSIGNEES, COMPANY_TEMPLATES, COMPANY_LOGO, COMPANY_LOGO_SIZE, CONTACTS,
     DRIP_CAMPAIGN_CONNECTION, PHASE_DESCRIPTIONS,
-    PROCESS_PHASES, ROLE_DEFAULT_ASSIGNEE,
+    PROCESS_PHASES, ROLE_DEFAULT_ASSIGNEE, PROJECT_FILE_CATEGORIES,
     themeVars: captureThemeVars(),
   };
 }
@@ -17387,6 +17454,7 @@ function applyAppSnapshot(snap){
   if(snap.PHASE_DESCRIPTIONS) PHASE_DESCRIPTIONS = snap.PHASE_DESCRIPTIONS;
   if(snap.PROCESS_PHASES) PROCESS_PHASES = snap.PROCESS_PHASES;
   if(snap.ROLE_DEFAULT_ASSIGNEE) ROLE_DEFAULT_ASSIGNEE = snap.ROLE_DEFAULT_ASSIGNEE;
+  if(snap.PROJECT_FILE_CATEGORIES) PROJECT_FILE_CATEGORIES = snap.PROJECT_FILE_CATEGORIES;
   if(snap.themeVars) applyThemeVars(snap.themeVars);
 }
 function setSyncIndicator(text){
