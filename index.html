@@ -1144,10 +1144,6 @@ select{cursor:pointer;}
     <div class="sidebar-scroll">
 
       <div class="nav-section">
-        <div class="nav-item active" data-page="dashboard">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
-          Dashboard
-        </div>
         <div class="nav-item" data-page="taskcenter">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M8 2v4M16 2v4M3.5 9h17"/><path d="M7.5 13.5l1.5 1.5 3-3M7.5 17.5l1.5 1.5 3-3"/></svg>
           Task Center
@@ -1160,7 +1156,7 @@ select{cursor:pointer;}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
           Follow-Ups
         </div>
-        <div class="nav-item" data-page="precon-dash">
+        <div class="nav-item active" data-page="precon-dash">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/></svg>
           Preconstruction
         </div>
@@ -1216,22 +1212,6 @@ select{cursor:pointer;}
       <div class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 8a6 6 0 1 1 12 0c0 3.5 1 5.5 2 7H4c1-1.5 2-3.5 2-7z"/><path d="M10 19a2 2 0 0 0 4 0"/></svg><div class="dot"></div></div>
     </div>
 
-    <!-- ===== DASHBOARD ===== -->
-    <div class="page active" id="page-dashboard">
-      <div class="page-header">
-        <div>
-          <div class="eyebrow">Dashboard</div>
-          <h1>Welcome back, John</h1>
-          <div class="sub">A clean baseline across the whole business — tell me what you want built out here next.</div>
-        </div>
-      </div>
-
-      <div class="stat-grid" id="dashAtAGlanceGrid" style="grid-template-columns:repeat(2,1fr); max-width:600px;"></div>
-
-      <div class="section-label-row" style="margin-top:26px;"><div class="eyebrow">Financial Overview</div></div>
-      <div id="dashFinancialGrid" class="stat-grid" style="grid-template-columns:repeat(2,1fr); max-width:600px;"></div>
-    </div>
-
     <!-- ===== TASK CENTER ===== -->
     <div class="page" id="page-taskcenter">
       <div class="page-header">
@@ -1266,7 +1246,7 @@ select{cursor:pointer;}
     </div>
 
     <!-- ===== PRECONSTRUCTION (merged dashboard + projects) ===== -->
-    <div class="page" id="page-precon-dash">
+    <div class="page active" id="page-precon-dash">
       <div class="page-header"><div><div class="eyebrow">Preconstruction</div><h1>Preconstruction</h1><div class="sub">Every project's exact position in the pipeline — one phase must finish before the next starts.</div></div>
         <button class="btn btn-dark" onclick="openAddProject()">+ Add Project</button>
       </div>
@@ -6926,25 +6906,27 @@ function buildClientPhaseDescriptionsHTML(){
   return `
     <div class="section-label-row"><div class="eyebrow">What Each Phase Means</div></div>
     <div class="panel" style="margin-bottom:24px;"><div class="panel-body" style="padding:6px 20px;">
-      ${WORKFLOW_PHASE_DEFS.map(pd => `<div class="list-row"><div><div class="main-txt">Phase ${pd.n} · ${escapeHtmlLite(pd.name)}</div>${PHASE_DESCRIPTIONS[pd.n] ? `<div class="sub-txt" style="margin-top:3px; max-width:640px;">${escapeHtmlLite(PHASE_DESCRIPTIONS[pd.n])}</div>` : ''}</div></div>`).join('')}
+      ${PROCESS_PHASES.map(ph => `<div class="list-row"><div><div class="main-txt">Phase ${ph.n} · ${escapeHtmlLite(ph.name)}</div>${PHASE_DESCRIPTIONS[ph.n] ? `<div class="sub-txt" style="margin-top:3px; max-width:640px;">${escapeHtmlLite(PHASE_DESCRIPTIONS[ph.n])}</div>` : ''}</div></div>`).join('')}
     </div></div>`;
 }
 function buildClientProgressScheduleHTML(project){
-  const actual = computePhaseSchedule(project);
-  const baseline = computeBaselinePhaseSchedule(project);
-  const known = actual.filter(s => s.start && s.end).concat((baseline||[]).filter(s => s.start && s.end));
+  const wf = ensureWorkflowModel(project);
+  if(!wf.baselineSet){
+    return `<div class="panel" style="margin-bottom:26px;"><div class="panel-body" style="padding:20px;"><div class="empty-row">The detailed schedule isn't set yet — check back soon.</div></div></div>`;
+  }
+  const ganttRows = computeProcessGanttRows(project);
+  const baselineRows = ganttRows.map(r => r.baselineRow).filter(Boolean);
+  const actualRows = ganttRows.map(r => r.actualRow).filter(Boolean);
+  const known = actualRows.concat(baselineRows);
   const overallStart = known.length ? known.reduce((a,b) => a.start < b.start ? a : b).start : null;
   const overallEnd = known.length ? known.reduce((a,b) => a.end > b.end ? a : b).end : null;
   const spanDays = (overallStart && overallEnd) ? Math.max(1, (new Date(overallEnd) - new Date(overallStart)) / 86400000) : 1;
   const timelineWidthPx = Math.max(600, Math.ceil(spanDays) * GANTT_PX_PER_DAY);
   const grid = buildMonthGridHTML(overallStart, overallEnd);
-  const rows = WORKFLOW_PHASE_DEFS.map(pd => {
-    const bRow = baseline ? baseline.find(b => b.n === pd.n) : null;
-    const aRow = actual.find(a => a.n === pd.n);
-    const ph = project.phases.find(x => x.n === pd.n);
-    const pct = ph && ph.milestones.length ? Math.round(ph.milestones.filter(m => m.status === 'done').length / ph.milestones.length * 100) : 0;
-    return buildGanttRowHTML(pd, bRow, aRow, overallStart, spanDays, pct, timelineWidthPx);
-  }).join('');
+  // No projectId passed to buildGanttRowHTML on purpose — that's what keeps the drag-to-
+  // reschedule and click-into-checklist interactions turned off for a client. Same real
+  // data as the internal Schedule tab, none of the internal editing controls.
+  const rows = ganttRows.map(r => buildGanttRowHTML({n:r.n, name:r.name}, r.baselineRow, r.actualRow, overallStart, spanDays, r.pct, timelineWidthPx)).join('');
   return `
     <div class="panel client-print-expand" style="margin-bottom:8px; overflow-x:auto;"><div class="panel-body" style="padding:20px 20px 16px; position:relative; min-width:${GANTT_LEFT_COL+GANTT_GAP+timelineWidthPx+GANTT_GAP+GANTT_RIGHT_COL}px;">
       <div style="display:flex; align-items:center; gap:${GANTT_GAP}px; height:34px; position:relative;">
@@ -6995,7 +6977,7 @@ function buildClientViewTabBarHTML(){
 // window inserts real formatted content directly into the email — not a link, not a
 // screenshot. Full schedule/plans/markup still need the link, since those need JS to work. ----
 function buildEmailSummaryHTML(p){
-  const currentPhaseDef = WORKFLOW_PHASE_DEFS.find(pd => pd.n === p.currentPhase);
+  const currentPhaseDef = phaseDef(p.currentPhase);
   const dPhase = daysInPhase(p);
   const dPrecon = daysInPreconstruction(p);
   const latestUpdate = (p.clientLogs || []).slice(-1)[0];
@@ -7067,7 +7049,7 @@ function buildClientProgressStatsHTML(project){
 }
 function buildClientProgressContentHTML(p){
   CLIENT_VIEW_ACTIVE_TAB = CLIENT_VIEW_ACTIVE_TAB || 'schedule';
-  const currentPhaseDef = WORKFLOW_PHASE_DEFS.find(pd => pd.n === p.currentPhase);
+  const currentPhaseDef = phaseDef(p.currentPhase);
   const logs = (p.clientLogs || []).slice().reverse();
   return `
     <div style="text-align:center; margin-bottom:28px;">
@@ -7769,7 +7751,6 @@ function renderProjectDetail(){
   const p = PROJECTS[CURRENT_PROJECT_ID];
   const host = document.getElementById('projectDetailHost');
   if(!p || !host) return;
-  const currentPhaseDef = WORKFLOW_PHASE_DEFS.find(pd => pd.n === p.currentPhase);
   const tabs = ['overview','clarifications','scopes','estimate','plans','proposals','files','activity'];
   const tabLabels = {overview:'Overview', clarifications:'Clarifications', scopes:'Scopes', estimate:'Estimate', plans:'Plans & Design', proposals:'Proposals & Contracts', files:'Files', activity:'Activity', clientview:'Client View'};
 
@@ -8637,8 +8618,8 @@ function renderFollowUpsPage(){
   });
   body.innerHTML = filtered.length ? filtered.map(({p,days}) => {
     const dueLabel = days < 0 ? `${Math.abs(days)}d overdue` : days === 0 ? 'Today' : `In ${days}d`;
-    const phaseDef = WORKFLOW_PHASE_DEFS.find(pd => pd.n === p.currentPhase);
-    const phaseLabel = p.currentPhase !== null ? `Phase ${p.currentPhase}${phaseDef ? ' · ' + escapeHtmlLite(phaseDef.name) : ''}` : 'Complete';
+    const projPhaseDef = phaseDef(p.currentPhase);
+    const phaseLabel = p.currentPhase !== null ? `Phase ${p.currentPhase}${projPhaseDef ? ' · ' + escapeHtmlLite(projPhaseDef.name) : ''}` : 'Complete';
     return `<tr style="cursor:pointer; ${days < 0 ? 'background:#FBEFEA;' : ''}" onclick="openProject('${p.id}')">
       <td class="name-cell">${escapeHtmlLite(p.name)}</td>
       <td>${escapeHtmlLite(p.nextFollowUpNote || 'Follow up')}</td>
