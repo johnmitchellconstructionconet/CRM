@@ -4982,6 +4982,21 @@ function setStepFieldForPhase(projectId, phaseN, stepId, field, val){
 // current yet — same Owner/Due editing as the current phase's Full Step List, just for any
 // phase you point at. Status is read-only here on purpose: whether a step is actually Ready
 // is decided by the sequential dependency engine, not by clicking around a chart. ----
+function setStepDaysForPhase(projectId, phaseN, stepId, days){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const wf = ensureWorkflowModel(p);
+  const stage = wf.stages.find(s => s.n === phaseN);
+  const st = getStepState(stage, stepId);
+  st.projectDays = parseInt(days, 10) || 1;
+  const oldFinish = stage.forecastFinish;
+  recalcPhaseDuesFromDays(p, phaseN);
+  const newFinish = stage.forecastFinish;
+  if(oldFinish && newFinish && newFinish !== oldFinish){
+    const deltaDays = Math.round((new Date(newFinish+'T00:00:00') - new Date(oldFinish+'T00:00:00')) / 86400000);
+    if(deltaDays) shiftPhaseAndDownstream(p, phaseN + 1, deltaDays);
+  }
+  saveAppState();
+}
 function openPhaseChecklistModal(projectId, phaseN){
   const p = PROJECTS[projectId]; if(!p) return;
   const wf = ensureWorkflowModel(p);
@@ -4992,13 +5007,15 @@ function openPhaseChecklistModal(projectId, phaseN){
   const statusClass = { 'Not Ready':'pill-slate', 'Ready':'pill-ink', 'In Progress':'pill-gold', 'Waiting':'pill-gold', 'In Revision':'pill-violet', 'Blocked':'pill-rust', 'Complete':'pill-jade', 'N/A':'pill-slate' };
   const rows = ph.steps.map((def,i) => {
     const st = getStepState(stage, def.id);
+    const days = st.projectDays != null ? st.projectDays : (def.days || 2);
     return `<tr>
       <td>${i+1}</td>
       <td class="name-cell">${escapeHtmlLite(def.title)}</td>
       <td style="font-size:11px; color:var(--ink-faint);">${escapeHtmlLite(def.role)}</td>
       <td><span class="pill ${statusClass[st.status]||'pill-ink'}">${st.status}${st.status==='In Revision' && st.revisionRounds ? ' · R' + st.revisionRounds : ''}</span></td>
       <td><select style="min-width:140px;" onchange="setStepFieldForPhase('${p.id}',${phaseN},'${def.id}','owner',this.value)">${stepOwnerOptions(def.role, st.owner || ROLE_DEFAULT_ASSIGNEE[def.role])}</select></td>
-      <td><input type="date" style="min-width:130px;" value="${st.due||''}" onchange="setStepFieldForPhase('${p.id}',${phaseN},'${def.id}','due',this.value); openPhaseChecklistModal('${p.id}',${phaseN}); renderProjectDetail();"></td>
+      <td><input type="number" min="1" value="${days}" style="max-width:56px; text-align:center;" onchange="setStepDaysForPhase('${p.id}',${phaseN},'${def.id}',this.value); openPhaseChecklistModal('${p.id}',${phaseN}); renderProjectDetail();"></td>
+      <td style="font-size:12px; color:var(--ink-faint);">${st.due ? fmtNoteDate(st.due) : '—'}</td>
     </tr>`;
   }).join('');
   const overlay = document.createElement('div');
@@ -5010,7 +5027,7 @@ function openPhaseChecklistModal(projectId, phaseN){
         <div class="panel-title" style="margin-bottom:0;">Phase ${ph.n} · ${escapeHtmlLite(ph.name)}${stage.status==='current'?' <span class="pill pill-slate" style="font-size:9px;">Current</span>':stage.status==='complete'?' <span class="pill pill-jade" style="font-size:9px;">Complete</span>':''}</div>
         <span style="cursor:pointer; color:var(--ink-faint); font-size:20px;" onclick="document.getElementById('phaseChecklistOverlay').remove()">&times;</span>
       </div>
-      <table><thead><tr><th>#</th><th>Step</th><th>Role</th><th>Status</th><th>Owner</th><th>Due</th></tr></thead><tbody>${rows}</tbody></table>
+      <table><thead><tr><th>#</th><th>Step</th><th>Role</th><th>Status</th><th>Owner</th><th>Days</th><th>Due</th></tr></thead><tbody>${rows}</tbody></table>
     </div>`;
   document.body.appendChild(overlay);
   overlay.onclick = (e) => { if(e.target === overlay) overlay.remove(); };
@@ -5751,6 +5768,41 @@ function buildWaitingBlockedSummaryHTML(p){
     </div>`;
 }
 // ---- Progressive disclosure, level 3: every step in this phase, collapsed by default. ----
+// ---- Recomputes every step's due date in a phase purely from day-counts (this step's
+// override if set, otherwise Company Settings' default), anchored off the previous phase's
+// finish (or the project's baseline start, for Phase 3). Mirrors the Manual Schedule
+// Builder's logic so both places work the same way — days in, dates out, never the other
+// way around. ----
+function recalcPhaseDuesFromDays(p, phaseN){
+  const wf = ensureWorkflowModel(p);
+  const ph = phaseDef(phaseN);
+  const stage = wf.stages.find(s => s.n === phaseN);
+  const prevStage = wf.stages.find(s => s.n === phaseN - 1);
+  let cursor = (prevStage && prevStage.forecastFinish) || wf.baselineStartDate || p.preconStartDate || new Date().toISOString().slice(0,10);
+  ph.steps.forEach(def => {
+    const st = getStepState(stage, def.id);
+    const days = st.projectDays != null ? st.projectDays : (def.days || 2);
+    cursor = addBusinessDays(cursor, days);
+    st.due = cursor;
+    st.forecastDue = cursor;
+  });
+  stage.forecastFinish = cursor;
+}
+function setStepDaysCurrentPhase(projectId, stepId, days){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const wf = ensureWorkflowModel(p);
+  const stage = wf.stages.find(s => s.n === wf.currentStageN);
+  const st = getStepState(stage, stepId);
+  st.projectDays = parseInt(days, 10) || 1;
+  const oldFinish = stage.forecastFinish;
+  recalcPhaseDuesFromDays(p, wf.currentStageN);
+  const newFinish = stage.forecastFinish;
+  if(oldFinish && newFinish && newFinish !== oldFinish){
+    const deltaDays = Math.round((new Date(newFinish+'T00:00:00') - new Date(oldFinish+'T00:00:00')) / 86400000);
+    if(deltaDays) shiftPhaseAndDownstream(p, wf.currentStageN + 1, deltaDays);
+  }
+  saveAppState(); renderProjectDetail();
+}
 function buildFullActionListHTML(p){
   const wf = ensureWorkflowModel(p);
   const ph = phaseDef(wf.currentStageN);
@@ -5758,17 +5810,19 @@ function buildFullActionListHTML(p){
   const stage = wf.stages.find(s=>s.n===wf.currentStageN);
   const statusClass = { 'Not Ready':'pill-slate', 'Ready':'pill-ink', 'In Progress':'pill-gold', 'Waiting':'pill-gold', 'In Revision':'pill-violet', 'Blocked':'pill-rust', 'Complete':'pill-jade', 'N/A':'pill-slate' };
   return `<div class="section-label-row" style="margin-top:20px; cursor:pointer;" onclick="toggleFullActionList()"><div class="eyebrow">${CC_STAGE_OPEN ? '▾' : '▸'} Full Step List — Phase ${ph.n} · ${escapeHtmlLite(ph.name)}</div></div>
-    ${CC_STAGE_OPEN ? `<table><thead><tr><th>#</th><th>Step</th><th>Role</th><th>Status</th><th>Owner</th><th>Due</th></tr></thead><tbody>
+    ${CC_STAGE_OPEN ? `<div class="hint" style="margin-bottom:8px;">Days pull from Company Settings' typical duration by default — adjust one just for this project and everything after it recalculates automatically.</div>
+    <table><thead><tr><th>#</th><th>Step</th><th>Role</th><th>Status</th><th>Owner</th><th>Days</th><th>Due</th></tr></thead><tbody>
       ${ph.steps.map((def, i) => {
         const a = getStepState(stage, def.id);
-        const dueVal = a.due || a.forecastDue || '';
+        const days = a.projectDays != null ? a.projectDays : (def.days || 2);
         return `<tr>
           <td>${i+1}</td>
           <td class="name-cell">${escapeHtmlLite(def.title)}</td>
           <td style="font-size:11.5px; color:var(--ink-faint);">${escapeHtmlLite(def.role)}</td>
           <td><span class="pill ${statusClass[a.status]||'pill-ink'}">${a.status}${a.status==='In Revision' && a.revisionRounds ? ' · R' + a.revisionRounds : ''}</span></td>
           <td><select style="min-width:150px;" onchange="setStepField('${p.id}','${def.id}','owner',this.value)">${stepOwnerOptions(def.role, a.owner || ROLE_DEFAULT_ASSIGNEE[def.role])}</select></td>
-          <td><input type="date" style="min-width:135px;" value="${dueVal}" onchange="setStepField('${p.id}','${def.id}','due',this.value)"></td>
+          <td><input type="number" min="1" value="${days}" style="max-width:60px; text-align:center;" title="Business days for this step" onchange="setStepDaysCurrentPhase('${p.id}','${def.id}',this.value)"></td>
+          <td style="font-size:12px; color:var(--ink-faint);">${a.due ? fmtNoteDate(a.due) : '—'}</td>
         </tr>`;
       }).join('')}
     </tbody></table>` : ''}`;
