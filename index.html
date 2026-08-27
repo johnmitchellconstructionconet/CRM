@@ -912,6 +912,9 @@ input:focus, select:focus, textarea:focus{
   outline:none; border-color:var(--taupe-dark);
 }
 input[type="checkbox"], input[type="radio"]{ width:auto; }
+/* Plain number, no up/down spinner — used throughout for day-counts, business-day fields, etc. */
+input[type="number"]{ -moz-appearance:textfield; appearance:textfield; }
+input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button{ -webkit-appearance:none; margin:0; }
 input[type="file"]{
   padding:8px 10px; border-style:dashed; font-size:12.5px; color:var(--ink-soft); cursor:pointer;
 }
@@ -4712,6 +4715,30 @@ function getStepState(stage, stepId){
   return stage.steps[stepId];
 }
 function phaseDef(n){ return PROCESS_PHASES.find(ph => ph.n === n); }
+// ---- The single source of truth for "how many typical business days does this step take."
+// Looks the step up fresh from PROCESS_PHASES (Company Settings → Preconstruction Process)
+// by phase number + step id every time, rather than trusting whatever closure variable
+// happened to be passed around — every place that shows or computes a step's day-count
+// (Full Step List, the Phase Checklist modal, the Manual Schedule Builder) calls this
+// instead of inlining its own fallback logic, so there's exactly one place this can go wrong. ----
+function getCompanySettingsDays(phaseN, stepId){
+  const ph = PROCESS_PHASES.find(p => p.n === phaseN);
+  if(!ph) return 2;
+  const def = ph.steps.find(s => s.id === stepId);
+  const raw = def ? def.days : null;
+  const parsed = parseInt(raw, 10);
+  return (Number.isFinite(parsed) && parsed > 0) ? parsed : 2;
+}
+// A project can override a step's day-count just for itself (set via the Days field on any
+// of the three views above) without touching the Company Settings default used by every
+// other project. This resolves which one actually applies right now.
+function getEffectiveStepDays(stage, phaseN, stepId){
+  const st = stage.steps[stepId];
+  const override = st ? st.projectDays : null;
+  const parsedOverride = parseInt(override, 10);
+  if(Number.isFinite(parsedOverride) && parsedOverride > 0) return parsedOverride;
+  return getCompanySettingsDays(phaseN, stepId);
+}
 // ---- Baseline schedule generation — the frozen plan against everything else is measured.
 // Reuses the existing STANDARD_SCHEDULE_TEMPLATE (Company Settings → Standard Schedule
 // Template) so there's one typical-duration source for both the legacy and new systems,
@@ -5007,7 +5034,7 @@ function openPhaseChecklistModal(projectId, phaseN){
   const statusClass = { 'Not Ready':'pill-slate', 'Ready':'pill-ink', 'In Progress':'pill-gold', 'Waiting':'pill-gold', 'In Revision':'pill-violet', 'Blocked':'pill-rust', 'Complete':'pill-jade', 'N/A':'pill-slate' };
   const rows = ph.steps.map((def,i) => {
     const st = getStepState(stage, def.id);
-    const days = st.projectDays != null ? st.projectDays : (def.days || 2);
+    const days = getEffectiveStepDays(stage, phaseN, def.id);
     return `<tr>
       <td>${i+1}</td>
       <td class="name-cell">${escapeHtmlLite(def.title)}</td>
@@ -5116,7 +5143,7 @@ function computeCumulativeDates(p, startDate){
     const stage = wf.stages.find(s => s.n === ph.n);
     ph.steps.forEach(def => {
       const st = getStepState(stage, def.id);
-      const days = (st.projectDays != null ? st.projectDays : def.days) || 2;
+      const days = getEffectiveStepDays(stage, ph.n, def.id);
       cursor = addBusinessDays(cursor, days);
       result[def.id] = cursor;
     });
@@ -5168,7 +5195,7 @@ function buildManualScheduleBuilderHTML(p){
     const stage = wf.stages.find(s => s.n === ph.n);
     const stepRows = ph.steps.map((def, i) => {
       const st = getStepState(stage, def.id);
-      const days = st.projectDays != null ? st.projectDays : (def.days || 2);
+      const days = getEffectiveStepDays(stage, ph.n, def.id);
       return `<tr>
         <td>${i+1}</td>
         <td class="name-cell">${escapeHtmlLite(def.title)}</td>
@@ -5781,7 +5808,7 @@ function recalcPhaseDuesFromDays(p, phaseN){
   let cursor = (prevStage && prevStage.forecastFinish) || wf.baselineStartDate || p.preconStartDate || new Date().toISOString().slice(0,10);
   ph.steps.forEach(def => {
     const st = getStepState(stage, def.id);
-    const days = st.projectDays != null ? st.projectDays : (def.days || 2);
+    const days = getEffectiveStepDays(stage, phaseN, def.id);
     cursor = addBusinessDays(cursor, days);
     st.due = cursor;
     st.forecastDue = cursor;
@@ -5814,7 +5841,7 @@ function buildFullActionListHTML(p){
     <table><thead><tr><th>#</th><th>Step</th><th>Role</th><th>Status</th><th>Owner</th><th>Days</th><th>Due</th></tr></thead><tbody>
       ${ph.steps.map((def, i) => {
         const a = getStepState(stage, def.id);
-        const days = a.projectDays != null ? a.projectDays : (def.days || 2);
+        const days = getEffectiveStepDays(stage, ph.n, def.id);
         return `<tr>
           <td>${i+1}</td>
           <td class="name-cell">${escapeHtmlLite(def.title)}</td>
