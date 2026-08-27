@@ -18005,13 +18005,6 @@ function setSyncIndicator(text){
 let SAVE_IN_PROGRESS = false;
 let SAVE_QUEUED_AGAIN = false;
 async function saveAppState(){
-  if(!DATA_LOAD_CONFIRMED){
-    // Nothing real has been loaded yet — this could still be the hardcoded demo data.
-    // Refusing to save anything until loadAppState() confirms a real result is what
-    // prevents a rough deploy from ever overwriting real project data with seed data.
-    console.warn('saveAppState skipped — no confirmed data load yet (still on demo data, or load is still in progress)');
-    return;
-  }
   if(SAVE_IN_PROGRESS){
     SAVE_QUEUED_AGAIN = true;
     return;
@@ -18033,6 +18026,21 @@ async function saveAppState(){
 // (e.g. right as the tab closes), never as the source of truth once Supabase is connected. ----
 async function saveAppStateInner(){
   const savedAtMs = Date.now();
+  // The local backup below is always safe to write — it's just this one browser's own
+  // scratch copy. Everything past this point touches the SHARED Supabase table, which is
+  // the one place a bad load state could actually do damage (pushing hardcoded demo data
+  // over real, shared project data for everyone). So the one and only thing gated on
+  // DATA_LOAD_CONFIRMED is reaching out to Supabase at all — never the local save, and
+  // never anything the user is doing right now. Once a real load succeeds this never
+  // triggers again for the rest of the session.
+  if(!DATA_LOAD_CONFIRMED){
+    try{
+      localStorage.setItem(APP_STATE_KEY, JSON.stringify(buildAppSnapshot()));
+      localStorage.setItem(APP_STATE_KEY + '_ts', String(savedAtMs));
+    } catch(e){ console.warn('Local cache save failed:', e); }
+    setSyncIndicator('Saved locally — waiting to confirm a real data load before syncing to the team');
+    return;
+  }
   let session = null;
   if(SUPABASE_CONFIGURED && supabaseClient){
     try{
@@ -18182,7 +18190,7 @@ function resetToDemoData(){
 // Autosave on an interval and on the way out — covers every mutation everywhere in the
 // app without needing a save call hand-added to every single edit function.
 setInterval(saveAppState, 4000);
-window.addEventListener('beforeunload', () => { if(!DATA_LOAD_CONFIRMED) return; try{ localStorage.setItem(APP_STATE_KEY, JSON.stringify(buildAppSnapshot())); localStorage.setItem(APP_STATE_KEY + '_ts', String(Date.now())); }catch(e){} });
+window.addEventListener('beforeunload', () => { try{ localStorage.setItem(APP_STATE_KEY, JSON.stringify(buildAppSnapshot())); localStorage.setItem(APP_STATE_KEY + '_ts', String(Date.now())); }catch(e){} });
 document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden') saveAppState(); });
 
 const CLIENT_VIEW_PROJECT_ID = new URLSearchParams(location.search).get('client_project');
