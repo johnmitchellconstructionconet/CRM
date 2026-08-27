@@ -1710,7 +1710,11 @@ const PHASE_BLURB = {
   'Lost Lead': {desc:'This lead is no longer active.', next:'No action needed unless they reach back out.'},
   'Preconstruction Agreement Signed': {desc:'Sold — this is now a real project, tracked entirely in Preconstruction.', next:'Everything from here forward happens on the project itself, not here.'}
 };
-const TODAY = new Date('2026-08-12');
+// The app's sense of "today" — was hardcoded to a fixed test date (2026-08-12), which meant
+// every overdue flag, days-in-phase count, schedule variance, and the Gantt's today-line was
+// silently anchored to that fake date instead of real time passing. Now the actual date,
+// normalized to local midnight the same way the rest of the app already expects.
+const TODAY = new Date(new Date().toDateString());
 function getOpp(id){ return OPPORTUNITIES.find(o => o.id === id); }
 // ==================== TASK CENTER ====================
 // Every task lives on an OPP_ESTIMATES entry, keyed either by a Sales opportunity id or
@@ -5584,8 +5588,9 @@ function buildTodayLineHTML(overallStart, overallEnd, timelineLeftPx, timelineWi
   const today = new Date(TODAY);
   if(today < start || today > end) return '';
   const leftPx = timelineLeftPx + ((today - start) / 86400000 / totalDays) * timelineWidthPx;
+  const label = today.toLocaleDateString(undefined, {month:'short', day:'numeric'});
   return `<div style="position:absolute; left:${leftPx}px; top:0; bottom:0; width:2px; background:var(--rust); z-index:5; pointer-events:none;">
-    <span style="position:absolute; top:-2px; left:4px; font-size:9px; font-weight:700; color:var(--rust); white-space:nowrap; font-family:'Montserrat',sans-serif; background:var(--paper); padding:0 3px 0 0;">TODAY</span>
+    <span style="position:absolute; top:-2px; left:4px; font-size:9px; font-weight:700; color:var(--rust); white-space:nowrap; font-family:'Montserrat',sans-serif; background:var(--paper); padding:0 3px 0 0;">TODAY · ${label}</span>
   </div>`;
 }
 function buildGanttRowHTML(phaseDef, baselineRow, actualRow, overallStart, spanDays, progressPct, timelineWidthPx, projectId){
