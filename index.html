@@ -1226,14 +1226,10 @@ select{cursor:pointer;}
         </div>
       </div>
 
-      <div class="section-label-row"><div class="eyebrow">Preconstruction — Where Every Job Stands</div></div>
-      <div class="hint" style="margin-bottom:10px;">Every active project, its current phase, whether it's on pace or overdue, and what actually happens next — filled in once here, and it shows the same everywhere.</div>
-      <div id="dashPreconStatusTable" style="margin-bottom:28px;"></div>
-
-      <div class="stat-grid" id="dashAtAGlanceGrid" style="grid-template-columns:repeat(4,1fr);"></div>
+      <div class="stat-grid" id="dashAtAGlanceGrid" style="grid-template-columns:repeat(2,1fr); max-width:600px;"></div>
 
       <div class="section-label-row" style="margin-top:26px;"><div class="eyebrow">Financial Overview</div></div>
-      <div id="dashFinancialGrid" class="stat-grid" style="grid-template-columns:repeat(4,1fr);"></div>
+      <div id="dashFinancialGrid" class="stat-grid" style="grid-template-columns:repeat(2,1fr); max-width:600px;"></div>
     </div>
 
     <!-- ===== TASK CENTER ===== -->
@@ -7312,26 +7308,13 @@ function renderDashboardPreconStatus(){
     </div></div>`}`;
 }
 function renderDashboardAtAGlance(){
-  renderDashboardPreconStatus();
   const grid = document.getElementById('dashAtAGlanceGrid');
   if(!grid) return;
   const overdueFollowUps = Object.values(PROJECTS).filter(p => p.nextFollowUpDate && new Date(p.nextFollowUpDate+'T00:00:00') < TODAY).length;
   const activeProjects = Object.values(PROJECTS).filter(p => p.currentPhase !== null).length;
-  const needsAction = Object.values(PROJECTS).filter(p => {
-    const t = getActiveTaskForProject(p);
-    return t && (!t.milestone.assignee || (t.days !== null && t.days > 10));
-  }).length;
-  const readyForProduction = Object.values(PROJECTS).filter(p => p.currentPhase === null).length;
-  // A newly identified relationship needs action until a call/coffee/meeting is on the books —
-  // scheduling one (and pushing it to the calendar from there) is what clears this.
-  const newRelsNeedingAction = RELATIONSHIP_PARTNERS.filter(p => p.stage === 'New Relations Identified' && !(p.meetings && p.meetings.length)).length;
-
   const cards = [
     { num: overdueFollowUps, lbl: 'Overdue Follow-Ups', dest: "goPage('followups')", cls: overdueFollowUps ? 'warn' : '' },
     { num: activeProjects, lbl: 'Active Precon Projects', dest: "goPage('precon-dash')", cls:'' },
-    { num: needsAction, lbl: 'Precon Needs Action', dest: "goPage('precon-dash')", cls: needsAction ? 'warn' : '' },
-    { num: readyForProduction, lbl: 'Ready for Production', dest: "goPage('precon-dash')", cls:'good' },
-    { num: newRelsNeedingAction, lbl: 'New Relationships Needing Action', dest: "goPage('relationships')", cls: newRelsNeedingAction ? 'warn' : 'good' },
   ];
   grid.innerHTML = cards.map(c => `<div class="stat-card" style="cursor:pointer;" onclick="${c.dest}"><div class="num" ${c.cls==='warn'?'style="color:var(--rust);"':''}>${c.num}</div><div class="lbl">${c.lbl}</div><div class="delta ${c.cls}">Click to view</div></div>`).join('');
 }
@@ -7341,19 +7324,8 @@ function renderDashboardFinancials(){
     const metrics = [
       { num: fmtMoney(computePreConFeeSoldVolume()), lbl: 'Precon Fee Sold Volume', delta: 'Across ' + Object.keys(PROJECTS).length + ' signed projects — click to view', cls:'good', dest:"goPage('precon-dash')" },
       { num: fmtMoney(computeJobSoldVolume()), lbl: 'Job Sold Volume', delta: 'Construction contracts signed — click to view', cls:'good', dest:"goPage('precon-dash')" },
-      { num: computeAvgDaysInPrecon(), lbl: 'Average Days in Precon', delta: 'Across all active projects — click to view', dest:"goPage('precon-dash')" },
     ];
     grid.innerHTML = metrics.map(m => `<div class="stat-card" style="cursor:pointer;" onclick="${m.dest}"><div class="num" ${m.cls==='warn'?'style="color:var(--rust);"':''}>${m.num}</div><div class="lbl">${m.lbl}</div><div class="delta ${m.cls||''}">${m.delta}</div></div>`).join('');
-  }
-  const stageHost = document.getElementById('stageChartHost');
-  if(stageHost){
-    const data = stageDistributionData();
-    stageHost.innerHTML = `${buildPieChartSVG(data)}<div>${buildLegendHTML(data)}</div>`;
-  }
-  const typeHost = document.getElementById('typeChartHost');
-  if(typeHost){
-    const data = projectTypeDistributionData();
-    typeHost.innerHTML = `${buildPieChartSVG(data)}<div>${buildLegendHTML(data)}</div>`;
   }
 }
 function getActiveTaskForProject(p){
