@@ -4503,14 +4503,19 @@ function renderProcessEditorPanel(){
         <span class="pill pill-slate" style="margin-left:auto; font-size:10px;">${totalDays} typical business days total</span>
       </div>
       ${ph.steps.map((step, i) => `
-        <div class="list-row" style="gap:8px; align-items:center;">
+        <div class="list-row" style="gap:8px; align-items:center; flex-wrap:wrap;">
           <span style="color:var(--ink-faint); font-size:12px; width:18px; flex-shrink:0;">${i+1}.</span>
           <input value="${escapeHtmlLite(step.title)}" style="flex:2; min-width:180px;" onchange="setProcessStepField(${ph.n},'${step.id}','title',this.value)">
           <input value="${escapeHtmlLite(step.role)}" placeholder="Role" style="max-width:150px;" onchange="setProcessStepField(${ph.n},'${step.id}','role',this.value)">
           <input type="number" min="1" value="${step.days||2}" title="Typical days" style="max-width:64px; text-align:center;" onchange="setProcessStepField(${ph.n},'${step.id}','days',parseInt(this.value,10)||1)">
           <label style="display:flex; align-items:center; gap:4px; font-size:10.5px; color:var(--ink-faint); white-space:nowrap; cursor:pointer;" title="Lets this step be sent back for revision (e.g. plans or renderings that come back from the Architect/Designer needing changes) instead of just Complete/Blocked/Waiting">
-            <input type="checkbox" ${step.revisable?'checked':''} onchange="setProcessStepField(${ph.n},'${step.id}','revisable',this.checked)"> Can Revise
+            <input type="checkbox" ${step.revisable?'checked':''} onchange="setProcessStepField(${ph.n},'${step.id}','revisable',this.checked); renderProcessEditorPanel();"> Can Revise
           </label>
+          ${step.revisable ? `<span style="font-size:10.5px; color:var(--ink-faint);">reverts to</span>
+          <select style="max-width:220px;" onchange="setProcessStepField(${ph.n},'${step.id}','revisesStepId',this.value)">
+            <option value="">— pick the step it goes back to —</option>
+            ${ph.steps.filter(s2 => s2.id !== step.id).map(s2 => `<option value="${s2.id}" ${step.revisesStepId===s2.id?'selected':''}>${escapeHtmlLite(s2.title)}</option>`).join('')}
+          </select>` : ''}
           <button class="btn btn-outline btn-sm" ${i===0?'disabled':''} onclick="moveProcessStep(${ph.n},'${step.id}',-1)" title="Move up">↑</button>
           <button class="btn btn-outline btn-sm" ${i===ph.steps.length-1?'disabled':''} onclick="moveProcessStep(${ph.n},'${step.id}',1)" title="Move down">↓</button>
           <span style="cursor:pointer; color:var(--rust); font-size:16px; padding:0 4px;" onclick="removeProcessStep(${ph.n},'${step.id}')" title="Remove step">&times;</span>
@@ -4796,12 +4801,17 @@ function recomputeStage(p){
   if(!ph || !stage) return;
   ph.steps.forEach((def, i) => {
     const st = getStepState(stage, def.id);
+    const prev = i === 0 ? null : ph.steps[i-1];
+    const depClear = !prev || (stage.steps[prev.id] && (stage.steps[prev.id].status === 'Complete' || stage.steps[prev.id].status === 'N/A'));
     if(st.status === 'Not Ready' || st.status === 'Ready'){
-      const prev = i === 0 ? null : ph.steps[i-1];
-      const depClear = !prev || (stage.steps[prev.id] && (stage.steps[prev.id].status === 'Complete' || stage.steps[prev.id].status === 'N/A'));
       // Nothing goes Ready without a baseline schedule — the schedule comes first, always,
       // not just for the first step but for every step in every phase.
       st.status = (wf.baselineSet && depClear) ? 'Ready' : 'Not Ready';
+    } else if(st.status === 'In Revision' && depClear){
+      // The parent step (and anything reset between it and here) has been redone — this
+      // review step is unblocked again. It never demotes to Not Ready on its own; it only
+      // ever moves forward once the reworked chain actually comes back through.
+      st.status = 'Ready';
     }
   });
   const allDone = ph.steps.every(def => {
@@ -4971,7 +4981,7 @@ function openPhaseChecklistModal(projectId, phaseN){
       <td>${i+1}</td>
       <td class="name-cell">${escapeHtmlLite(def.title)}</td>
       <td style="font-size:11px; color:var(--ink-faint);">${escapeHtmlLite(def.role)}</td>
-      <td><span class="pill ${statusClass[st.status]||'pill-ink'}">${st.status}</span></td>
+      <td><span class="pill ${statusClass[st.status]||'pill-ink'}">${st.status}${st.status==='In Revision' && st.revisionRounds ? ' · R' + st.revisionRounds : ''}</span></td>
       <td><select style="min-width:140px;" onchange="setStepFieldForPhase('${p.id}',${phaseN},'${def.id}','owner',this.value)">${stepOwnerOptions(def.role, st.owner || ROLE_DEFAULT_ASSIGNEE[def.role])}</select></td>
       <td><input type="date" style="min-width:130px;" value="${st.due||''}" onchange="setStepFieldForPhase('${p.id}',${phaseN},'${def.id}','due',this.value); openPhaseChecklistModal('${p.id}',${phaseN}); renderProjectDetail();"></td>
     </tr>`;
@@ -5603,7 +5613,7 @@ function buildHeroInnerHTML(p){
     if(revising.length){
       const r = revising[0];
       return { cls:'hero-revision', html: `
-        <div class="hero-label">Phase ${ph.n} · ${escapeHtmlLite(ph.name)} — In Revision</div>
+        <div class="hero-label">Phase ${ph.n} · ${escapeHtmlLite(ph.name)} — In Revision${r.a.revisionRounds ? ` (Round ${r.a.revisionRounds})` : ''}</div>
         <div class="hero-title">${escapeHtmlLite(r.def.title)}</div>
         <div class="hero-meta">${r.a.revisionParty ? `With <b>${escapeHtmlLite(r.a.revisionParty)}</b> for revision` : 'Sent back for revision'}${r.a.revisionExpected ? ` · expected back ${escapeHtmlLite(r.a.revisionExpected)}` : ''}${r.a.revisionNote ? ` — ${escapeHtmlLite(r.a.revisionNote)}` : ''}</div>
         <div class="row" style="margin-top:12px; gap:8px;">
@@ -5677,7 +5687,7 @@ function buildWaitingBlockedSummaryHTML(p){
   return `<div class="section-label-row" style="margin-top:18px;"><div class="eyebrow">Everything Else Outstanding This Phase</div></div>
     <div class="readylist">
       ${blocked.map(d => `<div class="readyrow" style="border-left:3px solid var(--rust); cursor:default;"><span>🔴 ${escapeHtmlLite(d.title)}${stage.steps[d.id].blockerNote ? ' — ' + escapeHtmlLite(stage.steps[d.id].blockerNote) : ''}</span></div>`).join('')}
-      ${revising.map(d => `<div class="readyrow" style="border-left:3px solid #7a5ea8; cursor:default;"><span>🟣 ${escapeHtmlLite(d.title)}${stage.steps[d.id].revisionParty ? ' — with ' + escapeHtmlLite(stage.steps[d.id].revisionParty) + ' for revision' : ' — sent back for revision'}</span></div>`).join('')}
+      ${revising.map(d => { const rst = stage.steps[d.id]; const rounds = rst.revisionRounds || 1; return `<div class="readyrow" style="border-left:3px solid #7a5ea8; cursor:default;"><span>🟣 ${escapeHtmlLite(d.title)}${rst.revisionParty ? ' — with ' + escapeHtmlLite(rst.revisionParty) + ' for revision' : ' — sent back for revision'} <span class="pill pill-violet" style="font-size:9px;">Round ${rounds}</span></span></div>`; }).join('')}
       ${waiting.map(d => `<div class="readyrow" style="border-left:3px solid #c9a868; cursor:default;"><span>🟡 ${escapeHtmlLite(d.title)}${stage.steps[d.id].waitingParty ? ' — waiting on ' + escapeHtmlLite(stage.steps[d.id].waitingParty) : ''}</span></div>`).join('')}
     </div>`;
 }
@@ -5697,7 +5707,7 @@ function buildFullActionListHTML(p){
           <td>${i+1}</td>
           <td class="name-cell">${escapeHtmlLite(def.title)}</td>
           <td style="font-size:11.5px; color:var(--ink-faint);">${escapeHtmlLite(def.role)}</td>
-          <td><span class="pill ${statusClass[a.status]||'pill-ink'}">${a.status}</span></td>
+          <td><span class="pill ${statusClass[a.status]||'pill-ink'}">${a.status}${a.status==='In Revision' && a.revisionRounds ? ' · R' + a.revisionRounds : ''}</span></td>
           <td><select style="min-width:150px;" onchange="setStepField('${p.id}','${def.id}','owner',this.value)">${stepOwnerOptions(def.role, a.owner || ROLE_DEFAULT_ASSIGNEE[def.role])}</select></td>
           <td><input type="date" style="min-width:135px;" value="${dueVal}" onchange="setStepField('${p.id}','${def.id}','due',this.value)"></td>
         </tr>`;
@@ -5731,11 +5741,17 @@ function submitMarkWaiting(projectId, stepId){
 // changes. Only offered on steps flagged "Can Revise" in Company Settings, since this
 // doesn't apply to most steps in the process. ----
 function openMarkRevision(projectId, stepId){
+  const p = PROJECTS[projectId]; if(!p) return;
+  const wf = ensureWorkflowModel(p);
+  const ph = phaseDef(wf.currentStageN);
+  const def = ph.steps.find(s => s.id === stepId);
+  const parentDef = def && def.revisesStepId ? ph.steps.find(s => s.id === def.revisesStepId) : null;
   openQuickOverlay(`
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
       <h3 style="font-family:'Space Grotesk',sans-serif; font-size:18px;">Send Back for Revision</h3>
       <span style="cursor:pointer; color:var(--ink-faint); font-size:20px;" onclick="closeQuickOverlay()">&times;</span>
     </div>
+    ${parentDef ? `<div class="hint" style="margin-bottom:12px;">This reopens <b>"${escapeHtmlLite(parentDef.title)}"</b> — that step (and anything between it and this one) resets so the reworked version comes back through properly. This step stays flagged "In Revision" until it does.</div>` : `<div class="hint" style="margin-bottom:12px;">No parent step is configured for this one (Company Settings → Preconstruction Process). This will just flag it as In Revision without reopening anything earlier.</div>`}
     <label class="est-lbl">With</label>
     <select id="rvParty"><option>Architect</option><option>Designer</option><option>Estimator</option></select>
     <label class="est-lbl" style="margin-top:12px;">What needs to change?</label>
@@ -5748,12 +5764,42 @@ function openMarkRevision(projectId, stepId){
     </div>
   `);
 }
+// ---- The actual loop-back: reopens the configured parent step and resets everything
+// between it and this review step, so the reworked plans/renders have to genuinely pass
+// back through the same checkpoints rather than the review step just quietly clearing
+// itself. Tracks how many times THIS review step has been sent back, since that's the
+// number worth knowing — how many rounds of revision a given review point has gone through. ----
 function submitMarkRevision(projectId, stepId){
-  setStepField(projectId, stepId, 'revisionParty', document.getElementById('rvParty').value);
-  setStepField(projectId, stepId, 'revisionNote', document.getElementById('rvNote').value.trim());
-  setStepField(projectId, stepId, 'revisionExpected', document.getElementById('rvExpected').value);
+  const p = PROJECTS[projectId]; if(!p) return;
+  const wf = ensureWorkflowModel(p);
+  const ph = phaseDef(wf.currentStageN);
+  const stage = wf.stages.find(s => s.n === wf.currentStageN);
+  const def = ph.steps.find(s => s.id === stepId);
+  const st = getStepState(stage, stepId);
+
+  st.revisionParty = document.getElementById('rvParty').value;
+  st.revisionNote = document.getElementById('rvNote').value.trim();
+  st.revisionExpected = document.getElementById('rvExpected').value || null;
+  st.revisionRounds = (st.revisionRounds || 0) + 1;
+  st.status = 'In Revision';
+
+  if(def && def.revisesStepId){
+    const parentIdx = ph.steps.findIndex(s => s.id === def.revisesStepId);
+    const thisIdx = ph.steps.findIndex(s => s.id === stepId);
+    if(parentIdx !== -1 && parentIdx < thisIdx){
+      const parentSt = getStepState(stage, def.revisesStepId);
+      parentSt.status = 'In Progress';
+      // Everything strictly between the parent and this review step has to be redone too —
+      // reset it so the normal sequential engine naturally walks back through it once the
+      // parent is marked Complete again, instead of skipping straight back to this step.
+      for(let i = parentIdx + 1; i < thisIdx; i++){
+        getStepState(stage, ph.steps[i].id).status = 'Not Ready';
+      }
+    }
+  }
   closeQuickOverlay();
-  setStepStatus(projectId, stepId, 'In Revision');
+  recomputeStage(p);
+  saveAppState(); renderProjectDetail(); renderProjectCardGrids();
 }
 function openMarkBlocked(projectId, stepId){
   openQuickOverlay(`
