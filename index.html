@@ -963,9 +963,11 @@ select{cursor:pointer;}
 .file-row .fr-name{display:flex; align-items:center; gap:8px;}
 .file-row .fr-empty{color:var(--ink-faint); font-style:italic;}
 .task-row-mini{position:relative; padding:11px 0 12px; border-bottom:1px solid var(--border-soft); cursor:pointer;}
-.task-row-title{font-family:'Space Grotesk',sans-serif; font-size:15px; font-weight:600; line-height:1.3; padding-right:96px;}
-.task-row-meta{font-size:12px; color:var(--ink-faint); margin-top:3px; padding-right:96px;}
+.task-row-title{font-family:'Space Grotesk',sans-serif; font-size:15px; font-weight:600; line-height:1.3; padding-right:120px;}
+.task-row-meta{font-size:12px; color:var(--ink-faint); margin-top:3px; padding-right:120px;}
 .task-row-status{position:absolute; top:11px; right:0; font-size:10px; padding:3px 8px 3px 9px;}
+.task-row-delete{position:absolute; top:12px; right:98px; font-size:16px; color:var(--ink-faint); opacity:0.5; cursor:pointer; padding:0 4px; line-height:1;}
+.task-row-delete:hover{color:var(--rust); opacity:1;}
 .task-row-mini:last-child{border-bottom:none;}
 .task-check{width:16px; height:16px; border-radius:4px; border:1.5px solid var(--border); flex-shrink:0; cursor:pointer;}
 .task-check.done{background:var(--jade); border-color:var(--jade); display:flex; align-items:center; justify-content:center; color:#fff; font-size:10px;}
@@ -1104,9 +1106,10 @@ select{cursor:pointer;}
 .duebadge-soon{background:var(--border); color:var(--ink-faint);}
 .hero-split{display:flex; gap:26px;}
 .hero-main{flex:1.5; min-width:0;}
-.hero-tasks-col{flex:1; min-width:0; border-left:1px solid var(--border-soft); padding-left:24px; max-height:340px; overflow-y:auto;}
+.hero-tasks-col{flex:1; min-width:0; border-left:1px solid var(--border-soft); padding-left:24px; display:flex; flex-direction:column; max-height:400px;}
+.hero-tasks-list{overflow-y:auto; flex:1; min-height:0;}
 .hero-tasks-list .task-row-mini{padding:7px 0;}
-@media (max-width:820px){ .hero-split{flex-direction:column;} .hero-tasks-col{border-left:none; padding-left:0; border-top:1px solid var(--border-soft); padding-top:16px; max-height:none;} }
+@media (max-width:820px){ .hero-split{flex-direction:column;} .hero-tasks-col{border-left:none; padding-left:0; border-top:1px solid var(--border-soft); padding-top:16px; max-height:none;} .hero-tasks-list{max-height:320px;} }
 </style>
 </head>
 <body>
@@ -3559,6 +3562,7 @@ function buildTaskRowHTML(oppId, t){
   const status = t.status || (t.done ? 'Done' : 'Not Started');
   const statusCls = status === 'Done' ? 'pill-jade' : status === 'Working On' ? 'pill-gold' : 'pill-slate';
   return `<div class="task-row-mini" onclick="openTaskDetail('${oppId}','${t.id}')">
+    <span class="task-row-delete" onclick="event.stopPropagation(); deleteProjectTask('${oppId}','${t.id}')" title="Delete task">&times;</span>
     <div class="task-row-title" style="${status === 'Done' ? 'color:var(--ink-faint); text-decoration:line-through;' : ''}">${escapeHtmlLite(t.title) || '<span style="font-style:italic; color:var(--ink-faint);">Untitled task</span>'}</div>
     <div class="task-row-meta">${escapeHtmlLite(t.assignee||'Unassigned')}${t.due ? ' \u00b7 Due ' + t.due : ''}${fileCount ? ' \u00b7 📎 ' + fileCount : ''}</div>
     <select class="pill ${statusCls} task-row-status" style="width:auto;" onclick="event.stopPropagation();" onchange="event.stopPropagation(); setTaskStatus('${oppId}','${t.id}', this.value)">
