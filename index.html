@@ -3848,7 +3848,13 @@ function toggleProjectTaskDone(oppId, taskId){
 }
 function addProjectTask(oppId){
   document.getElementById('addTaskOverlay')?.remove();
-  const est = OPP_ESTIMATES[oppId];
+  // Deliberately NOT capturing `est` here — the periodic autosave replaces the whole
+  // OPP_ESTIMATES object with a new one every 4 seconds (needed for the save/merge logic to
+  // work correctly), which silently orphans any reference grabbed before that happens. Filling
+  // out this box almost always takes longer than 4 seconds, so a reference captured here would
+  // typically already be stale by the time Submit is clicked — the task would get pushed onto
+  // an object nothing points to anymore, with no visible change and no error. Re-fetching
+  // OPP_ESTIMATES[oppId] at the moment of submit (below) instead always gets the live object.
   const overlay = document.createElement('div');
   overlay.id = 'addTaskOverlay';
   overlay.style.cssText = 'position:fixed; inset:0; z-index:400; display:flex; align-items:center; justify-content:center; background:rgba(20,18,14,.55); padding:20px;';
@@ -3889,7 +3895,8 @@ function addProjectTask(oppId){
   overlay.querySelector('#submitAddTask').onclick = () => {
     const title = overlay.querySelector('#taskTitleInput').value.trim();
     if(!title){ alert('Give the task a title.'); return; }
-    if(!est){ overlay.remove(); return; }
+    const est = OPP_ESTIMATES[oppId]; // fetched fresh, right now — see note above
+    if(!est){ alert("Couldn't find this project's task list — try closing and reopening the project, then adding the task again."); overlay.remove(); return; }
     est.tasks.push({
       id: 't' + Date.now(),
       title,
