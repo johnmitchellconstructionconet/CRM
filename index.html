@@ -4799,6 +4799,28 @@ function propagateScheduleSlip(p, phaseN, stepTitle, days){
   if(curStage && curStage.forecastFinish) curStage.forecastFinish = addBusinessDays(curStage.forecastFinish, days);
   wf.lastSlip = { phaseName: (phaseDef(phaseN)||{}).name || '', stepTitle, days, at: new Date().toISOString().slice(0,10) };
 }
+// ---- The exact reverse of propagateScheduleSlip — shifts everything back by precisely the
+// amount a specific late completion pushed it forward, using shiftDateStr (which, unlike
+// addBusinessDays, can move a date earlier). Used only by "Go Back," and only with the
+// slipCausedDays value recorded on the step/phase at the moment it happened — never a
+// guessed amount. Clears the Schedule Health strip's "Primary cause" too, since the event
+// it was describing no longer happened. ----
+function reverseScheduleSlip(p, phaseN, days){
+  const wf = ensureWorkflowModel(p);
+  wf.stages.forEach(stage => {
+    if(stage.n < phaseN) return;
+    Object.values(stage.steps).forEach(st => {
+      if(st.status !== 'Complete' && st.status !== 'N/A' && st.forecastDue){
+        st.forecastDue = shiftDateStr(st.forecastDue, -days);
+        if(st.due) st.due = st.forecastDue;
+      }
+    });
+    if(stage.n > phaseN && stage.forecastFinish) stage.forecastFinish = shiftDateStr(stage.forecastFinish, -days);
+  });
+  const curStage = wf.stages.find(s => s.n === phaseN);
+  if(curStage && curStage.forecastFinish) curStage.forecastFinish = shiftDateStr(curStage.forecastFinish, -days);
+  wf.lastSlip = null;
+}
 // ---- Explicit "needs more time" actions — the baseline never moves; this only pushes the
 // forecast, and always through propagateScheduleSlip so it's tracked as a deviation (visible
 // in the Schedule Health strip's "Primary cause" line) rather than a quiet date edit. Works
@@ -4855,6 +4877,7 @@ function recomputeStage(p){
     if(stage.forecastFinish && today > stage.forecastFinish){
       const days = Math.round((new Date(today+'T00:00:00') - new Date(stage.forecastFinish+'T00:00:00')) / 86400000);
       propagateScheduleSlip(p, wf.currentStageN, `End of Phase ${ph.n} · ${ph.name}`, days);
+      stage.slipCausedDays = days; // recorded so "Go Back" can reverse exactly this much, not guess
     }
     stage.actualFinish = stage.actualFinish || today;
     const next = wf.stages.find(s => s.n > wf.currentStageN);
@@ -4939,20 +4962,34 @@ function goBackOneStep(projectId){
   const idx = ph.steps.findIndex(d => d.id === next.def.id);
   if(idx > 0){
     const prevDef = ph.steps[idx - 1];
-    if(!confirm(`Go back to "${prevDef.title}"? This reopens it and undoes its completion.`)) return;
-    getStepState(stage, prevDef.id).status = 'In Progress';
+    const prevSt = getStepState(stage, prevDef.id);
+    const slipNote = prevSt.slipCausedDays ? ` This also undoes the ${prevSt.slipCausedDays}-day schedule push it caused, restoring every later date it shifted.` : '';
+    if(!confirm(`Go back to "${prevDef.title}"? This reopens it and undoes its completion.${slipNote}`)) return;
+    if(prevSt.slipCausedDays){
+      reverseScheduleSlip(p, wf.currentStageN, prevSt.slipCausedDays);
+      delete prevSt.slipCausedDays;
+    }
+    prevSt.status = 'In Progress';
+    prevSt.completedAt = null;
     getStepState(stage, next.def.id).status = 'Not Ready';
   } else {
     const prevStage = wf.stages.find(s => s.n === wf.currentStageN - 1);
     if(!prevStage){ alert('This is already the first phase — nowhere earlier to go.'); return; }
     const prevPh = phaseDef(prevStage.n);
-    if(!confirm(`Go back to Phase ${prevPh.n} · ${prevPh.name}? This reopens its last step and makes it the current phase again.`)) return;
+    const lastDef = prevPh.steps[prevPh.steps.length - 1];
+    const lastSt = getStepState(prevStage, lastDef.id);
+    const slipDays = (lastSt.slipCausedDays || 0) + (prevStage.slipCausedDays || 0);
+    const slipNote = slipDays ? ` This also undoes the ${slipDays}-day schedule push it caused, restoring every later date it shifted.` : '';
+    if(!confirm(`Go back to Phase ${prevPh.n} · ${prevPh.name}? This reopens its last step and makes it the current phase again.${slipNote}`)) return;
+    if(lastSt.slipCausedDays){ reverseScheduleSlip(p, prevStage.n, lastSt.slipCausedDays); delete lastSt.slipCausedDays; }
+    if(prevStage.slipCausedDays){ reverseScheduleSlip(p, prevStage.n, prevStage.slipCausedDays); delete prevStage.slipCausedDays; }
     prevStage.status = 'current';
+    prevStage.actualFinish = null; // it's no longer actually finished
     stage.status = 'upcoming';
     wf.currentStageN = prevStage.n;
     p.currentPhase = prevStage.n; // keep the legacy field in sync — see the note in recomputeStage
-    const lastDef = prevPh.steps[prevPh.steps.length - 1];
-    getStepState(prevStage, lastDef.id).status = 'In Progress';
+    lastSt.status = 'In Progress';
+    lastSt.completedAt = null;
   }
   recomputeStage(p);
   saveAppState(); renderProjectDetail(); renderProjectCardGrids();
@@ -4971,6 +5008,7 @@ function setStepStatus(projectId, stepId, status){
       const days = Math.round((new Date(today+'T00:00:00') - new Date(st.forecastDue+'T00:00:00')) / 86400000);
       const def = ph.steps.find(d => d.id === stepId);
       propagateScheduleSlip(p, wf.currentStageN, def ? def.title : stepId, days);
+      st.slipCausedDays = days; // recorded so "Go Back" can reverse exactly this much, not guess
     }
   }
   recomputeStage(p);
@@ -5827,16 +5865,38 @@ function buildHeroInnerHTML(p){
 // on the left (the one thing to do right now, computed by the process engine) and the
 // free-form task list on the right (things people add on the fly, not part of the strict
 // phase sequence). Two different kinds of "things to do," one shared surface. ----
+let TASK_FILTER = {}; // projectId -> 'All' | 'Not Started' | 'Working On' | 'Done' — defaults to hiding Done
+function setTaskFilter(projectId, filter){
+  TASK_FILTER[projectId] = filter;
+  renderProjectDetail();
+}
 function buildNextActionHeroHTML(p){
   const { cls, html } = buildHeroInnerHTML(p);
   const est = getOrCreateOppEstimate({ id: p.id, name: p.client, owner: p.owner, stage: 'Preconstruction' });
+  const activeFilter = TASK_FILTER[p.id] || 'Open'; // 'Open' = Not Started + Working On, hides Done by default
+  const statusOf = (t) => t.status || (t.done ? 'Done' : 'Not Started');
+  const filtered = est.tasks.filter(t => {
+    const s = statusOf(t);
+    if(activeFilter === 'All') return true;
+    if(activeFilter === 'Open') return s !== 'Done';
+    return s === activeFilter;
+  });
+  const counts = { Open: est.tasks.filter(t => statusOf(t) !== 'Done').length, Done: est.tasks.filter(t => statusOf(t) === 'Done').length, All: est.tasks.length };
+  const filterChip = (key, label) => `<span class="pill ${activeFilter===key?'pill-ink':'pill-slate'}" style="cursor:pointer; font-size:9.5px;" onclick="setTaskFilter('${p.id}','${key}')">${label}${counts[key]!=null?` (${counts[key]})`:''}</span>`;
   const tasksHTML = `
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
       <div class="hero-label" style="margin:0;">Tasks</div>
       <span class="pill pill-slate" style="cursor:pointer;" onclick="addProjectTask('${p.id}')">+ Add Task</span>
     </div>
+    <div class="row" style="gap:6px; margin-bottom:10px; flex-wrap:wrap;">
+      ${filterChip('Open','Open')}
+      ${filterChip('Not Started','Not Started')}
+      ${filterChip('Working On','Working On')}
+      ${filterChip('Done','Done')}
+      ${filterChip('All','All')}
+    </div>
     <div class="hero-tasks-list">
-      ${est.tasks.length ? est.tasks.map(t => buildTaskRowHTML(p.id, t)).join('') : '<div class="empty-row">No tasks yet.</div>'}
+      ${filtered.length ? filtered.map(t => buildTaskRowHTML(p.id, t)).join('') : `<div class="empty-row">${est.tasks.length ? 'Nothing in this filter.' : 'No tasks yet.'}</div>`}
     </div>`;
   return `<div class="hero ${cls}">
     <div class="hero-split">
