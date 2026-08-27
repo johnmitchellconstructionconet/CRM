@@ -1337,6 +1337,7 @@ select{cursor:pointer;}
         <div class="hint" style="margin-bottom:12px;">Everything you enter autosaves every few seconds — synced through Supabase so John, Bre, and Kennedy all see the same data, with a local browser cache as a backup if the connection ever drops.</div>
         <div class="row" style="align-items:center; gap:14px;">
           <span id="autosaveIndicator" style="font-size:11.5px; color:var(--ink-faint);">Not saved yet</span>
+          <span id="appBuildVersionTag" style="font-size:11px; color:var(--ink-faint); opacity:.7;"></span>
           <button class="btn btn-outline" style="margin-left:auto;" onclick="resetToDemoData()">Clear Saved Data &amp; Reset to Demo</button>
         </div>
       </div></div>
@@ -18276,6 +18277,16 @@ function resetToDemoData(){
 // Autosave on an interval and on the way out — covers every mutation everywhere in the
 // app without needing a save call hand-added to every single edit function.
 setInterval(saveAppState, 4000);
+// ---- Build version stamp — exists purely so it's never a guessing game which code a given
+// browser is actually running. Bump this string every time this file gets redeployed. Visible
+// in Company Settings next to the sync status, and logged to console on every load so it can
+// be checked even without opening that page. ----
+const APP_BUILD_VERSION = '2026-08-27-2140';
+console.log('MCD Portal build:', APP_BUILD_VERSION);
+(function stampBuildVersion(){
+  const el = document.getElementById('appBuildVersionTag');
+  if(el) el.textContent = 'Build ' + APP_BUILD_VERSION;
+})();
 window.addEventListener('beforeunload', () => { try{ localStorage.setItem(APP_STATE_KEY, JSON.stringify(buildAppSnapshot())); localStorage.setItem(APP_STATE_KEY + '_ts', String(Date.now())); }catch(e){} });
 document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden') saveAppState(); });
 
