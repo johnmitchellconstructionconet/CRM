@@ -18080,10 +18080,19 @@ async function saveAppStateInner(){
 }
 // ---- Loads from Supabase first (the real, shared source once configured and signed in),
 // falls back to this browser's local cache, falls back to the built-in demo data on a
-// completely first-ever run. Before trusting Supabase, compares its newest updated_at
-// against this browser's own last-save timestamp — if the local copy is actually newer
-// (the cloud write from a recent change hadn't landed yet), the local copy wins instead of
-// being silently overwritten by stale cloud data. ----
+// completely first-ever run.
+//
+// This used to compare the cloud's newest updated_at against this browser's own last-save
+// timestamp, and trusted whichever was newer — the idea being to protect a change that had
+// just been saved locally but whose cloud write hadn't landed yet. In practice this broke
+// far worse than it protected: every signed-in browser re-saves to Supabase every 4 seconds
+// REGARDLESS of whether anything actually changed, so both sides of that comparison are
+// almost always "very recent" no matter what — it isn't a signal of anything. The actual
+// symptom this caused: a project created on one computer wouldn't show up on another,
+// because the second computer's own routine, no-real-change autosave timestamp kept
+// numerically beating the cloud's — even though the cloud genuinely had the newer, correct
+// data. Always trusting the cloud here is simply correct once signed in and reachable; the
+// local cache below remains exactly what it's for — the offline/no-session fallback. ----
 async function loadAppState(){
   if(SUPABASE_CONFIGURED && supabaseClient){
     try{
@@ -18091,20 +18100,8 @@ async function loadAppState(){
       if(sessionData && sessionData.session){
         const { data, error } = await supabaseClient.from('app_state').select('key,value');
         if(!error && data && data.length){
-          const cloudNewestMs = data.reduce((max, r) => Math.max(max, r.updated_at ? new Date(r.updated_at).getTime() : 0), 0);
-          const localTsRaw = (() => { try{ return localStorage.getItem(APP_STATE_KEY + '_ts'); } catch(e){ return null; } })();
-          const localMs = localTsRaw ? parseInt(localTsRaw, 10) : 0;
-          if(localMs > cloudNewestMs){
-            // This browser's own local save is newer than anything in the cloud — the cloud
-            // write from that change likely hadn't landed yet. Keep the local copy and push
-            // it back up so the stale cloud row gets corrected instead of winning next time.
-            try{
-              const raw = localStorage.getItem(APP_STATE_KEY);
-              if(raw){ applyAppSnapshot(JSON.parse(raw)); setSyncIndicator('Loaded local — a newer change than the cloud copy'); saveAppState(); return 'local-newer'; }
-            } catch(e){ console.warn('Local cache read failed during freshness check:', e); }
-          }
           applyAppSnapshot(Object.fromEntries(data.map(r => [r.key, r.value])));
-          try{ localStorage.setItem(APP_STATE_KEY, JSON.stringify(buildAppSnapshot())); localStorage.setItem(APP_STATE_KEY + '_ts', String(cloudNewestMs || Date.now())); } catch(e){}
+          try{ localStorage.setItem(APP_STATE_KEY, JSON.stringify(buildAppSnapshot())); localStorage.setItem(APP_STATE_KEY + '_ts', String(Date.now())); } catch(e){}
           setSyncIndicator('Loaded from Supabase');
           return 'supabase';
         }
