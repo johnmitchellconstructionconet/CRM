@@ -17956,6 +17956,32 @@ function snapshotSyncedEntities(){
 // second save (e.g. the periodic autosave) fetched the cloud a moment before the first
 // save's write had actually committed. The fix: local knowledge always wins by default;
 // only deletedIds can remove something. ----
+// ---- Protects against a subtler race than the cross-browser one above: THIS browser's own
+// save request can still be in flight (network round-trip) when the user makes another edit.
+// The response that eventually comes back reflects local data as it was AT THE MOMENT THE
+// REQUEST WAS SENT — it literally cannot contain an edit made after that. Blindly applying
+// that response would silently overwrite the newer in-memory edit with the older server
+// result once it arrives, with no error at all (the request succeeded — it just went stale).
+// This keeps anything that has changed since the last CONFIRMED sync and doesn't match what
+// the server just returned; everything else (untouched, or already matching) is safe to take
+// from the server and mark confirmed. Ids that keep their local copy are deliberately left out
+// of confirmedSyncedIds so the next save (already queued via SAVE_QUEUED_AGAIN) re-sends them
+// instead of the app wrongly believing they're already synced. ----
+function applyRpcResultProtectingNewerLocalEdits(localDict, lastSyncedMap, rpcResult){
+  const merged = {};
+  const confirmedSyncedIds = [];
+  Object.keys(rpcResult || {}).forEach(id => { merged[id] = rpcResult[id]; });
+  Object.keys(localDict).forEach(id => {
+    const touchedSinceLastConfirmedSync = lastSyncedMap[id] === undefined || JSON.stringify(localDict[id]) !== lastSyncedMap[id];
+    const matchesServerResult = !!(rpcResult && Object.prototype.hasOwnProperty.call(rpcResult, id) && JSON.stringify(rpcResult[id]) === JSON.stringify(localDict[id]));
+    if(touchedSinceLastConfirmedSync && !matchesServerResult){
+      merged[id] = localDict[id]; // this browser has moved on since the request was sent — the stale response doesn't get to win
+    } else {
+      confirmedSyncedIds.push(id);
+    }
+  });
+  return { merged, confirmedSyncedIds };
+}
 function mergeEntityDictForSave(localDict, lastSyncedMap, cloudDict, deletedIds){
   const merged = {};
   let pulledInTeammateChange = false;
@@ -18069,10 +18095,17 @@ async function saveAppStateInner(){
 
       const mergedProjectsChanged = JSON.stringify(PROJECTS) !== JSON.stringify(projectsRpc.data);
       const mergedEstimatesChanged = JSON.stringify(OPP_ESTIMATES) !== JSON.stringify(estimatesRpc.data);
-      Object.keys(PROJECTS).forEach(k => delete PROJECTS[k]); Object.assign(PROJECTS, projectsRpc.data);
-      OPP_ESTIMATES = estimatesRpc.data;
-      DELETED_PROJECT_IDS_PENDING_SYNC.clear(); // the RPC call above already applied these deletions in the same transaction
-      snapshotSyncedEntities(); // PROJECTS/OPP_ESTIMATES are now confirmed to match the cloud
+      const projectsApply = applyRpcResultProtectingNewerLocalEdits(PROJECTS, LAST_SYNCED_PROJECTS, projectsRpc.data);
+      Object.keys(PROJECTS).forEach(k => delete PROJECTS[k]); Object.assign(PROJECTS, projectsApply.merged);
+      projectsApply.confirmedSyncedIds.forEach(id => { LAST_SYNCED_PROJECTS[id] = JSON.stringify(PROJECTS[id]); });
+      const estimatesApply = applyRpcResultProtectingNewerLocalEdits(OPP_ESTIMATES, LAST_SYNCED_OPP_ESTIMATES, estimatesRpc.data);
+      OPP_ESTIMATES = estimatesApply.merged;
+      estimatesApply.confirmedSyncedIds.forEach(id => { LAST_SYNCED_OPP_ESTIMATES[id] = JSON.stringify(OPP_ESTIMATES[id]); });
+      // Only clear the exact ids THIS request told the server about — a deletion made after
+      // this request was already sent (during the round-trip) is still sitting in
+      // DELETED_PROJECT_IDS_PENDING_SYNC and needs to survive to the next save so it actually
+      // gets reported, instead of being silently assumed-handled here.
+      deletedProjectIds.forEach(id => DELETED_PROJECT_IDS_PENDING_SYNC.delete(id));
       if(mergedProjectsChanged || mergedEstimatesChanged) renderEverything();
     } catch(mergeErr){
       console.warn('Atomic merge RPC failed — falling back to local copy only for this save:', mergeErr);
@@ -18108,8 +18141,14 @@ async function saveAppStateInner(){
       showSyncErrorBanner('Not syncing to the team cloud right now — your work is only saved on this computer until this is fixed. (' + error.message + ')');
       return;
     }
-    snapshotSyncedEntities(); // this push succeeded — PROJECTS/OPP_ESTIMATES now match the cloud
-    DELETED_PROJECT_IDS_PENDING_SYNC.clear(); // the cloud's copy no longer has these either now
+    // Note: NOT calling snapshotSyncedEntities() or clearing DELETED_PROJECT_IDS_PENDING_SYNC
+    // here — this upsert deliberately excludes PROJECTS/OPP_ESTIMATES (see above), so its
+    // success says nothing about whether those are actually confirmed synced. That bookkeeping
+    // is handled precisely, per-id, right after the merge_save_entity RPC calls above — doing
+    // it again here with a blanket "everything current is synced" would silently re-introduce
+    // the exact race that was just closed: a local edit made after the RPC request was sent
+    // (and correctly held back from being marked synced) would get wrongly marked synced here,
+    // and never get pushed to the cloud on the next save.
     setSyncIndicator('Synced ' + new Date().toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}));
   } catch(e){
     console.warn('Supabase sync failed, data is still safe locally:', e);
