@@ -7032,6 +7032,7 @@ function buildClientProgressContentHTML(p){
     <h1 style="text-align:center; font-family:'Space Grotesk',sans-serif; margin-top:4px;">${escapeHtmlLite(p.name)}</h1>
     <div class="sub" style="text-align:center; margin-bottom:8px;">${escapeHtmlLite(p.client || '')}${p.location ? ' · ' + escapeHtmlLite(p.location) : ''}</div>
     <div class="sub" style="text-align:center; margin-bottom:16px; font-weight:600;">${p.currentPhase !== null ? `Currently in Phase ${p.currentPhase} · ${currentPhaseDef ? currentPhaseDef.name : ''}` : '✅ All phases complete — ready for production'}</div>
+    ${buildClientProgressStatsHTML(p)}
     <div class="no-print" style="text-align:center; margin-bottom:24px;">
       <button class="btn btn-outline" onclick="printClientDashboard()">🖨 Print / Save as PDF</button>
     </div>
