@@ -1062,6 +1062,10 @@ select{cursor:pointer;}
 .hero-blocked{border-color:var(--rust);}
 .hero-waiting{border-color:#c9a868;}
 .hero-revision{border-color:#7a5ea8;}
+.hero-revision-banner{background:#EDE6F5; border:1px solid #d5c2ea; border-radius:9px; padding:10px 14px; margin-bottom:14px;}
+.hero-revision-banner-title{font-size:12px; font-weight:700; color:#7a5ea8; letter-spacing:.02em;}
+.hero-revision-banner-note{font-size:13px; color:var(--ink); margin-top:5px; font-style:italic;}
+.hero-revision-banner-meta{font-size:11.5px; color:#8a72ad; margin-top:5px;}
 .hero-done{border-color:var(--jade); background:#F8FAF8;}
 .hero-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-faint); margin-bottom:8px;}
 .hero-title{font-family:'Space Grotesk',sans-serif; font-size:22px; font-weight:600; line-height:1.3;}
@@ -4881,6 +4885,17 @@ function getRevisionSteps(p){
   if(!ph || !stage) return [];
   return ph.steps.filter(def => stage.steps[def.id] && stage.steps[def.id].status === 'In Revision').map(def => ({ def, a: stage.steps[def.id] }));
 }
+// ---- Finds the review step (if any) that sent THIS step back for rework — used so the
+// hero can show "you're redoing this because of revision feedback" front and center,
+// instead of that context only living in the outstanding list further down the page. ----
+function getRevisionTargetingStep(p, stepId){
+  const wf = ensureWorkflowModel(p);
+  const ph = phaseDef(wf.currentStageN);
+  const stage = wf.stages.find(s => s.n === wf.currentStageN);
+  if(!ph || !stage) return null;
+  const sourceDef = ph.steps.find(def => def.revisesStepId === stepId && stage.steps[def.id] && stage.steps[def.id].status === 'In Revision');
+  return sourceDef ? { def: sourceDef, a: stage.steps[sourceDef.id] } : null;
+}
 function setStepStatus(projectId, stepId, status){
   const p = PROJECTS[projectId]; if(!p) return;
   const wf = ensureWorkflowModel(p);
@@ -5666,7 +5681,17 @@ function buildHeroInnerHTML(p){
     overdue ? `<span class="duebadge duebadge-overdue">${Math.abs(daysUntil)} DAY${Math.abs(daysUntil)===1?'':'S'} OVERDUE</span>` :
     daysUntil === 0 ? `<span class="duebadge duebadge-today">DUE TODAY</span>` :
     daysUntil <= 3 ? `<span class="duebadge duebadge-soon">Due in ${daysUntil} day${daysUntil===1?'':'s'}</span>` : '';
-  return { cls: (isBlocked || overdue) ? 'hero-blocked' : '', html: `
+  // If some later step sent THIS one back for rework, that has to be impossible to miss —
+  // otherwise this just looks like an ordinary first pass through the step, not a redo
+  // driven by specific feedback.
+  const revSource = getRevisionTargetingStep(p, def.id);
+  const revisionBanner = revSource ? `<div class="hero-revision-banner">
+    <div class="hero-revision-banner-title">⟲ IN REVISION — Round ${revSource.a.revisionRounds || 1} — sent back from "${escapeHtmlLite(revSource.def.title)}"</div>
+    ${revSource.a.revisionNote ? `<div class="hero-revision-banner-note">"${escapeHtmlLite(revSource.a.revisionNote)}"</div>` : ''}
+    <div class="hero-revision-banner-meta">${revSource.a.revisionParty ? `With <b>${escapeHtmlLite(revSource.a.revisionParty)}</b>` : ''}${revSource.a.revisionExpected ? ` · expected back ${escapeHtmlLite(revSource.a.revisionExpected)}` : ''}</div>
+  </div>` : '';
+  return { cls: (isBlocked || overdue) ? 'hero-blocked' : revSource ? 'hero-revision' : '', html: `
+    ${revisionBanner}
     <div class="hero-label">Phase ${ph.n} · ${escapeHtmlLite(ph.name)} — Step ${index+1} of ${total}${dueBadge}</div>
     <div class="hero-title">${escapeHtmlLite(def.title)}</div>
     <div class="hero-meta">${escapeHtmlLite(def.role)}${isBlocked && a.blockerNote ? ` — Blocked: ${escapeHtmlLite(a.blockerNote)}` : ''}</div>
@@ -5718,7 +5743,10 @@ function buildWaitingBlockedSummaryHTML(p){
   return `<div class="section-label-row" style="margin-top:18px;"><div class="eyebrow">Everything Else Outstanding This Phase</div></div>
     <div class="readylist">
       ${blocked.map(d => `<div class="readyrow" style="border-left:3px solid var(--rust); cursor:default;"><span>🔴 ${escapeHtmlLite(d.title)}${stage.steps[d.id].blockerNote ? ' — ' + escapeHtmlLite(stage.steps[d.id].blockerNote) : ''}</span></div>`).join('')}
-      ${revising.map(d => { const rst = stage.steps[d.id]; const rounds = rst.revisionRounds || 1; return `<div class="readyrow" style="border-left:3px solid #7a5ea8; cursor:default;"><span>🟣 ${escapeHtmlLite(d.title)}${rst.revisionParty ? ' — with ' + escapeHtmlLite(rst.revisionParty) + ' for revision' : ' — sent back for revision'} <span class="pill pill-violet" style="font-size:9px;">Round ${rounds}</span></span></div>`; }).join('')}
+      ${revising.map(d => { const rst = stage.steps[d.id]; const rounds = rst.revisionRounds || 1; return `<div class="readyrow" style="border-left:3px solid #7a5ea8; cursor:default; display:block; padding:10px 14px;">
+        <div>🟣 ${escapeHtmlLite(d.title)}${rst.revisionParty ? ' — with ' + escapeHtmlLite(rst.revisionParty) + ' for revision' : ' — sent back for revision'} <span class="pill pill-violet" style="font-size:9px;">Round ${rounds}</span></div>
+        ${rst.revisionNote ? `<div style="font-size:11.5px; color:var(--ink-faint); margin-top:4px;">"${escapeHtmlLite(rst.revisionNote)}"</div>` : ''}
+      </div>`; }).join('')}
       ${waiting.map(d => `<div class="readyrow" style="border-left:3px solid #c9a868; cursor:default;"><span>🟡 ${escapeHtmlLite(d.title)}${stage.steps[d.id].waitingParty ? ' — waiting on ' + escapeHtmlLite(stage.steps[d.id].waitingParty) : ''}</span></div>`).join('')}
     </div>`;
 }
