@@ -877,6 +877,13 @@ tbody tr:hover{background:#FCFBF8;}
 .mn-tag-4{background:var(--border-soft); color:var(--ink-soft);}
 
 .mn-composer{border-color:var(--border-strong,var(--border));}
+.mn-title-input{
+  width:100%; border:none; border-bottom:1px solid var(--border-soft); padding:0 0 12px; margin-bottom:14px;
+  font-family:'Space Grotesk',sans-serif; font-size:17px; font-weight:600; color:var(--ink); background:transparent;
+  border-radius:0;
+}
+.mn-title-input:focus{outline:none; border-bottom-color:var(--taupe-dark);}
+.mn-title-input::placeholder{font-family:'Inter',sans-serif; font-weight:500; color:var(--ink-faint);}
 .mn-toolbar{display:flex; align-items:center; gap:4px; flex-wrap:wrap; padding-bottom:12px; margin-bottom:12px; border-bottom:1px solid var(--border-soft);}
 .mn-tool-btn{width:32px; height:30px; border-radius:7px; border:1px solid var(--border); background:var(--paper); color:var(--ink-soft); font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0;}
 .mn-tool-btn-size{width:auto; min-width:30px; padding:0 8px; font-size:11.5px; font-weight:700;}
@@ -905,6 +912,7 @@ tbody tr:hover{background:#FCFBF8;}
 
 .mn-note-card{background:var(--paper); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px 20px; margin-bottom:14px;}
 .mn-note-head{display:flex; justify-content:space-between; align-items:flex-start; gap:14px; margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid var(--border-soft);}
+.mn-note-title{font-family:'Space Grotesk',sans-serif; font-size:15.5px; font-weight:600; color:var(--ink);}
 .mn-note-who{font-size:13.5px; font-weight:700; color:var(--ink);}
 .mn-note-when{font-size:11.5px; color:var(--ink-faint); margin-top:2px;}
 .mn-note-delete{color:var(--ink-faint); font-size:12px; cursor:pointer; white-space:nowrap;}
@@ -1189,7 +1197,6 @@ select{cursor:pointer;}
     <div style="text-align:center; margin-top:16px; font-size:11px; color:var(--ink-faint);">Accounts are created in Supabase directly — there's no public sign-up here.</div>
   </div>
 </div>
-<div id="sowHiddenMount" style="position:absolute; width:0; height:0; overflow:hidden; opacity:0; pointer-events:none;"></div>
 <div class="app" id="appRoot" style="display:none;">
   <aside class="sidebar">
     <div class="sidebar-brand">
@@ -4594,12 +4601,18 @@ let STANDARD_SCHEDULE_TEMPLATE = {
   7: 10,  // Trade Pricing & Final Budget
   8: 7,   // Contract & Handoff
 };
+// ---- Steps forward by `days` business days (skipping weekends). Also accepts a negative
+// `days` to step backward the same way — every existing caller only ever passes a positive
+// count (a duration, or a lateness/slip amount), so this is purely additive: nothing that
+// already calls this changes behavior. Negative support is what lets an early completion
+// pull the forecast schedule earlier instead of only ever pushing it later. ----
 function addBusinessDays(dateStr, days){
   const d = new Date(dateStr+'T00:00:00');
-  let added = 0;
-  while(added < days){
-    d.setDate(d.getDate()+1);
-    if(d.getDay() !== 0 && d.getDay() !== 6) added++;
+  const step = days < 0 ? -1 : 1;
+  let remaining = Math.abs(days);
+  while(remaining > 0){
+    d.setDate(d.getDate()+step);
+    if(d.getDay() !== 0 && d.getDay() !== 6) remaining--;
   }
   return d.toISOString().slice(0,10);
 }
@@ -4974,26 +4987,53 @@ function propagateScheduleSlip(p, phaseN, stepTitle, days){
   if(curStage && curStage.forecastFinish) curStage.forecastFinish = addBusinessDays(curStage.forecastFinish, days);
   wf.lastSlip = { phaseName: (phaseDef(phaseN)||{}).name || '', stepTitle, days, at: new Date().toISOString().slice(0,10) };
 }
-// ---- The exact reverse of propagateScheduleSlip — shifts everything back by precisely the
-// amount a specific late completion pushed it forward, using shiftDateStr (which, unlike
-// addBusinessDays, can move a date earlier). Used only by "Go Back," and only with the
-// slipCausedDays value recorded on the step/phase at the moment it happened — never a
-// guessed amount. Clears the Schedule Health strip's "Primary cause" too, since the event
-// it was describing no longer happened. ----
+// ---- The mirror of propagateScheduleSlip, for the opposite situation: a step finishes
+// AHEAD of its forecast date. Pulls the forecast for everything still outstanding earlier
+// by the same number of business days — the identical mechanism, just moving the other
+// direction — so the Schedule Health strip's variance can actually go negative and read
+// "X days ahead" instead of just sitting at "On Schedule" forever. The BASELINE is never
+// touched here or in propagateScheduleSlip — only forecastDue/forecastFinish move; the
+// original locked-in plan stays exactly where it was set. Clears any stale "Primary cause"
+// note too, since being ahead means whatever previously caused a late slip no longer
+// describes where the project actually stands. ----
+function accelerateSchedule(p, phaseN, days){
+  const wf = ensureWorkflowModel(p);
+  wf.stages.forEach(stage => {
+    if(stage.n < phaseN) return;
+    Object.values(stage.steps).forEach(st => {
+      if(st.status !== 'Complete' && st.status !== 'N/A' && st.forecastDue){
+        st.forecastDue = addBusinessDays(st.forecastDue, -days);
+        if(st.due) st.due = st.forecastDue;
+      }
+    });
+    if(stage.n > phaseN && stage.forecastFinish) stage.forecastFinish = addBusinessDays(stage.forecastFinish, -days);
+  });
+  const curStage = wf.stages.find(s => s.n === phaseN);
+  if(curStage && curStage.forecastFinish) curStage.forecastFinish = addBusinessDays(curStage.forecastFinish, -days);
+  wf.lastSlip = null;
+}
+// ---- The exact reverse of propagateScheduleSlip (or accelerateSchedule) — shifts
+// everything back by precisely the number of business days a specific completion pushed it
+// forward (or pulled it earlier), using addBusinessDays with the sign flipped — the same
+// business-day-aware math the original shift used, so a reversal that spans a weekend lands
+// back on the exact original date instead of drifting by however many weekend days were in
+// between. Used only by "Go Back," and only with the slipCausedDays value recorded on the
+// step/phase at the moment it happened — never a guessed amount. Clears the Schedule
+// Health strip's "Primary cause" too, since the event it was describing no longer happened. ----
 function reverseScheduleSlip(p, phaseN, days){
   const wf = ensureWorkflowModel(p);
   wf.stages.forEach(stage => {
     if(stage.n < phaseN) return;
     Object.values(stage.steps).forEach(st => {
       if(st.status !== 'Complete' && st.status !== 'N/A' && st.forecastDue){
-        st.forecastDue = shiftDateStr(st.forecastDue, -days);
+        st.forecastDue = addBusinessDays(st.forecastDue, -days);
         if(st.due) st.due = st.forecastDue;
       }
     });
-    if(stage.n > phaseN && stage.forecastFinish) stage.forecastFinish = shiftDateStr(stage.forecastFinish, -days);
+    if(stage.n > phaseN && stage.forecastFinish) stage.forecastFinish = addBusinessDays(stage.forecastFinish, -days);
   });
   const curStage = wf.stages.find(s => s.n === phaseN);
-  if(curStage && curStage.forecastFinish) curStage.forecastFinish = shiftDateStr(curStage.forecastFinish, -days);
+  if(curStage && curStage.forecastFinish) curStage.forecastFinish = addBusinessDays(curStage.forecastFinish, -days);
   wf.lastSlip = null;
 }
 // ---- Explicit "needs more time" actions — the baseline never moves; this only pushes the
@@ -5126,6 +5166,15 @@ function getRevisionTargetingStep(p, stepId){
 // was marked complete too early, or work has to be redone that isn't a formal "send back for
 // revision." Reopens the previous step within the phase, or — if already on the very first
 // step — steps the whole project back into the previous phase and reopens its last step. ----
+// ---- Phrases the "Go Back" confirm note correctly whichever direction a step's
+// completion actually shifted the schedule — late (positive slipCausedDays, pushed later)
+// or ahead of schedule (negative slipCausedDays, pulled earlier). ----
+function describeScheduleShiftUndo(days){
+  if(!days) return '';
+  return days > 0
+    ? ` This also undoes the ${days}-day schedule push it caused, restoring every later date it shifted.`
+    : ` This also undoes the ${Math.abs(days)}-day pull-ahead it caused, restoring every later date it shifted.`;
+}
 function goBackOneStep(projectId){
   const p = PROJECTS[projectId]; if(!p) return;
   const wf = ensureWorkflowModel(p);
@@ -5138,7 +5187,7 @@ function goBackOneStep(projectId){
   if(idx > 0){
     const prevDef = ph.steps[idx - 1];
     const prevSt = getStepState(stage, prevDef.id);
-    const slipNote = prevSt.slipCausedDays ? ` This also undoes the ${prevSt.slipCausedDays}-day schedule push it caused, restoring every later date it shifted.` : '';
+    const slipNote = describeScheduleShiftUndo(prevSt.slipCausedDays);
     if(!confirm(`Go back to "${prevDef.title}"? This reopens it and undoes its completion.${slipNote}`)) return;
     if(prevSt.slipCausedDays){
       reverseScheduleSlip(p, wf.currentStageN, prevSt.slipCausedDays);
@@ -5156,7 +5205,7 @@ function goBackOneStep(projectId){
     const lastDef = prevPh.steps[prevPh.steps.length - 1];
     const lastSt = getStepState(prevStage, lastDef.id);
     const slipDays = (lastSt.slipCausedDays || 0) + (prevStage.slipCausedDays || 0);
-    const slipNote = slipDays ? ` This also undoes the ${slipDays}-day schedule push it caused, restoring every later date it shifted.` : '';
+    const slipNote = describeScheduleShiftUndo(slipDays);
     if(!confirm(`Go back to Phase ${prevPh.n} · ${prevPh.name}? This reopens its last step and makes it the current phase again.${slipNote}`)) return;
     if(lastSt.slipCausedDays){ reverseScheduleSlip(p, prevStage.n, lastSt.slipCausedDays); delete lastSt.slipCausedDays; }
     if(prevStage.slipCausedDays){ reverseScheduleSlip(p, prevStage.n, prevStage.slipCausedDays); delete prevStage.slipCausedDays; }
@@ -5188,6 +5237,14 @@ function setStepStatus(projectId, stepId, status){
       const def = ph.steps.find(d => d.id === stepId);
       propagateScheduleSlip(p, wf.currentStageN, def ? def.title : stepId, days);
       st.slipCausedDays = days; // recorded so "Go Back" can reverse exactly this much, not guess
+    } else if(wf.baselineSet && st.forecastDue && today < st.forecastDue){
+      // Finished ahead of schedule — pull the forecast forward by the same amount, the
+      // mirror of the late case above. This never touches the baseline, only the forecast,
+      // so "ahead of schedule" actually shows up as negative variance instead of the
+      // system quietly sitting at "On Schedule" until something eventually runs late.
+      const daysEarly = Math.round((new Date(st.forecastDue+'T00:00:00') - new Date(today+'T00:00:00')) / 86400000);
+      accelerateSchedule(p, wf.currentStageN, daysEarly);
+      st.slipCausedDays = -daysEarly; // negative so "Go Back" reverses it the same way — pushes it back out
     }
   }
   recomputeStage(p);
@@ -6054,9 +6111,7 @@ function buildHeroInnerHTML(p){
       ${!isInProgress && !isBlocked ? `<button class="btn btn-outline" onclick="setStepStatus('${p.id}','${def.id}','In Progress')">Start</button>` : ''}
       <button class="btn btn-dark" onclick="setStepStatus('${p.id}','${def.id}','Complete')">Mark Complete</button>
       ${!isBlocked ? `<button class="btn btn-outline" onclick="openMarkWaiting('${p.id}','${def.id}')">Waiting on Someone</button>
-      ${def.revisable ? `<button class="btn btn-outline" style="color:#7a5ea8; border-color:#7a5ea8;" onclick="openMarkRevision('${p.id}','${def.id}')">Send Back for Revision</button>` : ''}
-      <button class="btn btn-outline" style="color:var(--rust); border-color:var(--rust);" onclick="openMarkBlocked('${p.id}','${def.id}')">Flag as Blocked</button>
-      <button class="btn btn-outline" onclick="extendCurrentStep('${p.id}','${def.id}','${escapeHtmlLite(def.title).replace(/'/g,"\\'")}')">Needs More Time</button>` : `<button class="btn btn-outline" onclick="setStepStatus('${p.id}','${def.id}','Ready')">Resolved — Clear Blocker</button>`}
+      ${def.revisable ? `<button class="btn btn-outline" style="color:#7a5ea8; border-color:#7a5ea8;" onclick="openMarkRevision('${p.id}','${def.id}')">Send Back for Revision</button>` : ''}` : `<button class="btn btn-outline" onclick="setStepStatus('${p.id}','${def.id}','Ready')">Resolved — Clear Blocker</button>`}
     </div>` };
 }
 // ---- The hero and Tasks share one bordered box, side by side — the next required action
@@ -7810,41 +7865,10 @@ function renderProjectDetail(){
   const p = PROJECTS[CURRENT_PROJECT_ID];
   const host = document.getElementById('projectDetailHost');
   if(!p || !host) return;
-  const tabs = ['overview','clarifications','scopes','estimate','plans','proposals','files','activity'];
-  const tabLabels = {overview:'Overview', clarifications:'Clarifications', scopes:'Scopes', estimate:'Estimate', plans:'Plans & Design', proposals:'Proposals & Contracts', files:'Files', activity:'Meeting Notes', clientview:'Client View'};
+  const tabs = ['overview','clarifications','estimate','plans','proposals','files','activity'];
+  const tabLabels = {overview:'Overview', clarifications:'Clarifications', estimate:'Estimate', plans:'Plans & Design', proposals:'Proposals & Contracts', files:'Files', activity:'Meeting Notes', clientview:'Client View'};
 
   let tabBody = '';
-// ---- Review & Send Log dashboard for the Overview tab — pulled from the Scope of Work
-// module, which keeps this data behind its own internal state. Since that module only
-// loads a project's data when its own tab is actually opened, this silently mounts it
-// into an invisible container first so the log is accurate here even if nobody has ever
-// clicked into Scopes this session. ----
-async function loadReviewSendLogDashboard(sowProjectId, projectName){
-  const host = document.getElementById('reviewSendLogDashboard');
-  if(!host || !window.ScopeOfWork) return;
-  try{
-    if(window.ScopeOfWork.getCurrentJobId() !== sowProjectId){
-      const hidden = document.getElementById('sowHiddenMount');
-      await window.ScopeOfWork.mountProject(hidden, sowProjectId, projectName);
-    }
-    const log = window.ScopeOfWork.getSendLog() || [];
-    host.innerHTML = buildReviewSendLogDashboardHTML(log);
-  } catch(e){
-    console.warn('Could not load Review & Send Log for dashboard:', e);
-    host.innerHTML = '<div class="empty-row">Could not load the Review &amp; Send Log right now.</div>';
-  }
-}
-function buildReviewSendLogDashboardHTML(log){
-  if(!log.length) return '<div class="empty-row">Nothing sent for review yet — rounds sent from Scopes → Review &amp; Send Log will show up here.</div>';
-  const sorted = log.slice().sort((a,b) => b.timestamp - a.timestamp);
-  return sorted.map(entry => `<div class="list-row">
-    <div>
-      <div class="main-txt">${escapeHtmlLite(entry.audience)} <span class="pill pill-slate" style="margin-left:6px;">${entry.items.length} item${entry.items.length===1?'':'s'}</span></div>
-      <div class="sub-txt">${entry.by ? 'Sent by ' + escapeHtmlLite(entry.by) + ' · ' : ''}${new Date(entry.timestamp).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}</div>
-    </div>
-    <div class="right-txt" style="max-width:280px; text-align:right; color:var(--ink-faint); font-size:12px;">${entry.items.slice(0,2).map(i=>escapeHtmlLite(i.text)).join('; ')}${entry.items.length > 2 ? '…' : ''}</div>
-  </div>`).join('');
-}
 function buildActionBannerHTML(p){
   const task = getActiveTaskForProject(p);
   const needsAction = task && (!task.milestone.assignee || (task.days !== null && task.days > 10));
@@ -7890,14 +7914,9 @@ function buildActionBannerHTML(p){
     ${buildScheduleTabHTML(p)}
     ${wfBaselineCheck.baselineSet ? `${buildWaitingBlockedSummaryHTML(p)}${buildFullActionListHTML(p)}` : ''}
     ${buildPropertyHomeownerPanelHTML(p, srcOppId, `renderProjectDetail()`)}
-    <div class="section-label-row" style="margin-top:8px;"><div class="eyebrow">Review &amp; Send Log</div><span class="pill pill-slate" style="cursor:pointer;" onclick="openCCSubNav('scopes','review')">Open in Scopes →</span></div>
-    <div class="panel" style="margin-bottom:20px;"><div class="panel-body" style="padding:6px 20px;" id="reviewSendLogDashboard"><div class="empty-row">Loading…</div></div></div>
     ${buildClientLogPanelHTML(p)}`;
   } else if(CC_TAB === 'clarifications'){
     tabBody = buildClarificationsTabHTML(p);
-  } else if(CC_TAB === 'scopes'){
-    tabBody = `<div class="hint" style="margin-bottom:10px;">Full trade-by-trade Scope of Work for ${escapeHtmlLite(p.client)} — Company Settings' "Manage Scope Items" library is shared across every project; anything added there shows up here automatically.</div>
-    <div id="sowContainer"></div>`;
   } else if(CC_TAB === 'estimate'){
     const oppIdForEst = p.convertedFrom || p.id;
     const oppOrProjCtx = getOppOrProjectContext(oppIdForEst);
@@ -7911,10 +7930,19 @@ function buildActionBannerHTML(p){
     const srcOppId3 = p.convertedFrom || p.id;
     const est2 = OPP_ESTIMATES[srcOppId3];
     if(est2 && !est2.uploadedDocs) est2.uploadedDocs = {};
+    const preliminaryProposalDoc = est2 ? est2.uploadedDocs.preliminaryProposal : null;
     const proposalDoc = est2 ? est2.uploadedDocs.formalProposal : null;
     const constructionAgreementDoc = est2 ? est2.uploadedDocs.constructionAgreement : null;
     const template = COMPANY_TEMPLATES.constructionAgreement;
     tabBody = `
+      <div class="section-label-row"><div class="eyebrow">Preliminary Proposal</div></div>
+      <div class="panel" style="margin-bottom:20px;"><div class="panel-body" style="padding:18px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;">
+        <div>
+          <div style="font-weight:600;">${preliminaryProposalDoc ? escapeHtmlLite(preliminaryProposalDoc.name) : 'No preliminary proposal uploaded yet'}</div>
+          <div class="sub-txt" style="margin-top:2px;">${preliminaryProposalDoc ? 'Uploaded ' + preliminaryProposalDoc.uploadedAt : 'Upload the early ballpark proposal, before the formal one is ready.'}</div>
+        </div>
+        ${preliminaryProposalDoc ? `<div class="row" style="gap:8px;"><button class="btn btn-outline" onclick="openFilePreview('${preliminaryProposalDoc.dataUrl}', '${escapeHtmlLite(preliminaryProposalDoc.name || 'Preliminary Proposal')}')">View →</button><label class="pill pill-slate" style="cursor:pointer;">Replace<input type="file" accept="application/pdf,image/*" style="display:none;" onchange="uploadDocToSlot('${srcOppId3}','preliminaryProposal', this)"></label></div>` : `<label class="pill pill-slate" style="cursor:pointer;">+ Upload<input type="file" accept="application/pdf,image/*" style="display:none;" onchange="uploadDocToSlot('${srcOppId3}','preliminaryProposal', this)"></label>`}
+      </div></div>
       <div class="section-label-row"><div class="eyebrow">Formal Proposal</div></div>
       <div class="panel" style="margin-bottom:20px;"><div class="panel-body" style="padding:18px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;">
         <div>
@@ -7976,20 +8004,6 @@ function buildActionBannerHTML(p){
       </div>
     </div>
     <div class="cc-tabs">${tabs.map(t => {
-      if(t === 'scopes'){
-        const items = [
-          {value:'selections', icon:'📋', label:'Selections (start here)'},
-          {value:'areas', icon:'🗺️', label:'Plan & Areas'},
-          {value:'builder', icon:'🛠️', label:'Scope Builder'},
-          {value:'assume', icon:'❓', label:'Assumptions Review'},
-          {value:'review', icon:'📤', label:'Review & Send Log'},
-          {value:'scopeadmin', icon:'⚙️', label:'Manage Scope Items'},
-        ];
-        return `<div class="nav-dd cc-tab-dd" id="scopesTabDD">
-          <div class="cc-tab ${CC_TAB===t?'active':''}" onclick="toggleNavDropdown('scopesTabDD')">${tabLabels[t]} <span class="cc-tab-caret">▾</span></div>
-          <div class="nav-dd-panel">${items.map(it => `<div class="nav-dd-item" onclick="openCCSubNav('scopes','${it.value}')"><span class="nav-dd-icon">${it.icon}</span><span class="nav-dd-label">${escapeHtmlLite(it.label)}</span></div>`).join('')}</div>
-        </div>`;
-      }
       return `<div class="cc-tab ${CC_TAB===t?'active':''}" onclick="setCCTab('${t}')">${tabLabels[t]}</div>`;
     }).join('')}</div>
     ${tabBody}
@@ -7997,13 +8011,6 @@ function buildActionBannerHTML(p){
   window.scrollTo(0, 0);
   if(__scrollHost) __scrollHost.scrollTop = __scrollTop;
   attachAddressAutocomplete('addr_' + p.id);
-  if(CC_TAB === 'overview' && window.ScopeOfWork){
-    loadReviewSendLogDashboard(p.convertedFrom || p.id, p.name);
-  }
-  if(CC_TAB === 'scopes' && window.ScopeOfWork){
-    const container = document.getElementById('sowContainer');
-    if(container) window.ScopeOfWork.mountProject(container, p.convertedFrom || p.id, p.name);
-  }
   if(CC_TAB === 'proposals' && DOC_EDITOR_ACTIVE && DOC_EDITOR_ACTIVE.projectId === p.id){
     initDocumentEditor(p.id, DOC_EDITOR_ACTIVE.docId);
   }
@@ -8054,6 +8061,7 @@ function buildMeetingNotesTabHTML(p){
 
     <div class="panel mn-composer" style="margin-bottom:24px;">
       <div class="panel-body" style="padding:18px 20px;">
+        <input type="text" id="mnTitleInput-${p.id}" class="mn-title-input" placeholder="Meeting title — e.g. Client Walkthrough, Weekly Internal Sync…">
         <div class="mn-toolbar">
           <button type="button" class="mn-tool-btn" title="Bold" onmousedown="event.preventDefault()" onclick="mnExec('${p.id}','bold')"><b>B</b></button>
           <button type="button" class="mn-tool-btn" title="Italic" onmousedown="event.preventDefault()" onclick="mnExec('${p.id}','italic')"><i>I</i></button>
@@ -8111,6 +8119,7 @@ function buildMeetingNoteEntryCardHTML(p, n){
     <div class="mn-note-card">
       <div class="mn-note-head">
         <div>
+          ${n.title ? `<div class="mn-note-title">${escapeHtmlLite(n.title)}</div>` : ''}
           <div class="mn-note-who">${escapeHtmlLite(n.createdBy || CURRENT_LOGGED_IN_USER)}</div>
           <div class="mn-note-when">${fmtMeetingNoteWhen(n.createdAt)}</div>
         </div>
@@ -8251,12 +8260,15 @@ function logMeetingNote(pid){
   if(!p) return;
   ensureMeetingNotesModel(p);
   const editor = document.getElementById('mnEditor-'+pid);
+  const titleInput = document.getElementById('mnTitleInput-'+pid);
+  const title = titleInput ? titleInput.value.trim() : '';
   const html = editor ? editor.innerHTML.trim() : '';
   const plain = editor ? editor.textContent.trim() : '';
   if(!plain){ alert('Write or paste something before logging this meeting note.'); return; }
   const tags = (MN_COMPOSE_TAGS[pid] || []).slice();
-  p.meetingNotes.push({ id:'mtg'+Date.now(), html, tags, createdAt: Date.now(), createdBy: CURRENT_LOGGED_IN_USER });
+  p.meetingNotes.push({ id:'mtg'+Date.now(), title, html, tags, createdAt: Date.now(), createdBy: CURRENT_LOGGED_IN_USER });
   if(editor) editor.innerHTML = '';
+  if(titleInput) titleInput.value = '';
   MN_COMPOSE_TAGS[pid] = [];
   const picker = document.getElementById('mnTagPicker-'+pid);
   if(picker) picker.innerHTML = buildMeetingTagPickerHTML(p);
@@ -8289,20 +8301,6 @@ function removeTagFromNote(pid, noteId, tag){
   if(log) log.innerHTML = buildMeetingNotesLogHTML(p);
 }
 
-async function openCCSubNav(tabName, value){
-  document.querySelectorAll('.nav-dd.open').forEach(x => x.classList.remove('open'));
-  setCCTab(tabName);
-  if(tabName === 'scopes' && window.ScopeOfWork){
-    // The Scope of Work tool's boot sequence is genuinely async (loads the shared company
-    // settings/library before picking its own default landing tab) and mounting doesn't wait
-    // for that internally — if we navigate before it actually finishes, its own default can
-    // silently overwrite our choice moments later. Wait for the real mount to complete first.
-    if(window.ScopeOfWork._lastMountPromise){
-      await window.ScopeOfWork._lastMountPromise;
-    }
-    window.ScopeOfWork.goTo(value);
-  }
-}
 
 
 const pages = document.querySelectorAll('.page');
