@@ -865,6 +865,56 @@ tbody tr:hover{background:#FCFBF8;}
 .cc-shell{padding:40px 20px; text-align:center; color:var(--ink-faint); border:1px dashed var(--border); border-radius:var(--radius);}
 .cc-shell strong{color:var(--ink-soft); display:block; margin-bottom:6px; font-size:14px;}
 
+/* ---- Meeting Notes (Preconstruction → project tab) ---- */
+.mn-tag-manager .mn-tag-pool{display:flex; flex-wrap:wrap; gap:8px;}
+.mn-tag-chip{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; padding:5px 6px 5px 11px; border-radius:20px; white-space:nowrap; border:1px solid transparent;}
+.mn-tag-chip .mn-tag-x{cursor:pointer; opacity:0.6; font-size:13px; line-height:1; width:16px; height:16px; border-radius:50%; display:flex; align-items:center; justify-content:center;}
+.mn-tag-chip .mn-tag-x:hover{opacity:1; background:rgba(0,0,0,0.08);}
+.mn-tag-0{background:var(--jade-soft); color:var(--jade);}
+.mn-tag-1{background:var(--gold-soft); color:var(--taupe-dark);}
+.mn-tag-2{background:var(--rust-soft); color:var(--rust);}
+.mn-tag-3{background:var(--slate-soft); color:var(--slate);}
+.mn-tag-4{background:var(--border-soft); color:var(--ink-soft);}
+
+.mn-composer{border-color:var(--border-strong,var(--border));}
+.mn-toolbar{display:flex; align-items:center; gap:4px; flex-wrap:wrap; padding-bottom:12px; margin-bottom:12px; border-bottom:1px solid var(--border-soft);}
+.mn-tool-btn{width:32px; height:30px; border-radius:7px; border:1px solid var(--border); background:var(--paper); color:var(--ink-soft); font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0;}
+.mn-tool-btn-size{width:auto; min-width:30px; padding:0 8px; font-size:11.5px; font-weight:700;}
+.mn-tool-btn:hover{background:var(--border-soft); border-color:var(--taupe); color:var(--ink);}
+.mn-tool-btn.mn-active{background:var(--taupe-dark); border-color:var(--taupe-dark); color:#fff;}
+.mn-tool-sep{width:1px; height:22px; background:var(--border-soft); margin:0 4px;}
+.mn-tool-label{font-size:11px; color:var(--ink-faint); font-weight:600; margin-right:2px;}
+.mn-highlight-group{display:flex; align-items:center; gap:5px;}
+.mn-swatch{width:20px; height:20px; border-radius:50%; border:1px solid var(--border); cursor:pointer; padding:0;}
+.mn-swatch:hover{transform:scale(1.12); border-color:var(--taupe);}
+.mn-swatch-none{background:var(--paper); color:var(--ink-faint); font-size:11px; line-height:1; display:flex; align-items:center; justify-content:center;}
+.mn-editor{
+  min-height:150px; max-height:420px; overflow-y:auto; padding:14px 16px; border:1px solid var(--border);
+  border-radius:9px; background:var(--paper); font-size:14px; line-height:1.6; color:var(--ink);
+}
+.mn-editor:focus{outline:none; border-color:var(--taupe-dark);}
+.mn-editor:empty:before{content:attr(data-placeholder); color:var(--ink-faint);}
+.mn-editor p{margin:0 0 10px;}
+.mn-editor p:last-child{margin-bottom:0;}
+.mn-editor ul, .mn-editor ol{margin:0 0 10px 20px; padding:0;}
+.mn-compose-footer{display:flex; justify-content:space-between; align-items:center; gap:14px; margin-top:14px; flex-wrap:wrap;}
+.mn-tag-picker{display:flex; flex-wrap:wrap; gap:7px; flex:1;}
+.mn-tag-toggle{font-size:11.5px; font-weight:600; padding:5px 12px; border-radius:20px; background:var(--border-soft); color:var(--ink-faint); cursor:pointer; border:1px solid transparent; user-select:none;}
+.mn-tag-toggle:hover{border-color:var(--taupe);}
+.mn-tag-toggle.mn-selected{background:var(--taupe-dark); color:#fff;}
+
+.mn-note-card{background:var(--paper); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px 20px; margin-bottom:14px;}
+.mn-note-head{display:flex; justify-content:space-between; align-items:flex-start; gap:14px; margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid var(--border-soft);}
+.mn-note-who{font-size:13.5px; font-weight:700; color:var(--ink);}
+.mn-note-when{font-size:11.5px; color:var(--ink-faint); margin-top:2px;}
+.mn-note-delete{color:var(--ink-faint); font-size:12px; cursor:pointer; white-space:nowrap;}
+.mn-note-delete:hover{color:var(--rust);}
+.mn-note-body{font-size:13.5px; line-height:1.65; color:var(--ink-soft); word-wrap:break-word;}
+.mn-note-body p{margin:0 0 10px;}
+.mn-note-body p:last-child{margin-bottom:0;}
+.mn-note-tags{display:flex; flex-wrap:wrap; align-items:center; gap:7px; margin-top:12px;}
+.mn-add-tag-select{width:auto; display:inline-block; font-size:11px; padding:4px 6px; border-radius:20px; border:1px dashed var(--border-strong,var(--border)); color:var(--ink-faint); background:var(--paper);}
+
 .disclosure{border:1px solid var(--border); border-radius:var(--radius); margin-bottom:14px; overflow:hidden;}
 .disclosure-head{padding:12px 16px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; background:var(--paper); font-weight:600; font-size:13.5px;}
 .disclosure-head:hover{background:var(--border-soft);}
@@ -1078,6 +1128,11 @@ select{cursor:pointer;}
 .hero-row{display:flex; gap:20px; margin-top:16px; flex-wrap:wrap;}
 .hero-row label{font-size:10.5px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-faint); margin-bottom:4px; display:block;}
 .hero-row select, .hero-row input{min-width:160px;}
+.hero-notes{margin-top:16px; background:var(--cream); border:1px solid var(--border-soft); border-radius:9px; padding:12px 14px;}
+.hero-notes label{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-faint); margin-bottom:6px; display:block;}
+.hero-notes textarea{background:transparent; border:none; padding:0; min-height:52px; resize:vertical; font-size:13.5px; line-height:1.5; color:var(--ink-soft);}
+.hero-notes textarea:focus{outline:none;}
+.hero-notes textarea::placeholder{color:var(--ink-faint);}
 .readylist{display:flex; flex-direction:column; gap:6px; margin-bottom:6px;}
 .readyrow{background:#fff; border:1px solid var(--border); border-radius:8px; padding:9px 14px; font-size:13px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;}
 .readyrow:hover{border-color:var(--taupe-dark);}
@@ -1144,17 +1199,17 @@ select{cursor:pointer;}
     <div class="sidebar-scroll">
 
       <div class="nav-section">
-        <div class="nav-item" data-page="taskcenter">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M8 2v4M16 2v4M3.5 9h17"/><path d="M7.5 13.5l1.5 1.5 3-3M7.5 17.5l1.5 1.5 3-3"/></svg>
-          Task Center
-        </div>
-      </div>
-
-      <div class="nav-section">
         <div class="nav-section-label">Preconstruction</div>
         <div class="nav-item active" data-page="precon-dash">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/></svg>
           Preconstruction
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-item" data-page="taskcenter">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M8 2v4M16 2v4M3.5 9h17"/><path d="M7.5 13.5l1.5 1.5 3-3M7.5 17.5l1.5 1.5 3-3"/></svg>
+          Task Center
         </div>
       </div>
 
@@ -1185,6 +1240,7 @@ select{cursor:pointer;}
         <div id="searchResults" style="display:none; position:absolute; top:44px; left:0; right:0; background:#fff; border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow); z-index:20; overflow:hidden;"></div>
       </div>
       <div class="topbar-spacer"></div>
+      <div id="welcomeMsg" style="font-size:13px; color:var(--ink-faint); font-weight:500; margin-right:6px;"></div>
       <div class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 8a6 6 0 1 1 12 0c0 3.5 1 5.5 2 7H4c1-1.5 2-3.5 2-7z"/><path d="M10 19a2 2 0 0 0 4 0"/></svg><div class="dot"></div></div>
     </div>
 
@@ -1358,6 +1414,11 @@ if(SUPABASE_CONFIGURED && window.supabase){
 function showAppRoot(){
   document.getElementById('loginGate').style.display = 'none';
   document.getElementById('appRoot').style.display = 'flex';
+  const welcomeEl = document.getElementById('welcomeMsg');
+  if(welcomeEl){
+    const firstName = (CURRENT_LOGGED_IN_USER || '').split(' ')[0] || '';
+    welcomeEl.textContent = firstName ? ('Welcome back, ' + firstName) : '';
+  }
 }
 function showLoginGate(){
   document.getElementById('appRoot').style.display = 'none';
@@ -5085,6 +5146,8 @@ function goBackOneStep(projectId){
     }
     prevSt.status = 'In Progress';
     prevSt.completedAt = null;
+    prevSt.heroNote = null;
+    clearHeroNote(stage, next.def.id);
     getStepState(stage, next.def.id).status = 'Not Ready';
   } else {
     const prevStage = wf.stages.find(s => s.n === wf.currentStageN - 1);
@@ -5104,6 +5167,7 @@ function goBackOneStep(projectId){
     p.currentPhase = prevStage.n; // keep the legacy field in sync — see the note in recomputeStage
     lastSt.status = 'In Progress';
     lastSt.completedAt = null;
+    lastSt.heroNote = null;
   }
   recomputeStage(p);
   saveAppState(); renderProjectDetail(); renderProjectCardGrids();
@@ -5115,6 +5179,7 @@ function setStepStatus(projectId, stepId, status){
   const ph = phaseDef(wf.currentStageN);
   const st = getStepState(stage, stepId);
   st.status = status;
+  st.heroNote = null; // status changed — any note left on the hero is scoped to the old state, so it clears
   if(status === 'Complete'){
     const today = new Date().toISOString().slice(0,10);
     st.completedAt = today;
@@ -5886,6 +5951,22 @@ function buildStageRailHTML(p){
 }
 // ---- The hero: the one step to actually do right now, in strict order. Nothing else on
 // this tab competes with it for attention — that's the point. ----
+// ---- Free-form context for whoever's looking at the hero right now — "here's what's
+// actually happening" or "here's what's coming up next." Tied to the specific step, not the
+// project, since it's scoped to this exact moment in the process: the moment the step's
+// status changes (Complete, Waiting, Blocked, In Revision, Ready, reopened via Go Back —
+// anything), clearHeroNote() below wipes it, so the next person to land on the hero always
+// starts from blank rather than reading stale context left over from a different state. ----
+function buildHeroNotesHTML(p, stepId, currentNote){
+  return `<div class="hero-notes">
+    <label>Notes</label>
+    <textarea placeholder="What's happening on this right now, or what's coming up next…" onchange="setStepField('${p.id}','${stepId}','heroNote', this.value)">${escapeHtmlLite(currentNote || '')}</textarea>
+  </div>`;
+}
+function clearHeroNote(stage, stepId){
+  const st = getStepState(stage, stepId);
+  st.heroNote = null;
+}
 // ---- Returns just the inner content + status class for the current hero state, without
 // the outer box — buildNextActionHeroHTML wraps this together with the Tasks column into
 // one shared bordered box, since the two need to sit side by side rather than as separate
@@ -5917,6 +5998,7 @@ function buildHeroInnerHTML(p){
         <div class="hero-label">Phase ${ph.n} · ${escapeHtmlLite(ph.name)} — Waiting</div>
         <div class="hero-title">${escapeHtmlLite(w.def.title)}</div>
         <div class="hero-meta">${w.a.waitingParty ? `Waiting on <b>${escapeHtmlLite(w.a.waitingParty)}</b>` : ''}${w.a.waitingExpected ? ` · expected ${escapeHtmlLite(w.a.waitingExpected)}` : ''}</div>
+        ${buildHeroNotesHTML(p, w.def.id, w.a.heroNote)}
         <div class="row" style="margin-top:12px; gap:8px;">
           <button class="btn btn-outline btn-sm" onclick="setStepStatus('${p.id}','${w.def.id}','Ready')">They responded — mark Ready</button>
         </div>` };
@@ -5928,6 +6010,7 @@ function buildHeroInnerHTML(p){
         <div class="hero-label">Phase ${ph.n} · ${escapeHtmlLite(ph.name)} — In Revision${r.a.revisionRounds ? ` (Round ${r.a.revisionRounds})` : ''}</div>
         <div class="hero-title">${escapeHtmlLite(r.def.title)}</div>
         <div class="hero-meta">${r.a.revisionParty ? `With <b>${escapeHtmlLite(r.a.revisionParty)}</b> for revision` : 'Sent back for revision'}${r.a.revisionExpected ? ` · expected back ${escapeHtmlLite(r.a.revisionExpected)}` : ''}${r.a.revisionNote ? ` — ${escapeHtmlLite(r.a.revisionNote)}` : ''}</div>
+        ${buildHeroNotesHTML(p, r.def.id, r.a.heroNote)}
         <div class="row" style="margin-top:12px; gap:8px;">
           <button class="btn btn-outline btn-sm" onclick="setStepStatus('${p.id}','${r.def.id}','Ready')">Revised copy is back — mark Ready</button>
         </div>` };
@@ -5960,12 +6043,12 @@ function buildHeroInnerHTML(p){
     ${revisionBanner}
     <div class="hero-label">Phase ${ph.n} · ${escapeHtmlLite(ph.name)} — Step ${index+1} of ${total}${dueBadge}</div>
     <div class="hero-title">${escapeHtmlLite(def.title)}</div>
-    <div class="hero-meta">${escapeHtmlLite(def.role)}${isBlocked && a.blockerNote ? ` — Blocked: ${escapeHtmlLite(a.blockerNote)}` : ''}</div>
+    <div class="hero-meta">${escapeHtmlLite(def.role)}${isBlocked && a.blockerNote ? ` — Blocked: ${escapeHtmlLite(a.blockerNote)}${a.blockedParty ? ` · ${escapeHtmlLite(a.blockedParty)}` : ''}` : ''}</div>
     <div class="hero-row">
       <div><label>Assigned To</label><select onchange="setStepField('${p.id}','${def.id}','owner',this.value)">${stepOwnerOptions(def.role, a.owner || ROLE_DEFAULT_ASSIGNEE[def.role])}</select></div>
-      <div><label>Due</label><input type="date" value="${a.due||''}" onchange="setStepField('${p.id}','${def.id}','due',this.value)"></div>
       ${a.baselineDue ? `<div><label>Baseline Was</label><div style="font-size:13px; color:var(--ink-faint); padding-top:8px;">${fmtNoteDate(a.baselineDue)}</div></div>` : ''}
     </div>
+    ${buildHeroNotesHTML(p, def.id, a.heroNote)}
     <div class="row" style="margin-top:14px; gap:8px; flex-wrap:wrap;">
       <button class="btn btn-outline" style="color:var(--ink-faint); border-color:var(--border);" onclick="goBackOneStep('${p.id}')" title="Reopens the previous step (or the previous phase, if this is the first step) — a manual correction, not part of the normal flow forward">◀ Go Back</button>
       ${!isInProgress && !isBlocked ? `<button class="btn btn-outline" onclick="setStepStatus('${p.id}','${def.id}','In Progress')">Start</button>` : ''}
@@ -6031,7 +6114,7 @@ function buildWaitingBlockedSummaryHTML(p){
   if(!blocked.length && !waiting.length && !revising.length) return '';
   return `<div class="section-label-row" style="margin-top:18px;"><div class="eyebrow">Everything Else Outstanding This Phase</div></div>
     <div class="readylist">
-      ${blocked.map(d => `<div class="readyrow" style="border-left:3px solid var(--rust); cursor:default;"><span>🔴 ${escapeHtmlLite(d.title)}${stage.steps[d.id].blockerNote ? ' — ' + escapeHtmlLite(stage.steps[d.id].blockerNote) : ''}</span></div>`).join('')}
+      ${blocked.map(d => `<div class="readyrow" style="border-left:3px solid var(--rust); cursor:default;"><span>🔴 ${escapeHtmlLite(d.title)}${stage.steps[d.id].blockedParty ? ' — on ' + escapeHtmlLite(stage.steps[d.id].blockedParty) : ''}${stage.steps[d.id].blockerNote ? ' — ' + escapeHtmlLite(stage.steps[d.id].blockerNote) : ''}</span></div>`).join('')}
       ${revising.map(d => { const rst = stage.steps[d.id]; const rounds = rst.revisionRounds || 1; return `<div class="readyrow" style="border-left:3px solid #7a5ea8; cursor:default; display:block; padding:10px 14px;">
         <div>🟣 ${escapeHtmlLite(d.title)}${rst.revisionParty ? ' — with ' + escapeHtmlLite(rst.revisionParty) + ' for revision' : ' — sent back for revision'} <span class="pill pill-violet" style="font-size:9px;">Round ${rounds}</span></div>
         ${rst.revisionNote ? `<div style="font-size:11.5px; color:var(--ink-faint); margin-top:4px;">"${escapeHtmlLite(rst.revisionNote)}"</div>` : ''}
@@ -6099,6 +6182,11 @@ function buildFullActionListHTML(p){
       }).join('')}
     </tbody></table>` : ''}`;
 }
+// ---- Shared "who" list for every place a step's status pauses on someone else — Waiting,
+// Blocked, and Revision all use the exact same options, so "who's this on" always means the
+// same set of choices no matter which button got clicked, whether that's the client, the
+// architect, or MC&D itself holding things up internally. ----
+const HERO_PARTY_OPTIONS_HTML = '<option>Client</option><option>Architect</option><option>Designer</option><option>Engineer</option><option>Surveyor</option><option>Municipality</option><option>Lender</option><option>Trade</option><option>Vendor</option><option>Estimator</option><option>Internal MC&amp;D</option>';
 function openMarkWaiting(projectId, stepId){
   openQuickOverlay(`
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
@@ -6106,7 +6194,7 @@ function openMarkWaiting(projectId, stepId){
       <span style="cursor:pointer; color:var(--ink-faint); font-size:20px;" onclick="closeQuickOverlay()">&times;</span>
     </div>
     <label class="est-lbl">Waiting On</label>
-    <select id="woParty"><option>Client</option><option>Architect</option><option>Designer</option><option>Engineer</option><option>Surveyor</option><option>Municipality</option><option>Lender</option><option>Trade</option><option>Vendor</option><option>Internal MC&amp;D</option></select>
+    <select id="woParty">${HERO_PARTY_OPTIONS_HTML}</select>
     <label class="est-lbl" style="margin-top:12px;">Expected Date</label>
     <input id="woExpected" type="date">
     <div class="row" style="margin-top:18px; justify-content:flex-end; gap:8px;">
@@ -6138,7 +6226,7 @@ function openMarkRevision(projectId, stepId){
     </div>
     ${parentDef ? `<div class="hint" style="margin-bottom:12px;">This reopens <b>"${escapeHtmlLite(parentDef.title)}"</b> — that step (and anything between it and this one) resets so the reworked version comes back through properly. This step stays flagged "In Revision" until it does.</div>` : `<div class="hint" style="margin-bottom:12px;">No parent step is configured for this one (Company Settings → Preconstruction Process). This will just flag it as In Revision without reopening anything earlier.</div>`}
     <label class="est-lbl">With</label>
-    <select id="rvParty"><option>Architect</option><option>Designer</option><option>Estimator</option></select>
+    <select id="rvParty">${HERO_PARTY_OPTIONS_HTML}</select>
     <label class="est-lbl" style="margin-top:12px;">What needs to change?</label>
     <input id="rvNote" placeholder="e.g. Client wants the primary bath layout revised">
     <label class="est-lbl" style="margin-top:12px;">Expected Back</label>
@@ -6167,6 +6255,7 @@ function submitMarkRevision(projectId, stepId){
   st.revisionExpected = document.getElementById('rvExpected').value || null;
   st.revisionRounds = (st.revisionRounds || 0) + 1;
   st.status = 'In Revision';
+  st.heroNote = null;
 
   if(def && def.revisesStepId){
     const parentIdx = ph.steps.findIndex(s => s.id === def.revisesStepId);
@@ -6174,10 +6263,12 @@ function submitMarkRevision(projectId, stepId){
     if(parentIdx !== -1 && parentIdx < thisIdx){
       const parentSt = getStepState(stage, def.revisesStepId);
       parentSt.status = 'In Progress';
+      parentSt.heroNote = null;
       // Everything strictly between the parent and this review step has to be redone too —
       // reset it so the normal sequential engine naturally walks back through it once the
       // parent is marked Complete again, instead of skipping straight back to this step.
       for(let i = parentIdx + 1; i < thisIdx; i++){
+        clearHeroNote(stage, ph.steps[i].id);
         getStepState(stage, ph.steps[i].id).status = 'Not Ready';
       }
     }
@@ -6192,7 +6283,9 @@ function openMarkBlocked(projectId, stepId){
       <h3 style="font-family:'Space Grotesk',sans-serif; font-size:18px;">Flag as Blocked</h3>
       <span style="cursor:pointer; color:var(--ink-faint); font-size:20px;" onclick="closeQuickOverlay()">&times;</span>
     </div>
-    <label class="est-lbl">What's blocking this?</label>
+    <label class="est-lbl">Who's this on?</label>
+    <select id="bkParty">${HERO_PARTY_OPTIONS_HTML}</select>
+    <label class="est-lbl" style="margin-top:12px;">What's blocking this?</label>
     <input id="bkNote" placeholder="e.g. Fireplace material not confirmed">
     <div class="row" style="margin-top:18px; justify-content:flex-end; gap:8px;">
       <button class="btn btn-outline" onclick="closeQuickOverlay()">Cancel</button>
@@ -6203,6 +6296,7 @@ function openMarkBlocked(projectId, stepId){
 function submitMarkBlocked(projectId, stepId){
   const note = document.getElementById('bkNote').value.trim();
   if(!note){ alert("Enter what's blocking this."); return; }
+  setStepField(projectId, stepId, 'blockedParty', document.getElementById('bkParty').value);
   setStepField(projectId, stepId, 'blockerNote', note);
   closeQuickOverlay();
   setStepStatus(projectId, stepId, 'Blocked');
@@ -7717,7 +7811,7 @@ function renderProjectDetail(){
   const host = document.getElementById('projectDetailHost');
   if(!p || !host) return;
   const tabs = ['overview','clarifications','scopes','estimate','plans','proposals','files','activity'];
-  const tabLabels = {overview:'Overview', clarifications:'Clarifications', scopes:'Scopes', estimate:'Estimate', plans:'Plans & Design', proposals:'Proposals & Contracts', files:'Files', activity:'Activity', clientview:'Client View'};
+  const tabLabels = {overview:'Overview', clarifications:'Clarifications', scopes:'Scopes', estimate:'Estimate', plans:'Plans & Design', proposals:'Proposals & Contracts', files:'Files', activity:'Meeting Notes', clientview:'Client View'};
 
   let tabBody = '';
 // ---- Review & Send Log dashboard for the Overview tab — pulled from the Scope of Work
@@ -7842,11 +7936,10 @@ function buildActionBannerHTML(p){
       ${DOC_EDITOR_ACTIVE && DOC_EDITOR_ACTIVE.projectId === p.id ? buildDocumentEditorHTML(p) : buildProjectDocsListHTML(p)}`;
   } else if(CC_TAB === 'files'){
     tabBody = buildProjectFilesTabHTML(p);
+  } else if(CC_TAB === 'activity'){
+    tabBody = buildMeetingNotesTabHTML(p);
   } else {
-    const shellCopy = {
-      activity:'Activity Timeline — same activity log architecture as Sales opportunities, scoped to this project.'
-    };
-    tabBody = `<div class="cc-shell"><strong>${tabLabels[CC_TAB]}</strong>${shellCopy[CC_TAB] || 'Coming soon.'}</div>`;
+    tabBody = `<div class="cc-shell"><strong>${tabLabels[CC_TAB]}</strong>Coming soon.</div>`;
   }
 
   if(CC_TAB === 'clientview'){
@@ -7914,7 +8007,288 @@ function buildActionBannerHTML(p){
   if(CC_TAB === 'proposals' && DOC_EDITOR_ACTIVE && DOC_EDITOR_ACTIVE.projectId === p.id){
     initDocumentEditor(p.id, DOC_EDITOR_ACTIVE.docId);
   }
+  if(CC_TAB === 'activity'){
+    setupMeetingNoteEditorEvents();
+  }
 }
+
+// ============================================================
+// MEETING NOTES — replaces the old placeholder "Activity" tab on a Preconstruction
+// project. A rich-text composer (bold/italic/underline/highlight/font size, Word paste
+// preserved) logs timestamped, author-stamped entries into a running per-project log.
+// Tags are a per-project pool (add/delete here); each note can carry any number of them.
+// Everything lives on the project object itself (p.meetingNotes / p.meetingNoteTags) so it
+// rides along with the rest of the app's existing save/sync — no separate storage. ----
+// ============================================================
+const MN_HIGHLIGHT_COLORS = ['#FDF3B0','#C9E7D0','#D6E4F0','#F3D3D3','#E6D6F0'];
+const MN_COMPOSE_TAGS = {}; // projectId -> array of tag names currently selected in that project's composer
+function ensureMeetingNotesModel(p){
+  if(!p.meetingNotes) p.meetingNotes = [];
+  if(!p.meetingNoteTags) p.meetingNoteTags = ['Client Meeting','Internal','Site Visit','Design Review','Subcontractor'];
+  return p;
+}
+function mnTagColorClass(tag){
+  let h = 0;
+  for(let i=0;i<tag.length;i++) h = (h*31 + tag.charCodeAt(i)) % 5;
+  return 'mn-tag-' + h;
+}
+function buildMeetingNotesTabHTML(p){
+  ensureMeetingNotesModel(p);
+  return `
+    <div class="section-label-row">
+      <div class="eyebrow">Meeting Notes</div>
+      <span class="pill pill-slate" style="cursor:pointer;" onclick="toggleMeetingTagManager('${p.id}')">🏷 Manage Tags</span>
+    </div>
+    <div class="hint" style="margin-bottom:14px;">A running, dated log of meeting notes for this project — paste straight from Word (formatting comes with it), or write from scratch using the toolbar below. Tag each entry so the log stays easy to scan later.</div>
+
+    <div id="mnTagManager-${p.id}" class="panel mn-tag-manager" style="display:none; margin-bottom:16px;">
+      <div class="panel-body" style="padding:16px 18px;">
+        <div class="hint" style="margin:0 0 12px;">These tags are shared across every meeting note on this project. Deleting one here removes it from any notes currently using it — the note itself stays.</div>
+        <div class="mn-tag-pool" id="mnTagPool-${p.id}">${buildMeetingTagPoolHTML(p)}</div>
+        <div class="row" style="gap:8px; margin-top:14px; align-items:center;">
+          <input type="text" id="mnNewTagInput-${p.id}" placeholder="New tag name…" style="max-width:220px;" onkeydown="if(event.key==='Enter'){event.preventDefault(); addMeetingNoteTag('${p.id}');}">
+          <button class="btn btn-outline btn-sm" onclick="addMeetingNoteTag('${p.id}')">+ Add Tag</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel mn-composer" style="margin-bottom:24px;">
+      <div class="panel-body" style="padding:18px 20px;">
+        <div class="mn-toolbar">
+          <button type="button" class="mn-tool-btn" title="Bold" onmousedown="event.preventDefault()" onclick="mnExec('${p.id}','bold')"><b>B</b></button>
+          <button type="button" class="mn-tool-btn" title="Italic" onmousedown="event.preventDefault()" onclick="mnExec('${p.id}','italic')"><i>I</i></button>
+          <button type="button" class="mn-tool-btn" title="Underline" onmousedown="event.preventDefault()" onclick="mnExec('${p.id}','underline')"><u>U</u></button>
+          <span class="mn-tool-sep"></span>
+          <span class="mn-tool-label">Size</span>
+          <button type="button" class="mn-tool-btn mn-tool-btn-size" title="Small" onmousedown="event.preventDefault()" onclick="mnSetFontSize('${p.id}','2')">S</button>
+          <button type="button" class="mn-tool-btn mn-tool-btn-size" title="Normal" onmousedown="event.preventDefault()" onclick="mnSetFontSize('${p.id}','3')">M</button>
+          <button type="button" class="mn-tool-btn mn-tool-btn-size" title="Large" onmousedown="event.preventDefault()" onclick="mnSetFontSize('${p.id}','5')">L</button>
+          <button type="button" class="mn-tool-btn mn-tool-btn-size" title="Larger" onmousedown="event.preventDefault()" onclick="mnSetFontSize('${p.id}','6')">XL</button>
+          <button type="button" class="mn-tool-btn mn-tool-btn-size" title="Huge" onmousedown="event.preventDefault()" onclick="mnSetFontSize('${p.id}','7')">XXL</button>
+          <span class="mn-tool-sep"></span>
+          <span class="mn-tool-label">Highlight</span>
+          <div class="mn-highlight-group">
+            ${MN_HIGHLIGHT_COLORS.map(c => `<button type="button" class="mn-swatch" title="Highlight" style="background:${c}" onmousedown="event.preventDefault()" onclick="mnExec('${p.id}','hiliteColor','${c}')"></button>`).join('')}
+            <button type="button" class="mn-swatch mn-swatch-none" title="Remove highlight" onmousedown="event.preventDefault()" onclick="mnExec('${p.id}','hiliteColor','transparent')">✕</button>
+          </div>
+          <span class="mn-tool-sep"></span>
+          <button type="button" class="mn-tool-btn" title="Clear formatting" style="width:auto; padding:0 10px; font-size:11.5px; font-weight:600;" onmousedown="event.preventDefault()" onclick="mnExec('${p.id}','removeFormat')">Clear</button>
+        </div>
+        <div class="mn-editor" id="mnEditor-${p.id}" contenteditable="true" data-placeholder="Type or paste meeting notes here — formatting from Word comes along with it…"></div>
+        <div class="mn-compose-footer">
+          <div class="mn-tag-picker" id="mnTagPicker-${p.id}">${buildMeetingTagPickerHTML(p)}</div>
+          <button class="btn btn-dark" onclick="logMeetingNote('${p.id}')">+ Log Meeting Note</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="mnLog-${p.id}">${buildMeetingNotesLogHTML(p)}</div>
+  `;
+}
+function buildMeetingTagPoolHTML(p){
+  if(!p.meetingNoteTags.length) return '<span class="sub-txt">No tags yet — add one below.</span>';
+  return p.meetingNoteTags.map(t => `<span class="mn-tag-chip ${mnTagColorClass(t)}">${escapeHtmlLite(t)}<span class="mn-tag-x" title="Delete tag" onclick="deleteMeetingNoteTag('${p.id}','${escapeHtmlLite(t).replace(/'/g,"\\'")}')">✕</span></span>`).join('');
+}
+function buildMeetingTagPickerHTML(p){
+  const selected = MN_COMPOSE_TAGS[p.id] || [];
+  if(!p.meetingNoteTags.length) return '<span class="sub-txt">No tags yet — use Manage Tags above to add some.</span>';
+  return p.meetingNoteTags.map(t => `<span class="mn-tag-toggle ${selected.includes(t) ? 'mn-selected' : ''}" data-tag="${escapeHtmlLite(t)}" onclick="mnToggleComposeTag('${p.id}', this, '${escapeHtmlLite(t).replace(/'/g,"\\'")}')">${escapeHtmlLite(t)}</span>`).join('');
+}
+function buildMeetingNotesLogHTML(p){
+  const notes = (p.meetingNotes || []).slice().sort((a,b) => b.createdAt - a.createdAt);
+  if(!notes.length) return '<div class="empty-row">No meeting notes logged yet — write one above and click "Log Meeting Note."</div>';
+  return notes.map(n => buildMeetingNoteEntryCardHTML(p, n)).join('');
+}
+function fmtMeetingNoteWhen(ts){
+  if(!ts) return '';
+  const d = new Date(ts);
+  if(isNaN(d)) return '';
+  return d.toLocaleDateString(undefined, {month:'short', day:'numeric', year:'numeric'}) + ' · ' + d.toLocaleTimeString(undefined, {hour:'numeric', minute:'2-digit'});
+}
+function buildMeetingNoteEntryCardHTML(p, n){
+  const availableToAdd = p.meetingNoteTags.filter(t => !(n.tags||[]).includes(t));
+  return `
+    <div class="mn-note-card">
+      <div class="mn-note-head">
+        <div>
+          <div class="mn-note-who">${escapeHtmlLite(n.createdBy || CURRENT_LOGGED_IN_USER)}</div>
+          <div class="mn-note-when">${fmtMeetingNoteWhen(n.createdAt)}</div>
+        </div>
+        <span class="mn-note-delete" onclick="deleteMeetingNoteEntry('${p.id}','${n.id}')">Delete</span>
+      </div>
+      <div class="mn-note-body">${n.html}</div>
+      <div class="mn-note-tags">
+        ${(n.tags||[]).map(t => `<span class="mn-tag-chip ${mnTagColorClass(t)}">${escapeHtmlLite(t)}<span class="mn-tag-x" title="Remove from this note" onclick="removeTagFromNote('${p.id}','${n.id}','${escapeHtmlLite(t).replace(/'/g,"\\'")}')">✕</span></span>`).join('')}
+        ${availableToAdd.length ? `<select class="mn-add-tag-select" onchange="if(this.value){addTagToNote('${p.id}','${n.id}', this.value)}">
+          <option value="">+ Add tag</option>
+          ${availableToAdd.map(t => `<option value="${escapeHtmlLite(t)}">${escapeHtmlLite(t)}</option>`).join('')}
+        </select>` : ''}
+      </div>
+    </div>`;
+}
+function toggleMeetingTagManager(pid){
+  const el = document.getElementById('mnTagManager-'+pid);
+  if(el) el.style.display = (el.style.display === 'none' || !el.style.display) ? 'block' : 'none';
+}
+function refreshMeetingTagUI(p){
+  const pool = document.getElementById('mnTagPool-'+p.id);
+  if(pool) pool.innerHTML = buildMeetingTagPoolHTML(p);
+  const picker = document.getElementById('mnTagPicker-'+p.id);
+  if(picker) picker.innerHTML = buildMeetingTagPickerHTML(p);
+  const log = document.getElementById('mnLog-'+p.id);
+  if(log) log.innerHTML = buildMeetingNotesLogHTML(p);
+}
+function addMeetingNoteTag(pid){
+  const p = PROJECTS[pid];
+  if(!p) return;
+  ensureMeetingNotesModel(p);
+  const input = document.getElementById('mnNewTagInput-'+pid);
+  const name = (input.value || '').trim();
+  if(!name) return;
+  if(p.meetingNoteTags.some(t => t.toLowerCase() === name.toLowerCase())){
+    input.value = '';
+    return;
+  }
+  p.meetingNoteTags.push(name);
+  input.value = '';
+  refreshMeetingTagUI(p);
+}
+function deleteMeetingNoteTag(pid, tag){
+  const p = PROJECTS[pid];
+  if(!p) return;
+  ensureMeetingNotesModel(p);
+  if(!confirm(`Delete the "${tag}" tag? It will be removed from any notes using it.`)) return;
+  p.meetingNoteTags = p.meetingNoteTags.filter(t => t !== tag);
+  (p.meetingNotes||[]).forEach(n => { if(n.tags) n.tags = n.tags.filter(t => t !== tag); });
+  if(MN_COMPOSE_TAGS[pid]) MN_COMPOSE_TAGS[pid] = MN_COMPOSE_TAGS[pid].filter(t => t !== tag);
+  refreshMeetingTagUI(p);
+}
+function mnToggleComposeTag(pid, el, tag){
+  if(!MN_COMPOSE_TAGS[pid]) MN_COMPOSE_TAGS[pid] = [];
+  const arr = MN_COMPOSE_TAGS[pid];
+  const idx = arr.indexOf(tag);
+  if(idx === -1){ arr.push(tag); el.classList.add('mn-selected'); }
+  else { arr.splice(idx, 1); el.classList.remove('mn-selected'); }
+}
+function mnExec(pid, cmd, value){
+  const editor = document.getElementById('mnEditor-'+pid);
+  if(editor) editor.focus();
+  if(cmd === 'hiliteColor'){
+    // Firefox uses hiliteColor; some Chromium builds only recognize the older backColor
+    // name — try the modern one first and fall back so the highlight buttons always work.
+    let ok = false;
+    try{ ok = document.execCommand('hiliteColor', false, value || null); }catch(err){ ok = false; }
+    if(!ok){ try{ document.execCommand('backColor', false, value || null); }catch(err){} }
+    return;
+  }
+  document.execCommand(cmd, false, value || null);
+}
+function mnSetFontSize(pid, size){
+  if(!size) return;
+  const editor = document.getElementById('mnEditor-'+pid);
+  if(editor) editor.focus();
+  document.execCommand('fontSize', false, size);
+}
+// ---- Sanitizes pasted HTML (from Word, browsers, anywhere) down to the handful of tags/
+// styles the toolbar itself produces, so pasting in a big Word doc can't drag along MSO
+// junk, embedded images, or layout-breaking styles — while still keeping the actual
+// formatting (bold/italic/underline/highlight/font size) the person is pasting for. ----
+const MN_ALLOWED_TAGS = ['B','STRONG','I','EM','U','SPAN','BR','P','DIV','UL','OL','LI','A','FONT'];
+function mnSanitizeNode(node){
+  const walker = [node];
+  while(walker.length){
+    const el = walker.shift();
+    if(el.nodeType !== 1) continue;
+    Array.from(el.childNodes).forEach(child => {
+      if(child.nodeType === 1) walker.push(child);
+    });
+    if(!MN_ALLOWED_TAGS.includes(el.tagName)){
+      // unwrap: keep the text/children, drop the wrapping element itself
+      const parent = el.parentNode;
+      if(parent){
+        while(el.firstChild) parent.insertBefore(el.firstChild, el);
+        parent.removeChild(el);
+      }
+      continue;
+    }
+    const keepStyle = [];
+    const style = el.getAttribute('style');
+    if(style){
+      ['font-weight','font-style','text-decoration','background-color','color','font-size'].forEach(prop => {
+        const m = style.match(new RegExp(prop + '\\s*:\\s*([^;]+)'));
+        if(m) keepStyle.push(prop + ':' + m[1].trim());
+      });
+    }
+    Array.from(el.attributes).forEach(attr => {
+      if(attr.name !== 'style' && attr.name !== 'href' && attr.name !== 'size') el.removeAttribute(attr.name);
+    });
+    if(keepStyle.length) el.setAttribute('style', keepStyle.join(';')); else el.removeAttribute('style');
+  }
+}
+function mnHandlePaste(e){
+  e.preventDefault();
+  const clipboard = e.clipboardData || window.clipboardData;
+  const html = clipboard.getData('text/html');
+  if(html){
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = html;
+    mnSanitizeNode(wrapper);
+    document.execCommand('insertHTML', false, wrapper.innerHTML);
+  } else {
+    const text = clipboard.getData('text/plain') || '';
+    document.execCommand('insertText', false, text);
+  }
+}
+function setupMeetingNoteEditorEvents(){
+  document.querySelectorAll('.mn-editor').forEach(el => {
+    if(el._mnBound) return;
+    el._mnBound = true;
+    el.addEventListener('paste', mnHandlePaste);
+  });
+}
+function logMeetingNote(pid){
+  const p = PROJECTS[pid];
+  if(!p) return;
+  ensureMeetingNotesModel(p);
+  const editor = document.getElementById('mnEditor-'+pid);
+  const html = editor ? editor.innerHTML.trim() : '';
+  const plain = editor ? editor.textContent.trim() : '';
+  if(!plain){ alert('Write or paste something before logging this meeting note.'); return; }
+  const tags = (MN_COMPOSE_TAGS[pid] || []).slice();
+  p.meetingNotes.push({ id:'mtg'+Date.now(), html, tags, createdAt: Date.now(), createdBy: CURRENT_LOGGED_IN_USER });
+  if(editor) editor.innerHTML = '';
+  MN_COMPOSE_TAGS[pid] = [];
+  const picker = document.getElementById('mnTagPicker-'+pid);
+  if(picker) picker.innerHTML = buildMeetingTagPickerHTML(p);
+  const log = document.getElementById('mnLog-'+pid);
+  if(log) log.innerHTML = buildMeetingNotesLogHTML(p);
+}
+function deleteMeetingNoteEntry(pid, noteId){
+  const p = PROJECTS[pid];
+  if(!p) return;
+  if(!confirm('Delete this meeting note? This cannot be undone.')) return;
+  p.meetingNotes = (p.meetingNotes || []).filter(n => n.id !== noteId);
+  const log = document.getElementById('mnLog-'+pid);
+  if(log) log.innerHTML = buildMeetingNotesLogHTML(p);
+}
+function addTagToNote(pid, noteId, tag){
+  const p = PROJECTS[pid];
+  const note = p && (p.meetingNotes||[]).find(n => n.id === noteId);
+  if(!note) return;
+  if(!note.tags) note.tags = [];
+  if(!note.tags.includes(tag)) note.tags.push(tag);
+  const log = document.getElementById('mnLog-'+pid);
+  if(log) log.innerHTML = buildMeetingNotesLogHTML(p);
+}
+function removeTagFromNote(pid, noteId, tag){
+  const p = PROJECTS[pid];
+  const note = p && (p.meetingNotes||[]).find(n => n.id === noteId);
+  if(!note) return;
+  note.tags = (note.tags || []).filter(t => t !== tag);
+  const log = document.getElementById('mnLog-'+pid);
+  if(log) log.innerHTML = buildMeetingNotesLogHTML(p);
+}
+
 async function openCCSubNav(tabName, value){
   document.querySelectorAll('.nav-dd.open').forEach(x => x.classList.remove('open'));
   setCCTab(tabName);
