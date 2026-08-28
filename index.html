@@ -9066,7 +9066,7 @@ function snapshotSyncedEntities(){
 // of the ids whose last-synced bookkeeping gets refreshed, so the next save (already queued
 // via the save queue) re-sends them
 // instead of the app wrongly believing they're already synced. ----
-function applyRpcResultProtectingNewerLocalEdits(localDict, lastSyncedMap, rpcResult){
+function applyRpcResultProtectingNewerLocalEdits(localDict, lastSyncedMap, rpcResult, deletedIds){
   const merged = {};
   // Only ids that actually changed this round need their last-synced bookkeeping touched —
   // re-stringifying every project/estimate just to refresh a cache entry that's already
@@ -9075,6 +9075,11 @@ function applyRpcResultProtectingNewerLocalEdits(localDict, lastSyncedMap, rpcRe
   const idsNeedingLastSyncedRefresh = [];
   let pulledInTeammateChange = false;
   Object.keys(rpcResult || {}).forEach(id => {
+    // This response was built from a snapshot taken before this call was sent — if the id was
+    // deleted locally sometime between that snapshot and now, the response has no way of
+    // knowing that. Without this check, a delete made while an autosave was already mid-flight
+    // could get silently undone the moment that stale response landed.
+    if(deletedIds && deletedIds.has(id)) return;
     merged[id] = rpcResult[id];
     if(!(id in localDict)){
       pulledInTeammateChange = true; // a teammate created something this browser never had
@@ -9082,6 +9087,7 @@ function applyRpcResultProtectingNewerLocalEdits(localDict, lastSyncedMap, rpcRe
     }
   });
   Object.keys(localDict).forEach(id => {
+    if(deletedIds && deletedIds.has(id)) return; // shouldn't normally still be in localDict once deleted, but guard anyway
     const touchedSinceLastConfirmedSync = lastSyncedMap[id] === undefined || JSON.stringify(localDict[id]) !== lastSyncedMap[id];
     if(!touchedSinceLastConfirmedSync){
       const cloudDiffers = rpcResult && Object.prototype.hasOwnProperty.call(rpcResult, id) && JSON.stringify(rpcResult[id]) !== JSON.stringify(localDict[id]);
@@ -9225,10 +9231,10 @@ async function saveAppStateInner(){
       if(projectsRpc.error) throw projectsRpc.error;
       if(estimatesRpc.error) throw estimatesRpc.error;
 
-      const projectsApply = applyRpcResultProtectingNewerLocalEdits(PROJECTS, LAST_SYNCED_PROJECTS, projectsRpc.data);
+      const projectsApply = applyRpcResultProtectingNewerLocalEdits(PROJECTS, LAST_SYNCED_PROJECTS, projectsRpc.data, DELETED_PROJECT_IDS_PENDING_SYNC);
       Object.keys(PROJECTS).forEach(k => delete PROJECTS[k]); Object.assign(PROJECTS, projectsApply.merged);
       projectsApply.idsNeedingLastSyncedRefresh.forEach(id => { LAST_SYNCED_PROJECTS[id] = JSON.stringify(PROJECTS[id]); });
-      const estimatesApply = applyRpcResultProtectingNewerLocalEdits(OPP_ESTIMATES, LAST_SYNCED_OPP_ESTIMATES, estimatesRpc.data);
+      const estimatesApply = applyRpcResultProtectingNewerLocalEdits(OPP_ESTIMATES, LAST_SYNCED_OPP_ESTIMATES, estimatesRpc.data, null);
       OPP_ESTIMATES = estimatesApply.merged;
       estimatesApply.idsNeedingLastSyncedRefresh.forEach(id => { LAST_SYNCED_OPP_ESTIMATES[id] = JSON.stringify(OPP_ESTIMATES[id]); });
       // Only clear the exact ids THIS request told the server about — a deletion made after
@@ -9437,7 +9443,7 @@ document.addEventListener('focusout', (e) => {
 // browser is actually running. Bump this string every time this file gets redeployed. Visible
 // in Company Settings next to the sync status, and logged to console on every load so it can
 // be checked even without opening that page. ----
-const APP_BUILD_VERSION = '2026-08-27-2420-savequeue';
+const APP_BUILD_VERSION = '2026-08-27-2430-deleteracefix';
 console.log('MCD Portal build:', APP_BUILD_VERSION);
 (function stampBuildVersion(){
   const el = document.getElementById('appBuildVersionTag');
