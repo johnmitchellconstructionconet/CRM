@@ -7298,13 +7298,30 @@ function renderPreconProjectGrid(){
     ? `<div class="seq-lead-grid">${projects.map(buildPreconProjectCard).join('')}</div>`
     : '<div class="seq-empty">No projects yet.</div>';
 }
+// ---- A brief on-screen confirmation, separate from the small sync-status text in Company
+// Settings — used specifically for actions (like deleting a project) where knowing "is this
+// actually safe to refresh yet" matters, and a silent visual disappearance from the screen
+// isn't enough confirmation that the change actually reached the server. ----
+function showTransientToast(text){
+  let el = document.getElementById('transientToast');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'transientToast';
+    el.style.cssText = 'position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:11px 20px; border-radius:10px; font-size:13px; font-weight:600; z-index:9999; box-shadow:0 8px 24px rgba(0,0,0,.25); opacity:0; transition:opacity .2s ease; pointer-events:none;';
+    document.body.appendChild(el);
+  }
+  el.textContent = text;
+  el.style.opacity = '1';
+  clearTimeout(el._hideTimer);
+  el._hideTimer = setTimeout(() => { el.style.opacity = '0'; }, 3000);
+}
 function deleteProject(id){
   if(!confirm('Delete this project? This cannot be undone.')) return;
   delete PROJECTS[id];
   DELETED_PROJECT_IDS_PENDING_SYNC.add(id);
   renderProjectCardGrids();
-  saveAppState(); // don't wait for the next 4-second tick — a quick refresh right after
-                  // deleting could otherwise catch it before the deletion ever reaches the server
+  showTransientToast('Deleting…');
+  saveAppState().then(() => showTransientToast('Deleted — safe to refresh.'));
 }
 function deleteProjectFromDetail(id){
   if(!confirm('Delete this project? This cannot be undone.')) return;
@@ -7312,7 +7329,8 @@ function deleteProjectFromDetail(id){
   DELETED_PROJECT_IDS_PENDING_SYNC.add(id);
   goPage('precon-dash');
   renderProjectCardGrids();
-  saveAppState(); // same as above — send it now, don't wait for the periodic tick
+  showTransientToast('Deleting…');
+  saveAppState().then(() => showTransientToast('Deleted — safe to refresh.'));
 }
 // ==================== DOCUMENT EDITOR (Proposals & Contracts) ====================
 // Upload a Word doc (.docx, parsed client-side via an inlined copy of mammoth.js — no
@@ -9046,7 +9064,7 @@ function snapshotSyncedEntities(){
 // the server just returned; everything else (untouched, or already matching) is safe to take
 // from the server and mark confirmed. Ids that keep their local copy are deliberately left out
 // of the ids whose last-synced bookkeeping gets refreshed, so the next save (already queued
-// via SAVE_QUEUED_AGAIN) re-sends them
+// via the save queue) re-sends them
 // instead of the app wrongly believing they're already synced. ----
 function applyRpcResultProtectingNewerLocalEdits(localDict, lastSyncedMap, rpcResult){
   const merged = {};
@@ -9138,20 +9156,28 @@ function showSyncErrorBanner(text){
 // save is already running, this just makes sure one more runs right after it finishes,
 // instead of starting a second one in parallel. ----
 let SAVE_IN_PROGRESS = false;
-let SAVE_QUEUED_AGAIN = false;
+let SAVE_QUEUE_RESOLVERS = []; // resolved once a save queued behind an in-flight one actually completes
 async function saveAppState(){
   if(SAVE_IN_PROGRESS){
-    SAVE_QUEUED_AGAIN = true;
-    return;
+    // Something is already saving right now — very possibly the periodic background sync,
+    // which can take several seconds with real project data in the mix. Genuinely wait
+    // until a save that includes THIS change has actually completed, rather than resolving
+    // the instant this gets queued — a caller checking "is it safe to refresh yet" deserves
+    // an honest answer, not a false "done" before anything was actually sent.
+    return new Promise(resolve => { SAVE_QUEUE_RESOLVERS.push(resolve); });
   }
   SAVE_IN_PROGRESS = true;
   try{
     await saveAppStateInner();
   } finally {
     SAVE_IN_PROGRESS = false;
-    if(SAVE_QUEUED_AGAIN){
-      SAVE_QUEUED_AGAIN = false;
-      saveAppState();
+    if(SAVE_QUEUE_RESOLVERS.length){
+      const resolvers = SAVE_QUEUE_RESOLVERS;
+      SAVE_QUEUE_RESOLVERS = [];
+      // Run one more full cycle to actually send whatever queued up while this one was
+      // running, then let everyone who was waiting on it know it's genuinely done.
+      await saveAppState();
+      resolvers.forEach(r => r());
     }
   }
 }
@@ -9411,7 +9437,7 @@ document.addEventListener('focusout', (e) => {
 // browser is actually running. Bump this string every time this file gets redeployed. Visible
 // in Company Settings next to the sync status, and logged to console on every load so it can
 // be checked even without opening that page. ----
-const APP_BUILD_VERSION = '2026-08-27-2410-slowerinterval';
+const APP_BUILD_VERSION = '2026-08-27-2420-savequeue';
 console.log('MCD Portal build:', APP_BUILD_VERSION);
 (function stampBuildVersion(){
   const el = document.getElementById('appBuildVersionTag');
