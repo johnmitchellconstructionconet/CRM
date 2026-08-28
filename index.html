@@ -17932,6 +17932,14 @@ function applyAppSnapshot(snap){
 // id that no longer matches has genuinely been edited in this browser, so it should win. ----
 let LAST_SYNCED_PROJECTS = {};
 let LAST_SYNCED_OPP_ESTIMATES = {};
+// Tracks the last-sent value of every OTHER snapshot key (company settings, team roster, etc.)
+// so an unchanged key can be skipped on the next save instead of being re-sent every 4 seconds
+// regardless. Re-sending unchanged data isn't just wasted bandwidth — Postgres still counts it
+// as a real update and broadcasts it live to every open browser (including the one that sent
+// it) as if a teammate had just changed something, which used to trigger a full-page
+// re-render on every autosave tick and could yank focus out of whatever field someone was
+// mid-typing in.
+let LAST_SYNCED_OTHER_KEYS = {};
 // ---- Deletion is invisible to the "did I touch this id" check above — a deleted project
 // simply isn't in PROJECTS anymore, which looks identical to "a teammate created this and
 // it hasn't synced here yet." Both must be handled oppositely (keep the teammate's; drop
@@ -17944,6 +17952,10 @@ function snapshotSyncedEntities(){
   Object.keys(PROJECTS).forEach(id => { LAST_SYNCED_PROJECTS[id] = JSON.stringify(PROJECTS[id]); });
   LAST_SYNCED_OPP_ESTIMATES = {};
   Object.keys(OPP_ESTIMATES).forEach(id => { LAST_SYNCED_OPP_ESTIMATES[id] = JSON.stringify(OPP_ESTIMATES[id]); });
+  const currentOtherKeys = buildAppSnapshot();
+  Object.keys(currentOtherKeys).forEach(key => {
+    if(key !== 'PROJECTS' && key !== 'OPP_ESTIMATES') LAST_SYNCED_OTHER_KEYS[key] = JSON.stringify(currentOtherKeys[key]);
+  });
 }
 // ---- Merges a locally-touched entity dictionary (PROJECTS or OPP_ESTIMATES) against
 // whatever the cloud actually has right now, right before saving. Two or more people can be
@@ -18160,13 +18172,21 @@ async function saveAppStateInner(){
     // undo that protection, since this upsert has no row lock and could clobber a third
     // computer's write that landed in the gap between the RPC call and this one.
     const updatedAtIso = new Date(savedAtMs).toISOString();
-    const rows = Object.keys(snapshot).filter(key => key !== 'PROJECTS' && key !== 'OPP_ESTIMATES').map(key => ({ key, value: snapshot[key], updated_at: updatedAtIso }));
-    const { error } = await supabaseClient.from('app_state').upsert(rows);
-    if(error){
-      console.warn('Supabase sync failed, data is still safe locally:', error);
-      setSyncIndicator('Saved locally — cloud sync failed (' + error.message + ')');
-      showSyncErrorBanner('Not syncing to the team cloud right now — your work is only saved on this computer until this is fixed. (' + error.message + ')');
-      return;
+    const otherKeys = Object.keys(snapshot).filter(key => key !== 'PROJECTS' && key !== 'OPP_ESTIMATES');
+    const changedKeys = otherKeys.filter(key => {
+      const current = JSON.stringify(snapshot[key]);
+      return LAST_SYNCED_OTHER_KEYS[key] !== current;
+    });
+    if(changedKeys.length){
+      const rows = changedKeys.map(key => ({ key, value: snapshot[key], updated_at: updatedAtIso }));
+      const { error } = await supabaseClient.from('app_state').upsert(rows);
+      if(error){
+        console.warn('Supabase sync failed, data is still safe locally:', error);
+        setSyncIndicator('Saved locally — cloud sync failed (' + error.message + ')');
+        showSyncErrorBanner('Not syncing to the team cloud right now — your work is only saved on this computer until this is fixed. (' + error.message + ')');
+        return;
+      }
+      changedKeys.forEach(key => { LAST_SYNCED_OTHER_KEYS[key] = JSON.stringify(snapshot[key]); });
     }
     // Note: NOT calling snapshotSyncedEntities() or clearing DELETED_PROJECT_IDS_PENDING_SYNC
     // here — this upsert deliberately excludes PROJECTS/OPP_ESTIMATES (see above), so its
@@ -18281,6 +18301,13 @@ async function subscribeToRealtimeSync(){
         const result = mergeEntityDictForSave(OPP_ESTIMATES, LAST_SYNCED_OPP_ESTIMATES, row.value || {}, null);
         OPP_ESTIMATES = result.merged;
       } else {
+        const currentValue = buildAppSnapshot()[row.key];
+        if(JSON.stringify(currentValue) === JSON.stringify(row.value)){
+          // Self-echo of a write that didn't actually change anything (or a duplicate delivery)
+          // — nothing to apply, and re-rendering here would just yank focus out of whatever
+          // field someone's mid-typing in for no reason.
+          return;
+        }
         applyAppSnapshot({ [row.key]: row.value });
       }
       renderEverything();
