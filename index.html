@@ -18330,11 +18330,21 @@ function resetToDemoData(){
 // Autosave on an interval and on the way out — covers every mutation everywhere in the
 // app without needing a save call hand-added to every single edit function.
 setInterval(saveAppState, 4000);
+// If a repaint was deferred because a field was focused (see renderEverything above), retry it
+// once focus actually leaves an editable field — with a short delay so that field's own
+// onchange handler commits its value into the data model first, so the retry picks up both
+// the person's own edit and whatever external change had been waiting.
+document.addEventListener('focusout', (e) => {
+  const tag = e.target && e.target.tagName;
+  if(RENDER_EVERYTHING_PENDING && (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT')){
+    setTimeout(() => { if(RENDER_EVERYTHING_PENDING) renderEverything(); }, 50);
+  }
+});
 // ---- Build version stamp — exists purely so it's never a guessing game which code a given
 // browser is actually running. Bump this string every time this file gets redeployed. Visible
 // in Company Settings next to the sync status, and logged to console on every load so it can
 // be checked even without opening that page. ----
-const APP_BUILD_VERSION = '2026-08-27-2140';
+const APP_BUILD_VERSION = '2026-08-27-2015-focusfix';
 console.log('MCD Portal build:', APP_BUILD_VERSION);
 (function stampBuildVersion(){
   const el = document.getElementById('appBuildVersionTag');
@@ -18344,7 +18354,22 @@ window.addEventListener('beforeunload', () => { try{ localStorage.setItem(APP_ST
 document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden') saveAppState(); });
 
 const CLIENT_VIEW_PROJECT_ID = new URLSearchParams(location.search).get('client_project');
+// ---- Guards against a background sync (periodic autosave picking up someone else's change,
+// or a live update) silently erasing text a person is mid-typing. These project detail fields
+// save on blur (onchange), not on every keystroke — a global repaint while a field is focused
+// but not yet blurred would replace it with whatever the data model still holds, wiping the
+// in-progress text even though nothing was actually lost from the data itself. Deferring the
+// repaint until focus moves away (see the focusout listener near setInterval below) means an
+// external change becomes visible as soon as the person is done with that field, without ever
+// risking their own not-yet-committed edit. ----
+let RENDER_EVERYTHING_PENDING = false;
 function renderEverything(){
+  const active = document.activeElement;
+  if(active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT')){
+    RENDER_EVERYTHING_PENDING = true;
+    return;
+  }
+  RENDER_EVERYTHING_PENDING = false;
   syncAllFollowUpTasks();
   if(CLIENT_VIEW_PROJECT_ID && PROJECTS[CLIENT_VIEW_PROJECT_ID]){
     renderClientProgressView(CLIENT_VIEW_PROJECT_ID);
