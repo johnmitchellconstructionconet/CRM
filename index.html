@@ -6920,7 +6920,6 @@ function buildClientProgressContentHTML(p){
 }
 function renderClientProgressView(projectId){
   const p = PROJECTS[projectId];
-  CLIENT_VIEW_ACTIVE_TAB = 'schedule';
   document.body.innerHTML = `
     <div style="max-width:1600px; margin:0 auto; padding:48px 40px; font-family:'Inter',sans-serif; min-height:100vh;">
       ${buildClientProgressContentHTML(p)}
@@ -6930,7 +6929,6 @@ function renderClientProgressView(projectId){
 // ---- Inline preview of the exact same content, rendered as a project tab instead of a
 // separate page — lets the team check what the client link shows without leaving the app. ----
 function buildClientViewPreviewHTML(p){
-  CLIENT_VIEW_ACTIVE_TAB = 'schedule';
   return `
     <div class="hint no-print" style="margin-bottom:14px;">This is exactly what the client sees on their link — nothing here is editable. Post updates from the Overview tab.</div>
     <div class="client-view-frame" style="border:2px dashed var(--border-strong); border-radius:14px; padding:36px 40px; background:var(--white);">
@@ -7761,6 +7759,13 @@ function buildActionBannerHTML(p){
 // ============================================================
 const MN_HIGHLIGHT_COLORS = ['#FDF3B0','#C9E7D0','#D6E4F0','#F3D3D3','#E6D6F0'];
 const MN_COMPOSE_TAGS = {}; // projectId -> array of tag names currently selected in that project's composer
+let MN_SEARCH_QUERY = {}; // projectId -> current search text for the meeting notes log
+let MN_EXPANDED_NOTES = new Set(); // note ids currently expanded — everything is collapsed by default, this just tracks exceptions
+function mnPlainTextFromHtml(html){
+  const div = document.createElement('div');
+  div.innerHTML = html || '';
+  return (div.textContent || '').trim();
+}
 function ensureMeetingNotesModel(p){
   if(!p.meetingNotes) p.meetingNotes = [];
   if(!p.meetingNoteTags) p.meetingNoteTags = ['Client Meeting','Internal','Site Visit','Design Review','Subcontractor'];
@@ -7822,12 +7827,34 @@ function buildMeetingNotesTabHTML(p){
       </div>
     </div>
 
+    <div class="row" style="gap:8px; margin-bottom:12px; align-items:center;">
+      <input type="text" id="mnSearchInput-${p.id}" placeholder="Search meeting notes — title, text, or tag…" value="${escapeHtmlLite(MN_SEARCH_QUERY[p.id]||'')}" style="max-width:340px;" oninput="setMeetingNoteSearch('${p.id}', this.value)">
+      <span class="pill pill-slate" style="cursor:pointer;" onclick="clearMeetingNoteSearch('${p.id}')">Clear</span>
+    </div>
     <div id="mnLog-${p.id}">${buildMeetingNotesLogHTML(p)}</div>
   `;
 }
 function buildMeetingTagPoolHTML(p){
   if(!p.meetingNoteTags.length) return '<span class="sub-txt">No tags yet — add one below.</span>';
-  return p.meetingNoteTags.map(t => `<span class="mn-tag-chip ${mnTagColorClass(t)}">${escapeHtmlLite(t)}<span class="mn-tag-x" title="Delete tag" onclick="deleteMeetingNoteTag('${p.id}','${escapeHtmlLite(t).replace(/'/g,"\\'")}')">✕</span></span>`).join('');
+  return p.meetingNoteTags.map(t => `<span class="mn-tag-chip ${mnTagColorClass(t)}">${escapeHtmlLite(t)}<span class="mn-tag-edit" title="Rename tag" style="cursor:pointer; margin-left:5px;" onclick="renameMeetingNoteTag('${p.id}','${escapeHtmlLite(t).replace(/'/g,"\\'")}')">✎</span><span class="mn-tag-x" title="Delete tag" onclick="deleteMeetingNoteTag('${p.id}','${escapeHtmlLite(t).replace(/'/g,"\\'")}')">✕</span></span>`).join('');
+}
+function renameMeetingNoteTag(pid, oldTag){
+  const p = PROJECTS[pid];
+  if(!p) return;
+  ensureMeetingNotesModel(p);
+  const newName = prompt('Rename tag "' + oldTag + '" to:', oldTag);
+  if(newName === null) return; // cancelled
+  const trimmed = newName.trim();
+  if(!trimmed || trimmed === oldTag) return;
+  if(p.meetingNoteTags.some(t => t.toLowerCase() === trimmed.toLowerCase() && t !== oldTag)){
+    alert('A tag with that name already exists.');
+    return;
+  }
+  p.meetingNoteTags = p.meetingNoteTags.map(t => t === oldTag ? trimmed : t);
+  (p.meetingNotes||[]).forEach(n => { if(n.tags) n.tags = n.tags.map(t => t === oldTag ? trimmed : t); });
+  if(MN_COMPOSE_TAGS[pid]) MN_COMPOSE_TAGS[pid] = MN_COMPOSE_TAGS[pid].map(t => t === oldTag ? trimmed : t);
+  saveAppState();
+  refreshMeetingTagUI(p);
 }
 function buildMeetingTagPickerHTML(p){
   const selected = MN_COMPOSE_TAGS[p.id] || [];
@@ -7835,9 +7862,35 @@ function buildMeetingTagPickerHTML(p){
   return p.meetingNoteTags.map(t => `<span class="mn-tag-toggle ${selected.includes(t) ? 'mn-selected' : ''}" data-tag="${escapeHtmlLite(t)}" onclick="mnToggleComposeTag('${p.id}', this, '${escapeHtmlLite(t).replace(/'/g,"\\'")}')">${escapeHtmlLite(t)}</span>`).join('');
 }
 function buildMeetingNotesLogHTML(p){
-  const notes = (p.meetingNotes || []).slice().sort((a,b) => b.createdAt - a.createdAt);
-  if(!notes.length) return '<div class="empty-row">No meeting notes logged yet — write one above and click "Log Meeting Note."</div>';
+  const query = (MN_SEARCH_QUERY[p.id] || '').trim().toLowerCase();
+  let notes = (p.meetingNotes || []).slice().sort((a,b) => b.createdAt - a.createdAt);
+  if(query){
+    notes = notes.filter(n => {
+      const title = (n.title||'').toLowerCase();
+      const plain = mnPlainTextFromHtml(n.html).toLowerCase();
+      const tags = (n.tags||[]).join(' ').toLowerCase();
+      return title.includes(query) || plain.includes(query) || tags.includes(query);
+    });
+  }
+  if(!notes.length){
+    if(query) return `<div class="empty-row">No meeting notes match "${escapeHtmlLite(MN_SEARCH_QUERY[p.id]||'')}".</div>`;
+    return '<div class="empty-row">No meeting notes logged yet — write one above and click "Log Meeting Note."</div>';
+  }
   return notes.map(n => buildMeetingNoteEntryCardHTML(p, n)).join('');
+}
+function setMeetingNoteSearch(pid, value){
+  MN_SEARCH_QUERY[pid] = value;
+  const log = document.getElementById('mnLog-'+pid);
+  const p = PROJECTS[pid];
+  if(log && p) log.innerHTML = buildMeetingNotesLogHTML(p);
+}
+function clearMeetingNoteSearch(pid){
+  MN_SEARCH_QUERY[pid] = '';
+  const input = document.getElementById('mnSearchInput-'+pid);
+  if(input) input.value = '';
+  const log = document.getElementById('mnLog-'+pid);
+  const p = PROJECTS[pid];
+  if(log && p) log.innerHTML = buildMeetingNotesLogHTML(p);
 }
 function fmtMeetingNoteWhen(ts){
   if(!ts) return '';
@@ -7847,25 +7900,39 @@ function fmtMeetingNoteWhen(ts){
 }
 function buildMeetingNoteEntryCardHTML(p, n){
   const availableToAdd = p.meetingNoteTags.filter(t => !(n.tags||[]).includes(t));
+  const expanded = MN_EXPANDED_NOTES.has(n.id);
+  const plain = mnPlainTextFromHtml(n.html);
+  const preview = plain.length > 140 ? plain.slice(0,140) + '…' : plain;
   return `
     <div class="mn-note-card">
-      <div class="mn-note-head">
+      <div class="mn-note-head" style="cursor:pointer;" onclick="toggleMeetingNoteExpanded('${p.id}','${n.id}')">
         <div>
           ${n.title ? `<div class="mn-note-title">${escapeHtmlLite(n.title)}</div>` : ''}
           <div class="mn-note-who">${escapeHtmlLite(n.createdBy || CURRENT_LOGGED_IN_USER)}</div>
           <div class="mn-note-when">${fmtMeetingNoteWhen(n.createdAt)}</div>
+          ${!expanded ? `<div class="sub-txt" style="margin-top:4px;">${preview ? escapeHtmlLite(preview) : '<em>No text</em>'}</div>` : ''}
         </div>
-        <span class="mn-note-delete" onclick="deleteMeetingNoteEntry('${p.id}','${n.id}')">Delete</span>
+        <div class="row" style="gap:12px; align-items:center;">
+          <span style="font-size:11px; color:var(--ink-faint); white-space:nowrap;">${expanded ? '▲ Collapse' : '▼ Expand'}</span>
+          <span class="mn-note-delete" onclick="event.stopPropagation(); deleteMeetingNoteEntry('${p.id}','${n.id}')">Delete</span>
+        </div>
       </div>
-      <div class="mn-note-body">${n.html}</div>
+      ${expanded ? `<div class="mn-note-body">${n.html}</div>` : ''}
       <div class="mn-note-tags">
-        ${(n.tags||[]).map(t => `<span class="mn-tag-chip ${mnTagColorClass(t)}">${escapeHtmlLite(t)}<span class="mn-tag-x" title="Remove from this note" onclick="removeTagFromNote('${p.id}','${n.id}','${escapeHtmlLite(t).replace(/'/g,"\\'")}')">✕</span></span>`).join('')}
-        ${availableToAdd.length ? `<select class="mn-add-tag-select" onchange="if(this.value){addTagToNote('${p.id}','${n.id}', this.value)}">
+        ${(n.tags||[]).map(t => `<span class="mn-tag-chip ${mnTagColorClass(t)}">${escapeHtmlLite(t)}<span class="mn-tag-x" title="Remove from this note" onclick="event.stopPropagation(); removeTagFromNote('${p.id}','${n.id}','${escapeHtmlLite(t).replace(/'/g,"\\'")}')">✕</span></span>`).join('')}
+        ${availableToAdd.length ? `<select class="mn-add-tag-select" onclick="event.stopPropagation()" onchange="if(this.value){addTagToNote('${p.id}','${n.id}', this.value)}">
           <option value="">+ Add tag</option>
           ${availableToAdd.map(t => `<option value="${escapeHtmlLite(t)}">${escapeHtmlLite(t)}</option>`).join('')}
         </select>` : ''}
       </div>
     </div>`;
+}
+function toggleMeetingNoteExpanded(pid, noteId){
+  if(MN_EXPANDED_NOTES.has(noteId)) MN_EXPANDED_NOTES.delete(noteId);
+  else MN_EXPANDED_NOTES.add(noteId);
+  const log = document.getElementById('mnLog-'+pid);
+  const p = PROJECTS[pid];
+  if(log && p) log.innerHTML = buildMeetingNotesLogHTML(p);
 }
 function toggleMeetingTagManager(pid){
   const el = document.getElementById('mnTagManager-'+pid);
@@ -7892,6 +7959,7 @@ function addMeetingNoteTag(pid){
   }
   p.meetingNoteTags.push(name);
   input.value = '';
+  saveAppState();
   refreshMeetingTagUI(p);
 }
 function deleteMeetingNoteTag(pid, tag){
@@ -7902,6 +7970,7 @@ function deleteMeetingNoteTag(pid, tag){
   p.meetingNoteTags = p.meetingNoteTags.filter(t => t !== tag);
   (p.meetingNotes||[]).forEach(n => { if(n.tags) n.tags = n.tags.filter(t => t !== tag); });
   if(MN_COMPOSE_TAGS[pid]) MN_COMPOSE_TAGS[pid] = MN_COMPOSE_TAGS[pid].filter(t => t !== tag);
+  saveAppState();
   refreshMeetingTagUI(p);
 }
 function mnToggleComposeTag(pid, el, tag){
@@ -7998,7 +8067,9 @@ function logMeetingNote(pid){
   const plain = editor ? editor.textContent.trim() : '';
   if(!plain){ alert('Write or paste something before logging this meeting note.'); return; }
   const tags = (MN_COMPOSE_TAGS[pid] || []).slice();
-  p.meetingNotes.push({ id:'mtg'+Date.now(), title, html, tags, createdAt: Date.now(), createdBy: CURRENT_LOGGED_IN_USER });
+  const newNoteId = 'mtg'+Date.now();
+  p.meetingNotes.push({ id:newNoteId, title, html, tags, createdAt: Date.now(), createdBy: CURRENT_LOGGED_IN_USER });
+  MN_EXPANDED_NOTES.add(newNoteId);
   MN_COMPOSE_TAGS[pid] = [];
   saveAppState();
   // A full refresh instead of patching the editor, tag picker, and log separately — if any
@@ -9339,7 +9410,7 @@ document.addEventListener('focusout', (e) => {
 // browser is actually running. Bump this string every time this file gets redeployed. Visible
 // in Company Settings next to the sync status, and logged to console on every load so it can
 // be checked even without opening that page. ----
-const APP_BUILD_VERSION = '2026-08-27-2340-draftguard';
+const APP_BUILD_VERSION = '2026-08-27-2359-clienttabfix';
 console.log('MCD Portal build:', APP_BUILD_VERSION);
 (function stampBuildVersion(){
   const el = document.getElementById('appBuildVersionTag');
