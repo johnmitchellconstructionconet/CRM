@@ -5476,6 +5476,7 @@ function setBaseline(projectId){
     milestones: ph.milestones.map(m => ({ name: m.name, due: m.due }))
   }));
   p.baselineSetDate = new Date().toISOString().slice(0,10);
+  saveAppState();
   renderProjectDetail();
 }
 const GANTT_LEFT_COL = 210, GANTT_GAP = 12, GANTT_RIGHT_COL = 170, GANTT_PX_PER_DAY = 28;
@@ -9233,6 +9234,16 @@ async function saveAppState(){
 // (e.g. right as the tab closes), never as the source of truth once Supabase is connected. ----
 async function saveAppStateInner(){
   const savedAtMs = Date.now();
+  // A project id can only end up in this permanent-block list by an actual delete click.
+  // If that same id is currently sitting in PROJECTS with real data — however that happened —
+  // that's undeniable proof it's not meant to be permanently excluded from saving anymore.
+  // This self-heals that specific contradiction rather than requiring anyone to remember
+  // exactly what got clicked earlier.
+  Object.keys(PROJECTS).forEach(id => {
+    if(PERMANENTLY_DELETED_PROJECT_IDS_THIS_SESSION.has(id)){
+      PERMANENTLY_DELETED_PROJECT_IDS_THIS_SESSION.delete(id);
+    }
+  });
   let session = null;
   if(SUPABASE_CONFIGURED && supabaseClient){
     try{
@@ -9483,7 +9494,7 @@ document.addEventListener('focusout', (e) => {
 // browser is actually running. Bump this string every time this file gets redeployed. Visible
 // in Company Settings next to the sync status, and logged to console on every load so it can
 // be checked even without opening that page. ----
-const APP_BUILD_VERSION = '2026-08-27-2520-mergegapclosed';
+const APP_BUILD_VERSION = '2026-08-27-2530-baselinefix';
 console.log('MCD Portal build:', APP_BUILD_VERSION);
 (function stampBuildVersion(){
   const el = document.getElementById('appBuildVersionTag');
