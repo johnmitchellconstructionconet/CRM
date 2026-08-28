@@ -9107,9 +9107,18 @@ function applyRpcResultProtectingNewerLocalEdits(localDict, lastSyncedMap, rpcRe
   });
   Object.keys(localDict).forEach(id => {
     if(deletedIds && deletedIds.has(id)) return; // shouldn't normally still be in localDict once deleted, but guard anyway
+    if(PERMANENTLY_DELETED_PROJECT_IDS_THIS_SESSION.has(id)) return;
     const touchedSinceLastConfirmedSync = lastSyncedMap[id] === undefined || JSON.stringify(localDict[id]) !== lastSyncedMap[id];
     if(!touchedSinceLastConfirmedSync){
-      const cloudDiffers = rpcResult && Object.prototype.hasOwnProperty.call(rpcResult, id) && JSON.stringify(rpcResult[id]) !== JSON.stringify(localDict[id]);
+      const inResult = !!(rpcResult && Object.prototype.hasOwnProperty.call(rpcResult, id));
+      if(!inResult){
+        // Untouched here, and this response simply doesn't mention the id at all — not the
+        // same thing as the response explicitly confirming it's gone. Defaulting to keeping
+        // the local copy is the safe direction, same reasoning as the realtime merge above.
+        merged[id] = localDict[id];
+        return;
+      }
+      const cloudDiffers = JSON.stringify(rpcResult[id]) !== JSON.stringify(localDict[id]);
       if(cloudDiffers){
         pulledInTeammateChange = true;
         idsNeedingLastSyncedRefresh.push(id); // teammate's edit landed — bookkeeping needs to catch up to the new value
@@ -9156,9 +9165,16 @@ function mergeEntityDictForSave(localDict, lastSyncedMap, cloudDict, deletedIds)
     } else if(inCloud && JSON.stringify(cloudDict[id]) !== JSON.stringify(localDict[id])){
       merged[id] = cloudDict[id]; // untouched here, and the cloud's copy differs — a teammate's edit, take theirs
       pulledInTeammateChange = true;
+    } else if(!inCloud){
+      // Previously synced, untouched here, and this specific update simply doesn't mention the
+      // id at all — not the same thing as the update explicitly confirming it's gone. A large
+      // or partial update can omit an id for reasons that have nothing to do with deletion.
+      // Defaulting to keeping the local copy is the safe direction: a genuine deletion made
+      // elsewhere still catches up on the next update that actually includes full data, while
+      // an incomplete one can no longer erase something real in the meantime.
+      merged[id] = localDict[id];
     }
-    // else: either identical either way, or (unchanged here + previously synced + now missing
-    // from cloud) — someone deleted it elsewhere; merged[id] is correctly left unset.
+    // else: inCloud is true and matches localDict exactly — already correct, nothing to do
   });
   return { merged, pulledInTeammateChange };
 }
@@ -9467,7 +9483,7 @@ document.addEventListener('focusout', (e) => {
 // browser is actually running. Bump this string every time this file gets redeployed. Visible
 // in Company Settings next to the sync status, and logged to console on every load so it can
 // be checked even without opening that page. ----
-const APP_BUILD_VERSION = '2026-08-27-2510-addprojectfix';
+const APP_BUILD_VERSION = '2026-08-27-2520-mergegapclosed';
 console.log('MCD Portal build:', APP_BUILD_VERSION);
 (function stampBuildVersion(){
   const el = document.getElementById('appBuildVersionTag');
