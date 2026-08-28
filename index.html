@@ -18034,18 +18034,23 @@ function mergeEntityDictForSave(localDict, lastSyncedMap, cloudDict, deletedIds)
   Object.keys(localDict).forEach(id => {
     if(deletedIds && deletedIds.has(id)) return;
     const inCloud = !!(cloudDict && Object.prototype.hasOwnProperty.call(cloudDict, id));
-    const touchedLocally = lastSyncedMap[id] === undefined || JSON.stringify(localDict[id]) !== lastSyncedMap[id];
-    if(touchedLocally || !inCloud){
-      // Either this browser has genuinely changed it, or this particular fetch simply
-      // doesn't show it (a race, a stale read, anything) — in both cases the local copy is
-      // the one we actually know is real, so it wins. Never drop it just because one fetch
-      // happened not to include it.
-      merged[id] = localDict[id];
-    } else if(JSON.stringify(cloudDict[id]) !== JSON.stringify(localDict[id])){
+    // Never confirmed synced by THIS browser before, vs previously confirmed and now missing —
+    // those are opposite situations even though both look like "I have it, cloud doesn't":
+    // the first is a brand-new local creation that hasn't gone up yet (push it); the second is
+    // something that existed, was deleted by someone else since this browser last synced, and
+    // this browser simply hasn't heard about it (respect the deletion, don't resurrect it).
+    const neverSyncedHere = lastSyncedMap[id] === undefined;
+    const touchedLocally = !neverSyncedHere && JSON.stringify(localDict[id]) !== lastSyncedMap[id];
+    if(touchedLocally){
+      merged[id] = localDict[id]; // edited here since last sync — local wins regardless of what this fetch shows
+    } else if(neverSyncedHere && !inCloud){
+      merged[id] = localDict[id]; // genuinely new here and the cloud doesn't have it yet — push it
+    } else if(inCloud && JSON.stringify(cloudDict[id]) !== JSON.stringify(localDict[id])){
       merged[id] = cloudDict[id]; // untouched here, and the cloud's copy differs — a teammate's edit, take theirs
       pulledInTeammateChange = true;
     }
-    // else: identical either way — nothing to do, merged[id] already holds the right value.
+    // else: either identical either way, or (unchanged here + previously synced + now missing
+    // from cloud) — someone deleted it elsewhere; merged[id] is correctly left unset.
   });
   return { merged, pulledInTeammateChange };
 }
@@ -18344,7 +18349,7 @@ document.addEventListener('focusout', (e) => {
 // browser is actually running. Bump this string every time this file gets redeployed. Visible
 // in Company Settings next to the sync status, and logged to console on every load so it can
 // be checked even without opening that page. ----
-const APP_BUILD_VERSION = '2026-08-27-2015-focusfix';
+const APP_BUILD_VERSION = '2026-08-27-2115-deletionfix';
 console.log('MCD Portal build:', APP_BUILD_VERSION);
 (function stampBuildVersion(){
   const el = document.getElementById('appBuildVersionTag');
