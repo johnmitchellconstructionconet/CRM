@@ -18,6 +18,13 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
+/* Any element wired up to respond to a click shouldn't also be selectable as text — without
+   this, the browser can interpret a click (especially from a trackpad, where a pixel or two
+   of movement during the click is common) as the start of a text-selection drag instead of a
+   discrete click. That shows up as the element's label highlighting blue instead of actually
+   activating — exactly what was happening on the project detail tabs, and the same underlying
+   gap exists on cards, rows, pills, and other tab sets throughout the app, not just there. */
+[onclick]{ user-select:none; -webkit-user-select:none; -moz-user-select:none; }
 :root{
   --cream:#FAF9F7;
   --paper:#FFFFFF;
@@ -860,7 +867,7 @@ tbody tr:hover{background:#FCFBF8;}
 .next-action-banner .na-due .l{font-size:9.5px; text-transform:uppercase; letter-spacing:0.05em; color:#C9BFA8;}
 
 .cc-tabs{display:flex; gap:2px; border-bottom:1px solid var(--border); margin-bottom:22px; overflow-x:auto;}
-.cc-tab{padding:10px 16px; font-size:13px; font-weight:600; color:var(--ink-faint); border-bottom:2px solid transparent; cursor:pointer; white-space:nowrap;}
+.cc-tab{padding:10px 16px; font-size:13px; font-weight:600; color:var(--ink-faint); border-bottom:2px solid transparent; cursor:pointer; white-space:nowrap; user-select:none; -webkit-user-select:none;}
 .cc-tab.active{color:var(--ink); border-color:var(--ink);}
 .cc-shell{padding:40px 20px; text-align:center; color:var(--ink-faint); border:1px dashed var(--border); border-radius:var(--radius);}
 .cc-shell strong{color:var(--ink-soft); display:block; margin-bottom:6px; font-size:14px;}
@@ -18355,7 +18362,7 @@ document.addEventListener('focusout', (e) => {
 // browser is actually running. Bump this string every time this file gets redeployed. Visible
 // in Company Settings next to the sync status, and logged to console on every load so it can
 // be checked even without opening that page. ----
-const APP_BUILD_VERSION = '2026-08-27-2145-deletesave';
+const APP_BUILD_VERSION = '2026-08-27-2200-tabclick';
 console.log('MCD Portal build:', APP_BUILD_VERSION);
 (function stampBuildVersion(){
   const el = document.getElementById('appBuildVersionTag');
