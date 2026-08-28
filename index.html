@@ -9243,6 +9243,12 @@ async function saveAppStateInner(){
     if(PERMANENTLY_DELETED_PROJECT_IDS_THIS_SESSION.has(id)){
       PERMANENTLY_DELETED_PROJECT_IDS_THIS_SESSION.delete(id);
     }
+    if(DELETED_PROJECT_IDS_PENDING_SYNC.has(id)){
+      // If this id is stuck in here from an earlier incomplete delete, every save since would
+      // have been explicitly telling the server to remove this project — which would make any
+      // edit to it look like it saved locally while never actually landing in the cloud.
+      DELETED_PROJECT_IDS_PENDING_SYNC.delete(id);
+    }
   });
   let session = null;
   if(SUPABASE_CONFIGURED && supabaseClient){
@@ -9435,19 +9441,31 @@ async function subscribeToRealtimeSync(){
   const { data: sessionData } = await supabaseClient.auth.getSession();
   if(!sessionData || !sessionData.session) return;
   REALTIME_CHANNEL = supabaseClient.channel('app_state_sync')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'app_state' }, (payload) => {
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'app_state' }, async (payload) => {
       const row = payload.new || payload.old;
       if(!row || !row.key) return;
-      // PROJECTS and OPP_ESTIMATES get the same protective, per-id merge used before saving —
-      // never a blind overwrite. Without this, a teammate's save landing here mid-edit (or in
-      // the split second before this browser's own not-yet-saved "Add Project" finishes) would
-      // wholesale replace the local dictionary and silently erase the unsaved local change.
-      if(row.key === 'PROJECTS'){
-        const result = mergeEntityDictForSave(PROJECTS, LAST_SYNCED_PROJECTS, row.value || {}, DELETED_PROJECT_IDS_PENDING_SYNC);
-        Object.keys(PROJECTS).forEach(k => delete PROJECTS[k]); Object.assign(PROJECTS, result.merged);
-      } else if(row.key === 'OPP_ESTIMATES'){
-        const result = mergeEntityDictForSave(OPP_ESTIMATES, LAST_SYNCED_OPP_ESTIMATES, row.value || {}, null);
-        OPP_ESTIMATES = result.merged;
+      if(row.key === 'PROJECTS' || row.key === 'OPP_ESTIMATES'){
+        // The pushed payload itself can occasionally describe an OLDER snapshot than what's
+        // already been confirmed here — this becomes visible with larger, real project data
+        // in a way it never was against small test data. Treating this notification only as
+        // "something changed, go check" and fetching the row fresh sidesteps that: a live read
+        // at this exact moment is never older than the event that triggered it, which a pushed
+        // payload sometimes can be.
+        let fresh;
+        try{
+          const { data, error } = await supabaseClient.from('app_state').select('value').eq('key', row.key).maybeSingle();
+          if(error || !data) return;
+          fresh = data.value || {};
+        } catch(e){ return; } // next periodic save reconciles regardless
+        if(row.key === 'PROJECTS'){
+          const result = mergeEntityDictForSave(PROJECTS, LAST_SYNCED_PROJECTS, fresh, DELETED_PROJECT_IDS_PENDING_SYNC);
+          Object.keys(PROJECTS).forEach(k => delete PROJECTS[k]); Object.assign(PROJECTS, result.merged);
+          if(!result.pulledInTeammateChange) return;
+        } else {
+          const result = mergeEntityDictForSave(OPP_ESTIMATES, LAST_SYNCED_OPP_ESTIMATES, fresh, null);
+          OPP_ESTIMATES = result.merged;
+          if(!result.pulledInTeammateChange) return;
+        }
       } else {
         const currentValue = buildAppSnapshot()[row.key];
         if(JSON.stringify(currentValue) === JSON.stringify(row.value)){
@@ -9494,7 +9512,7 @@ document.addEventListener('focusout', (e) => {
 // browser is actually running. Bump this string every time this file gets redeployed. Visible
 // in Company Settings next to the sync status, and logged to console on every load so it can
 // be checked even without opening that page. ----
-const APP_BUILD_VERSION = '2026-08-27-2530-baselinefix';
+const APP_BUILD_VERSION = '2026-08-27-2540-freshfetchfix';
 console.log('MCD Portal build:', APP_BUILD_VERSION);
 (function stampBuildVersion(){
   const el = document.getElementById('appBuildVersionTag');
