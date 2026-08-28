@@ -8439,6 +8439,8 @@ function submitAddProject(){
   };
   closeQuickOverlay();
   renderProjectCardGrids();
+  showTransientToast('Saving…');
+  saveAppState().then(() => showTransientToast('Saved to team cloud.'));
 }
 function openAddPartner(){
   openQuickOverlay(`
@@ -8468,6 +8470,7 @@ function submitAddPartner(){
   });
   closeQuickOverlay();
   renderRelationshipPartners();
+  saveAppState();
 }
 function deletePartner(id){
   if(!confirm('Delete this relationship partner?')) return;
@@ -9464,7 +9467,7 @@ document.addEventListener('focusout', (e) => {
 // browser is actually running. Bump this string every time this file gets redeployed. Visible
 // in Company Settings next to the sync status, and logged to console on every load so it can
 // be checked even without opening that page. ----
-const APP_BUILD_VERSION = '2026-08-27-2500-precisedeletefix';
+const APP_BUILD_VERSION = '2026-08-27-2510-addprojectfix';
 console.log('MCD Portal build:', APP_BUILD_VERSION);
 (function stampBuildVersion(){
   const el = document.getElementById('appBuildVersionTag');
