@@ -9339,7 +9339,7 @@ document.addEventListener('focusout', (e) => {
 // browser is actually running. Bump this string every time this file gets redeployed. Visible
 // in Company Settings next to the sync status, and logged to console on every load so it can
 // be checked even without opening that page. ----
-const APP_BUILD_VERSION = '2026-08-27-2320-meetingnotefix';
+const APP_BUILD_VERSION = '2026-08-27-2340-draftguard';
 console.log('MCD Portal build:', APP_BUILD_VERSION);
 (function stampBuildVersion(){
   const el = document.getElementById('appBuildVersionTag');
@@ -9356,11 +9356,22 @@ const CLIENT_VIEW_PROJECT_ID = new URLSearchParams(location.search).get('client_
 // in-progress text even though nothing was actually lost from the data itself. Deferring the
 // repaint until focus moves away (see the focusout listener near setInterval below) means an
 // external change becomes visible as soon as the person is done with that field, without ever
-// risking their own not-yet-committed edit. ----
+// risking their own not-yet-committed edit.
+//
+// The meeting-note composer is a special case that needed a second check: unlike every other
+// field here, it does NOT save on blur — it only commits when "+ Log Meeting Note" is clicked.
+// A slightly mis-aimed click on the toolbar (missing a color swatch by a few pixels) still
+// moves focus off the box, which used to look identical to "field committed, safe to refresh."
+// It isn't — the draft is still sitting there, uncommitted. Checking for non-empty composer
+// content directly, regardless of focus, closes that gap. ----
 let RENDER_EVERYTHING_PENDING = false;
+function hasUnsavedMeetingNoteDraft(){
+  return Array.from(document.querySelectorAll('.mn-editor')).some(el => el.textContent.trim().length > 0);
+}
 function renderEverything(){
   const active = document.activeElement;
-  if(active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || active.isContentEditable)){
+  const activeFieldFocused = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || active.isContentEditable);
+  if(activeFieldFocused || hasUnsavedMeetingNoteDraft()){
     RENDER_EVERYTHING_PENDING = true;
     return;
   }
