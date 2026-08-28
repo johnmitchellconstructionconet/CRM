@@ -3811,7 +3811,7 @@ function bulkDeleteSelected(kind){
     BULK_SELECTED.partner.clear();
     renderRelationshipPartners();
   } else if(kind === 'project'){
-    ids.forEach(id => { delete PROJECTS[id]; DELETED_PROJECT_IDS_PENDING_SYNC.add(id); });
+    ids.forEach(id => { delete PROJECTS[id]; DELETED_PROJECT_IDS_PENDING_SYNC.add(id); PERMANENTLY_DELETED_PROJECT_IDS_THIS_SESSION.add(id); });
     BULK_SELECTED.project.clear();
     renderPreconProjectTable(); renderProjectCardGrids();
   }
@@ -7319,6 +7319,7 @@ function deleteProject(id){
   if(!confirm('Delete this project? This cannot be undone.')) return;
   delete PROJECTS[id];
   DELETED_PROJECT_IDS_PENDING_SYNC.add(id);
+  PERMANENTLY_DELETED_PROJECT_IDS_THIS_SESSION.add(id);
   renderProjectCardGrids();
   showTransientToast('Deleting…');
   saveAppState().then(() => showTransientToast('Deleted — safe to refresh.'));
@@ -7327,6 +7328,7 @@ function deleteProjectFromDetail(id){
   if(!confirm('Delete this project? This cannot be undone.')) return;
   delete PROJECTS[id];
   DELETED_PROJECT_IDS_PENDING_SYNC.add(id);
+  PERMANENTLY_DELETED_PROJECT_IDS_THIS_SESSION.add(id);
   goPage('precon-dash');
   renderProjectCardGrids();
   showTransientToast('Deleting…');
@@ -9025,6 +9027,16 @@ let LAST_SYNCED_OTHER_KEYS = {};
 // Cleared once a save has actually gone through, since the cloud's copy of PROJECTS no
 // longer contains it at that point either. ----
 let DELETED_PROJECT_IDS_PENDING_SYNC = new Set();
+// ---- Unlike the set above (cleared once a deletion is confirmed synced), this one is never
+// cleared for the rest of the browser session. It exists specifically to protect against a
+// stale save response or live-update broadcast arriving AFTER a deletion is already confirmed
+// and resurrecting it — without this, the only way to recognize "this was deleted" at that
+// point would be "this browser used to know about it and doesn't anymore," which is too broad:
+// it can't tell a real deletion apart from a project that briefly dropped out of a response
+// for some unrelated reason, and would wrongly treat that as permanent too. Tracking the exact
+// ids someone actually clicked delete on avoids that entirely. A fresh page load starts this
+// empty again, which is correct — a fresh load reads the real, current truth from the server. ----
+let PERMANENTLY_DELETED_PROJECT_IDS_THIS_SESSION = new Set();
 function snapshotSyncedEntities(){
   LAST_SYNCED_PROJECTS = {};
   Object.keys(PROJECTS).forEach(id => { LAST_SYNCED_PROJECTS[id] = JSON.stringify(PROJECTS[id]); });
@@ -9080,6 +9092,10 @@ function applyRpcResultProtectingNewerLocalEdits(localDict, lastSyncedMap, rpcRe
     // knowing that. Without this check, a delete made while an autosave was already mid-flight
     // could get silently undone the moment that stale response landed.
     if(deletedIds && deletedIds.has(id)) return;
+    // Even after a deletion is confirmed and cleared from that pending set, this specific id
+    // (if it was ever actually clicked delete on) stays recorded for the rest of this session —
+    // a response stale enough to arrive after that point shouldn't get to bring it back either.
+    if(PERMANENTLY_DELETED_PROJECT_IDS_THIS_SESSION.has(id)) return;
     merged[id] = rpcResult[id];
     if(!(id in localDict)){
       pulledInTeammateChange = true; // a teammate created something this browser never had
@@ -9111,7 +9127,12 @@ function mergeEntityDictForSave(localDict, lastSyncedMap, cloudDict, deletedIds)
   const merged = {};
   let pulledInTeammateChange = false;
   Object.keys(cloudDict || {}).forEach(id => {
-    if(deletedIds && deletedIds.has(id)) return; // deliberately deleted here — don't let the cloud's stale copy resurrect it
+    if(deletedIds && deletedIds.has(id)) return; // still actively pending deletion right now — don't let the cloud's stale copy resurrect it
+    // Even once a deletion is confirmed and cleared from the pending set above, this specific
+    // id (if it was ever actually clicked delete on) stays recorded for the rest of this
+    // session — so a late-arriving stale broadcast still can't resurrect it, no matter how
+    // long after the fact it shows up.
+    if(PERMANENTLY_DELETED_PROJECT_IDS_THIS_SESSION.has(id)) return;
     merged[id] = cloudDict[id]; // start from cloud — covers ids this browser doesn't have at all yet
     if(!(id in localDict)) pulledInTeammateChange = true;
   });
@@ -9443,7 +9464,7 @@ document.addEventListener('focusout', (e) => {
 // browser is actually running. Bump this string every time this file gets redeployed. Visible
 // in Company Settings next to the sync status, and logged to console on every load so it can
 // be checked even without opening that page. ----
-const APP_BUILD_VERSION = '2026-08-27-2430-deleteracefix';
+const APP_BUILD_VERSION = '2026-08-27-2500-precisedeletefix';
 console.log('MCD Portal build:', APP_BUILD_VERSION);
 (function stampBuildVersion(){
   const el = document.getElementById('appBuildVersionTag');
