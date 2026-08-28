@@ -18354,7 +18354,8 @@ setInterval(saveAppState, 4000);
 // the person's own edit and whatever external change had been waiting.
 document.addEventListener('focusout', (e) => {
   const tag = e.target && e.target.tagName;
-  if(RENDER_EVERYTHING_PENDING && (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT')){
+  const wasContentEditable = e.target && e.target.isContentEditable;
+  if(RENDER_EVERYTHING_PENDING && (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || wasContentEditable)){
     setTimeout(() => { if(RENDER_EVERYTHING_PENDING) renderEverything(); }, 50);
   }
 });
@@ -18362,7 +18363,7 @@ document.addEventListener('focusout', (e) => {
 // browser is actually running. Bump this string every time this file gets redeployed. Visible
 // in Company Settings next to the sync status, and logged to console on every load so it can
 // be checked even without opening that page. ----
-const APP_BUILD_VERSION = '2026-08-27-2200-tabclick';
+const APP_BUILD_VERSION = '2026-08-27-2230-editablefix';
 console.log('MCD Portal build:', APP_BUILD_VERSION);
 (function stampBuildVersion(){
   const el = document.getElementById('appBuildVersionTag');
@@ -18383,7 +18384,7 @@ const CLIENT_VIEW_PROJECT_ID = new URLSearchParams(location.search).get('client_
 let RENDER_EVERYTHING_PENDING = false;
 function renderEverything(){
   const active = document.activeElement;
-  if(active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT')){
+  if(active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || active.isContentEditable)){
     RENDER_EVERYTHING_PENDING = true;
     return;
   }
